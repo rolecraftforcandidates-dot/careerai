@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CareerAI — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal: #00b38a; --teal-light: #e6f7f3; --teal-dark: #007a5e; --teal-mid: #b3e8d9;
+  --purple: #5048e5; --purple-light: #eeecfd;
+  --green: #059669; --green-light: #ecfdf5;
+  --orange: #d97706; --orange-light: #fffbeb;
+  --red: #e84040; --red-light: #fff1f0;
+  --text: #0f0f1a; --muted: #6b6b8a; --border: rgba(0,0,0,0.07);
+  --bg: #f8f9ff; --card: #ffffff; --sidebar-w: 260px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);line-height:1.6}
+
+/* LOGIN */
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f9ff 0%,#e6f7f3 50%,#eeecfd 100%);position:relative;overflow:hidden}
+.login-orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
+.login-orb:nth-child(1){width:400px;height:400px;background:rgba(0,179,138,0.1);top:-100px;left:-100px}
+.login-orb:nth-child(2){width:350px;height:350px;background:rgba(80,72,229,0.08);bottom:-80px;right:-80px}
+.login-card{background:#fff;border-radius:24px;padding:46px 42px;box-shadow:0 20px 60px rgba(0,179,138,0.12),0 4px 16px rgba(0,0,0,0.06);width:100%;max-width:420px;position:relative;z-index:1;animation:fadeUp 0.45s ease both}
+.login-logo{font-family:'Bebas Neue',cursive;font-size:2rem;letter-spacing:3px;color:var(--teal);margin-bottom:6px}
+.login-logo span{color:var(--text)}
+.login-title{font-size:1.35rem;font-weight:700;margin-bottom:4px}
+.login-sub{color:var(--muted);font-size:0.87rem;margin-bottom:28px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:0.82rem;font-weight:600;margin-bottom:7px}
+.form-input{width:100%;padding:12px 15px;border:1.5px solid rgba(0,0,0,0.1);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.94rem;color:var(--text);background:#fafafa;outline:none;transition:all 0.2s}
+.form-input:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,179,138,0.1)}
+.login-error{background:var(--red-light);border:1px solid rgba(232,64,64,0.2);color:var(--red);border-radius:8px;padding:10px 14px;font-size:0.82rem;margin-bottom:14px;display:none}
+.login-btn{width:100%;padding:13px;border:none;border-radius:10px;cursor:pointer;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.98rem;font-weight:700;transition:all 0.2s;box-shadow:0 4px 20px rgba(0,179,138,0.3)}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,179,138,0.4)}
+.login-btn:disabled{opacity:0.65;cursor:not-allowed;transform:none}
+.login-hint{text-align:center;font-size:0.79rem;color:var(--muted);margin-top:18px}
+.login-hint a{color:var(--teal);text-decoration:none;font-weight:500}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* DASHBOARD */
+.dashboard{display:none;min-height:100vh}
+.dashboard.active{display:flex}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;z-index:50;display:flex;flex-direction:column;transition:transform 0.3s}
+.sidebar-logo{padding:22px 24px 18px;border-bottom:1px solid var(--border);font-family:'Bebas Neue',cursive;font-size:1.6rem;letter-spacing:3px}
+.logo-t{color:var(--teal)}.logo-d{color:var(--text)}
+.sidebar-user{padding:14px 18px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
+.user-avatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--teal),var(--purple));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.88rem}
+.user-name{font-size:0.87rem;font-weight:600}
+.user-role{font-size:0.73rem;color:var(--muted)}
+.sidebar-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-section{font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:10px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:0.87rem;font-weight:500;color:var(--muted);transition:all 0.15s;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600}
+.nav-icon{font-size:1rem;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--teal);color:#fff;font-size:0.62rem;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:100px}
+.sidebar-footer{padding:12px 10px;border-top:1px solid var(--border)}
+.logout-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:0.87rem;color:var(--muted);border:none;background:none;transition:all 0.15s;font-family:'DM Sans',sans-serif}
+.logout-btn:hover{background:var(--red-light);color:var(--red)}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-w);flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-title{font-size:0.93rem;font-weight:600}
+.week-pill{background:var(--teal-light);color:var(--teal-dark);font-size:0.72rem;font-family:'DM Mono',monospace;padding:5px 12px;border-radius:100px;letter-spacing:1px}
+.hamburger{display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text)}
+.content{padding:26px 28px;flex:1}
+
+/* PANELS */
+.panel{display:none}
+.panel.active{display:block;animation:fadeUp 0.25s ease}
+.panel-title{font-family:'Bebas Neue',cursive;font-size:2.2rem;letter-spacing:2px;margin-bottom:4px}
+.panel-sub{color:var(--muted);font-size:0.88rem;margin-bottom:22px}
+
+/* SHARED */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px}
+.card-title{font-weight:700;font-size:0.9rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.badge{font-size:0.66rem;font-family:'DM Mono',monospace;padding:2px 8px;border-radius:100px}
+.badge-teal{background:var(--teal-light);color:var(--teal-dark)}
+.badge-purple{background:var(--purple-light);color:var(--purple)}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-orange{background:var(--orange-light);color:var(--orange)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.empty-state{text-align:center;padding:44px 20px;color:var(--muted)}
+.empty-icon{font-size:2.5rem;margin-bottom:10px}
+.empty-text{font-size:0.88rem}
+.error-bar{background:var(--red-light);border:1px solid rgba(232,64,64,0.2);color:var(--red);border-radius:10px;padding:11px 15px;font-size:0.83rem;margin-bottom:16px;display:none}
+
+/* OVERVIEW */
+.welcome-banner{background:linear-gradient(135deg,var(--teal) 0%,var(--purple) 100%);border-radius:16px;padding:26px 28px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
+.welcome-banner::after{content:'';position:absolute;right:-40px;top:-60px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,0.06)}
+.welcome-name{font-family:'Bebas Neue',cursive;font-size:2rem;letter-spacing:2px;margin-bottom:2px}
+.welcome-sub{font-size:0.86rem;opacity:0.88}
+.progress-wrap{margin-top:16px}
+.progress-meta{display:flex;justify-content:space-between;font-size:0.78rem;opacity:0.9;margin-bottom:6px}
+.progress-track{background:rgba(255,255,255,0.2);border-radius:100px;height:6px}
+.progress-fill{height:100%;background:rgba(255,255,255,0.9);border-radius:100px;transition:width 1.2s ease;width:0}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;transition:all 0.2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.06)}
+.stat-icon{font-size:1.3rem;margin-bottom:10px}
+.stat-val{font-family:'Bebas Neue',cursive;font-size:2rem;letter-spacing:1px;line-height:1}
+.stat-lbl{font-size:0.74rem;color:var(--muted);margin-top:3px}
+.stat-card.t .stat-val{color:var(--teal)}
+.stat-card.p .stat-val{color:var(--purple)}
+.stat-card.g .stat-val{color:var(--green)}
+.stat-card.o .stat-val{color:var(--orange)}
+.activity-list{display:flex;flex-direction:column;gap:12px}
+.activity-row{display:flex;align-items:flex-start;gap:10px}
+.activity-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:6px}
+.activity-text{font-size:0.84rem}
+.activity-time{font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace}
+.mini-bar-row{margin-bottom:11px}
+.mini-bar-label{display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:5px}
+.mini-bar-label span:last-child{font-family:'DM Mono',monospace;color:var(--teal);font-size:0.74rem}
+.mini-bar-bg{background:#eef0f8;border-radius:100px;height:5px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--teal),var(--purple));width:0;transition:width 1s ease}
+
+/* PLAN */
+.role-tag{display:inline-flex;align-items:center;gap:6px;background:var(--teal-light);border:1px solid var(--teal-mid);color:var(--teal-dark);font-size:0.76rem;font-family:'DM Mono',monospace;padding:4px 13px;border-radius:100px;margin-bottom:18px}
+.week-block{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
+.week-block.cw{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,179,138,0.1)}
+.week-hdr{padding:18px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;user-select:none}
+.week-hdr:hover{background:#fafbff}
+.week-hdr-left{display:flex;align-items:center;gap:14px}
+.week-circle{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:1.1rem;flex-shrink:0}
+.wc-done{background:var(--green-light);color:var(--green)}
+.wc-cur{background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff}
+.wc-up{background:var(--teal-light);color:var(--teal-dark)}
+.week-hdr-title{font-weight:700;font-size:0.92rem}
+.week-hdr-sub{font-size:0.76rem;color:var(--muted);margin-top:2px}
+.ws-pill{font-size:0.68rem;font-family:'DM Mono',monospace;padding:4px 11px;border-radius:100px;letter-spacing:1px}
+.ws-done{background:var(--green-light);color:var(--green)}
+.ws-cur{background:var(--teal-light);color:var(--teal-dark)}
+.ws-up{background:#f0f0f8;color:var(--muted)}
+.week-tasks{display:none;border-top:1px solid var(--border);padding:14px 20px 18px}
+.week-tasks.open{display:block}
+.task-item{display:flex;align-items:center;gap:11px;padding:9px 12px;background:var(--bg);border-radius:9px;font-size:0.85rem;margin-bottom:7px;cursor:pointer;transition:background 0.15s}
+.task-item:hover{background:var(--teal-light)}
+.task-check{width:19px;height:19px;border-radius:5px;border:1.5px solid rgba(0,0,0,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.68rem;font-weight:700;color:#fff;transition:all 0.15s}
+.task-check.checked{background:var(--green);border-color:var(--green)}
+.task-text.done{text-decoration:line-through;color:var(--muted)}
+
+/* QUESTIONS */
+.q-deadline-tag{background:var(--orange-light);border:1px solid #fcd34d;color:var(--orange);font-size:0.74rem;font-family:'DM Mono',monospace;padding:5px 13px;border-radius:100px;display:inline-block;margin-bottom:18px}
+.question-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:14px}
+.q-meta{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.q-num{font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace}
+.q-text{font-size:0.96rem;font-weight:600;line-height:1.6;margin-bottom:14px}
+.q-hint{font-size:0.8rem;color:var(--muted);background:var(--bg);border-left:3px solid var(--teal);border-radius:0 8px 8px 0;padding:9px 13px;margin-bottom:14px}
+.answer-box{width:100%;min-height:110px;padding:12px 14px;border:1.5px solid rgba(0,0,0,0.1);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--text);resize:vertical;outline:none;transition:all 0.2s;background:#fafafa}
+.answer-box:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,179,138,0.08)}
+.btn-submit{padding:10px 22px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:0.87rem;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:12px;display:inline-flex;align-items:center;gap:8px}
+.btn-submit:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,179,138,0.3)}
+.btn-submit:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.submitted-badge{display:inline-flex;align-items:center;gap:6px;background:var(--green-light);color:var(--green);font-size:0.79rem;font-family:'DM Mono',monospace;padding:7px 13px;border-radius:8px;border:1px solid #a7f3d0;margin-top:12px}
+.ai-feedback-box{background:var(--green-light);border:1px solid #a7f3d0;border-radius:10px;padding:13px 15px;font-size:0.83rem;color:#065f46;margin-top:12px}
+
+/* SCORES */
+.score-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.score-big-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+.score-big-label{font-size:0.7rem;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:2px;margin-bottom:10px}
+.score-big-num{font-family:'Bebas Neue',cursive;font-size:3.8rem;letter-spacing:2px;line-height:1}
+.score-big-num.t{color:var(--teal)}.score-big-num.p{color:var(--purple)}
+.score-big-sub{font-size:0.8rem;color:var(--muted);margin-top:4px}
+.score-trend{font-size:0.79rem;font-weight:600;color:var(--green);margin-top:10px}
+.score-target{font-size:0.79rem;color:var(--orange);margin-top:10px}
+.skill-bar-wrap{margin-bottom:15px}
+.skill-bar-meta{display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:6px}
+.skill-bar-meta span:last-child{font-family:'DM Mono',monospace;color:var(--teal);font-size:0.76rem}
+.skill-bar-bg{background:#eef0f8;border-radius:100px;height:7px;overflow:hidden}
+.skill-bar-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--teal),var(--purple));width:0;transition:width 1.1s cubic-bezier(0.4,0,0.2,1)}
+.history-item{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--bg);border-radius:10px;margin-bottom:8px;transition:background 0.15s}
+.history-item:hover{background:var(--teal-light)}
+.history-week{font-size:0.82rem;font-weight:600}
+.history-q{font-size:0.74rem;color:var(--muted);margin-top:1px}
+.history-score{font-family:'Bebas Neue',cursive;font-size:1.5rem;letter-spacing:1px}
+.history-score.great{color:var(--teal)}.history-score.ok{color:var(--orange)}
+
+/* RESUME */
+.ats-section{display:flex;align-items:center;gap:22px;margin-bottom:22px}
+.ats-ring{width:96px;height:96px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ats-ring-inner{width:72px;height:72px;background:var(--card);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ats-score-num{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--teal);line-height:1}
+.ats-score-lbl{font-size:0.55rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px}
+.tip-item{display:flex;align-items:flex-start;gap:11px;padding:12px 15px;border-radius:11px;font-size:0.85rem;margin-bottom:10px}
+.tip-item.warn{background:var(--orange-light);border:1px solid #fcd34d}
+.tip-item.success{background:var(--green-light);border:1px solid #a7f3d0}
+.tip-item.info{background:var(--purple-light);border:1px solid #c5c2f5}
+.tip-icon{font-size:1rem;flex-shrink:0;margin-top:1px}
+.tip-title{font-weight:600;margin-bottom:2px}
+.tip-desc{font-size:0.8rem;color:var(--muted)}
+.upload-zone{border:2px dashed var(--border);border-radius:14px;padding:36px 24px;text-align:center;background:var(--card);cursor:pointer;transition:all 0.2s;margin-top:18px}
+.upload-zone:hover{border-color:var(--teal);background:var(--teal-light)}
+
+/* MOBILE */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:49}
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}.main{margin-left:0}.hamburger{display:block}
+  .grid-2,.score-summary-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr 1fr;gap:10px}.content{padding:16px}.topbar{padding:13px 16px}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-page">
+    <div class="login-orb"></div>
+    <div class="login-orb"></div>
+    <div class="login-card">
+      <div class="login-logo">Career<span>AI</span></div>
+      <div class="login-title">Welcome back</div>
+      <div class="login-sub">Sign in to your personalised dashboard</div>
+      <div class="login-error" id="loginError"></div>
+      <div class="form-group">
+        <label class="form-label">Email address</label>
+        <input type="email" class="form-input" id="emailInput" placeholder="you@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="passInput" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+      <div class="login-hint">No account? <a href="/#pricing">Complete payment to get access</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><span class="logo-t">Career</span><span class="logo-d">AI</span></div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div>
+        <div class="user-name" id="userName">Loading...</div>
+        <div class="user-role" id="userRole"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">// Main</div>
+      <button class="nav-item active" onclick="showPanel('overview',this)"><span class="nav-icon">&#127968;</span>Overview</button>
+      <button class="nav-item" onclick="showPanel('plan',this)"><span class="nav-icon">&#128506;&#65039;</span>My 4-Week Plan</button>
+      <button class="nav-item" onclick="showPanel('questions',this)" id="questionsNavBtn"><span class="nav-icon">&#10067;</span>Weekly Questions</button>
+      <button class="nav-item" onclick="showPanel('scores',this)"><span class="nav-icon">&#128202;</span>AI Scores</button>
+      <div class="nav-section">// Tools</div>
+      <button class="nav-item" onclick="showPanel('resume',this)"><span class="nav-icon">&#128196;</span>Resume Review</button>
+      <button class="nav-item" onclick="showPanel('settings',this)"><span class="nav-icon">&#9881;&#65039;</span>Settings</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()"><span>&#128682;</span> Sign Out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" onclick="openSidebar()">&#9776;</button>
+        <div class="topbar-title" id="topbarTitle">Overview</div>
+      </div>
+      <div class="week-pill" id="weekPill">WEEK - OF 4</div>
+    </div>
+    <div class="content">
+
+      <!-- OVERVIEW -->
+      <div class="panel active" id="panel-overview">
+        <div class="welcome-banner">
+          <div class="welcome-name" id="welcomeName">LOADING...</div>
+          <div class="welcome-sub" id="welcomeSub">Fetching your data...</div>
+          <div class="progress-wrap">
+            <div class="progress-meta"><span>Overall Progress</span><span id="progressPct">0%</span></div>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card t"><div class="stat-icon">&#128197;</div><div class="stat-val" id="statWeek">-</div><div class="stat-lbl">Current Week</div></div>
+          <div class="stat-card g"><div class="stat-icon">&#9989;</div><div class="stat-val" id="statTasks">-</div><div class="stat-lbl">Tasks Done</div></div>
+          <div class="stat-card p"><div class="stat-icon">&#129302;</div><div class="stat-val" id="statScore">-</div><div class="stat-lbl">Latest AI Score</div></div>
+          <div class="stat-card o"><div class="stat-icon">&#10067;</div><div class="stat-val" id="statPending">-</div><div class="stat-lbl">Questions Pending</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Recent Activity</div>
+            <div class="activity-list" id="activityList"><div class="empty-state"><div class="empty-icon">&#128461;</div><div class="empty-text">No activity yet</div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Score Breakdown <span class="badge badge-teal">Latest</span></div>
+            <div id="miniScoreBars"><div class="empty-state"><div class="empty-icon">&#128202;</div><div class="empty-text">No scores yet</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLAN -->
+      <div class="panel" id="panel-plan">
+        <div class="panel-title">MY 4-WEEK PLAN</div>
+        <div class="panel-sub">Personalised for your target role and experience level</div>
+        <div class="role-tag" id="planRoleTag">Loading...</div>
+        <div class="error-bar" id="planError"></div>
+        <div id="planContent"><div class="empty-state"><div class="empty-icon">&#128506;&#65039;</div><div class="empty-text">Loading your plan...</div></div></div>
+      </div>
+
+      <!-- QUESTIONS -->
+      <div class="panel" id="panel-questions">
+        <div class="panel-title">WEEKLY QUESTIONS</div>
+        <div class="panel-sub" id="questionsSub">Loading this week's questions...</div>
+        <div class="q-deadline-tag" id="questionsDeadline" style="display:none">&#9200; Submit before end of week</div>
+        <div class="error-bar" id="questionsError"></div>
+        <div id="questionsContent"><div class="empty-state"><div class="empty-icon">&#10067;</div><div class="empty-text">Loading...</div></div></div>
+      </div>
+
+      <!-- SCORES -->
+      <div class="panel" id="panel-scores">
+        <div class="panel-title">AI SCORES</div>
+        <div class="panel-sub">Track your improvement across all weeks</div>
+        <div class="error-bar" id="scoresError"></div>
+        <div class="score-summary-grid">
+          <div class="score-big-card">
+            <div class="score-big-label">LATEST SCORE</div>
+            <div class="score-big-num t" id="latestScoreNum">-</div>
+            <div class="score-big-sub" id="latestScoreSub">No submissions yet</div>
+            <div class="score-trend" id="scoreTrend"></div>
+          </div>
+          <div class="score-big-card">
+            <div class="score-big-label">AVERAGE SCORE</div>
+            <div class="score-big-num p" id="avgScoreNum">-</div>
+            <div class="score-big-sub">across all submissions</div>
+            <div class="score-target">Target: 85+ by Week 4</div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-title">Skills Breakdown <span class="badge badge-teal">Latest</span></div>
+          <div id="skillBarsContent"><div class="empty-state"><div class="empty-icon">&#128202;</div><div class="empty-text">Submit your first answer to see skill breakdown</div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Submission History</div>
+          <div id="historyContent"><div class="empty-state"><div class="empty-icon">&#128461;</div><div class="empty-text">No submissions yet</div></div></div>
+        </div>
+      </div>
+
+      <!-- RESUME -->
+      <div class="panel" id="panel-resume">
+        <div class="panel-title">RESUME REVIEW</div>
+        <div class="panel-sub">AI-powered resume analysis tailored to your role</div>
+        <div class="error-bar" id="resumeError"></div>
+        <div class="card" id="resumeContent" style="margin-bottom:18px"><div class="empty-state"><div class="empty-icon">&#128196;</div><div class="empty-text">Loading your resume analysis...</div></div></div>
+        <div class="upload-zone" onclick="alert('Email your updated resume to get a fresh ATS analysis!')">
+          <div style="font-size:2rem;margin-bottom:10px">&#128228;</div>
+          <div style="font-weight:700;font-size:0.94rem;margin-bottom:4px">Upload updated resume</div>
+          <div style="color:var(--muted);font-size:0.82rem">PDF or DOCX - Get a fresh ATS score after making changes</div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="panel" id="panel-settings">
+        <div class="panel-title">SETTINGS</div>
+        <div class="panel-sub">Manage your account and preferences</div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-title">&#128100; Account Info</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div><div style="font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:4px">NAME</div><div style="font-weight:600" id="settingsName">-</div></div>
+            <div><div style="font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:4px">EMAIL</div><div style="font-weight:600" id="settingsEmail">-</div></div>
+            <div><div style="font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:4px">ROLE</div><div style="font-weight:600" id="settingsRole">-</div></div>
+            <div><div style="font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:4px">CURRENT WEEK</div><div style="font-weight:600" id="settingsWeek">-</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">&#128272; Change Password</div>
+          <div style="font-size:0.84rem;color:var(--muted);margin-bottom:18px">Your new password will be saved back to the system immediately. Use it on your next login.</div>
+          <div class="error-bar" id="pwError"></div>
+          <div class="submitted-badge" id="pwSuccess" style="display:none;margin-bottom:16px">&#10003; Password updated successfully!</div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input type="password" class="form-input" id="currentPw" placeholder="Your current password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input type="password" class="form-input" id="newPw" placeholder="At least 6 characters">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" class="form-input" id="confirmPw" placeholder="Repeat new password">
+          </div>
+          <button class="btn-submit" onclick="changePassword()" id="changePwBtn">Update Password</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+var currentUser = null;
+var panelLoaded = {};
+var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', settings:'Settings' };
+
+// INIT
+window.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/me', { credentials:'include' })
+    .then(function(r) {
+      if (r.ok) return r.json().then(function(d) { showDashboard(d.user); });
+      else showLoginPage();
+    })
+    .catch(function() { showLoginPage(); });
+});
+
+function showLoginPage() {
+  document.getElementById('loginPage').style.display = 'block';
+  document.getElementById('dashboard').classList.remove('active');
+}
+
+function showDashboard(user) {
+  currentUser = user;
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('dashboard').classList.add('active');
+  setUserInfo(user);
+  loadOverview();
+}
+
+function setUserInfo(u) {
+  var ini = (u.name||'U').split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
+  document.getElementById('userAvatar').textContent = ini;
+  document.getElementById('userName').textContent   = u.name||'';
+  document.getElementById('userRole').textContent   = (u.role||'') + (u.experience?' - '+u.experience:'');
+  document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
+  document.getElementById('welcomeName').textContent = 'HI, '+((u.name||'').split(' ')[0]).toUpperCase()+'!';
+  document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan.';
+  document.getElementById('planRoleTag').textContent = (u.role||'') + ' - ' + (u.experience||'') + ' - Week '+(u.week||1)+' of 4';
+  document.getElementById('statWeek').textContent   = u.week||'-';
+}
+
+// LOGIN
+function doLogin() {
+  var email = document.getElementById('emailInput').value.trim();
+  var pass  = document.getElementById('passInput').value;
+  var errEl = document.getElementById('loginError');
+  var btn   = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  if (!email || !pass) { showErr(errEl,'Please enter your email and password'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Signing in...';
+  fetch('/api/login', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email,password:pass}) })
+    .then(function(r) { return r.json().then(function(d) { return {ok:r.ok,d:d}; }); })
+    .then(function(x) {
+      if (x.ok) { showDashboard(x.d.user); }
+      else { showErr(errEl, x.d.error||'Login failed. Please try again.'); btn.disabled=false; btn.innerHTML='Sign In'; }
+    })
+    .catch(function() { showErr(errEl,'Could not connect. Please try again.'); btn.disabled=false; btn.innerHTML='Sign In'; });
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key==='Enter' && document.getElementById('loginPage').style.display!=='none') doLogin();
+});
+
+function doLogout() {
+  fetch('/api/logout',{method:'POST',credentials:'include'}).finally(function(){
+    currentUser=null; panelLoaded={}; showLoginPage();
+    document.getElementById('emailInput').value='';
+    document.getElementById('passInput').value='';
+  });
+}
+
+// NAV
+function showPanel(id, btn) {
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('topbarTitle').textContent = panelTitles[id];
+  closeSidebar();
+  if (!panelLoaded[id]) {
+    panelLoaded[id]=true;
+    if (id==='plan')      loadPlan();
+    if (id==='questions') loadQuestions();
+    if (id==='scores')    loadScores();
+    if (id==='resume')    loadResume();
+    if (id==='settings')  loadSettings();
+  }
+  if (id==='scores') setTimeout(animateBars,300);
+}
+
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+// HELPERS
+function showErr(el,msg) { el.textContent=msg; el.style.display='block'; }
+
+function animateBars() {
+  document.querySelectorAll('.skill-bar-fill[data-w],.mini-bar-fill[data-w]').forEach(function(b,i){
+    setTimeout(function(){b.style.width=b.getAttribute('data-w');},i*120);
+  });
+}
+
+function toggleWeek(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
+
+function toggleTask(item) {
+  var c=item.querySelector('.task-check'), t=item.querySelector('.task-text');
+  c.classList.toggle('checked');
+  c.textContent = c.classList.contains('checked') ? '\u2713' : '';
+  t.classList.toggle('done', c.classList.contains('checked'));
+}
+
+// DATA LOADERS
+function loadOverview() {
+  fetch('/api/overview',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (!d.week) return;
+      document.getElementById('progressPct').textContent  = d.progress+'%';
+      document.getElementById('progressFill').style.width = d.progress+'%';
+      document.getElementById('statTasks').textContent    = d.tasksDone+'/'+d.totalTasks;
+      document.getElementById('statScore').textContent    = d.latestScore!==null ? d.latestScore : '-';
+      document.getElementById('statPending').textContent  = d.pendingQuestions;
+      if (d.pendingQuestions>0) {
+        var nb=document.getElementById('questionsNavBtn');
+        if (!nb.querySelector('.nav-badge')) { var b=document.createElement('span'); b.className='nav-badge'; b.textContent=d.pendingQuestions; nb.appendChild(b); }
+      }
+      if (d.recentActivity&&d.recentActivity.length) {
+        document.getElementById('activityList').innerHTML=d.recentActivity.map(function(a){
+          var col=a.type==='score'?'var(--purple)':'var(--green)';
+          return '<div class="activity-row"><div class="activity-dot" style="background:'+col+'"></div><div><div class="activity-text">'+a.text+'</div><div class="activity-time">'+(a.date||'Recently')+'</div></div></div>';
+        }).join('');
+      }
+      loadMiniScoreBars();
+    }).catch(function(){});
+}
+
+function loadMiniScoreBars() {
+  fetch('/api/scores',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (!d.scores||!d.scores.length) return;
+      var s=d.scores[0];
+      var sk=[['Technical',s.Technical||0],['Communication',s.Communication||0],['Problem Solving',s['Problem Solving']||0],['Behavioral',s.Behavioral||0]];
+      document.getElementById('miniScoreBars').innerHTML=sk.map(function(p){
+        return '<div class="mini-bar-row"><div class="mini-bar-label"><span>'+p[0]+'</span><span>'+p[1]+'/100</span></div><div class="mini-bar-bg"><div class="mini-bar-fill" data-w="'+p[1]+'%"></div></div></div>';
+      }).join('');
+      setTimeout(animateBars,300);
+    }).catch(function(){});
+}
+
+function loadPlan() {
+  fetch('/api/plan',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (d.error){showErr(document.getElementById('planError'),d.error);return;}
+      var plan=d.plan||[], cw=(currentUser&&currentUser.week)?parseInt(currentUser.week):1;
+      var bw={};
+      plan.forEach(function(t){var w=t.Week||'1';if(!bw[w])bw[w]=[];bw[w].push(t);});
+      var wt={'1':'Build Foundations','2':'Strengthen Technical Depth','3':'Real Interview Practice','4':'Final Readiness'};
+      if (!plan.length){document.getElementById('planContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#128506;&#65039;</div><div class="empty-text">Your plan is being prepared. Check back soon!</div></div>';return;}
+      document.getElementById('planContent').innerHTML=[1,2,3,4].map(function(w){
+        var tasks=bw[w]||[], done=tasks.filter(function(t){return t.Status==='Done';}).length;
+        var st=w<cw?'done':w==cw?'cur':'up';
+        var sl={'done':'&#10003; DONE','cur':'&#9679; IN PROGRESS','up':'UPCOMING'};
+        var wcc={'done':'wc-done','cur':'wc-cur','up':'wc-up'};
+        var wsc={'done':'ws-done','cur':'ws-cur','up':'ws-up'};
+        var rows=tasks.length ? tasks.map(function(t){
+          var ck=t.Status==='Done',tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
+          return '<div class="task-item" onclick="toggleTask(this)"><div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+' </div><div class="task-text '+(ck?'done':'')+'">'+( t['Task Title']||'')+'</div><span class="badge '+tc+'" style="margin-left:auto;flex-shrink:0">'+(t.Type||'')+'</span></div>';
+        }).join('') : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0">Tasks will appear when this week is unlocked.</div>';
+        return '<div class="week-block '+(st==='cur'?'cw':'')+'"><div class="week-hdr" onclick="toggleWeek(this)">'+
+          '<div class="week-hdr-left"><div class="week-circle '+wcc[st]+'">W'+w+'</div>'+
+          '<div><div class="week-hdr-title">Week '+w+' - '+(wt[w]||'')+'</div>'+
+          '<div class="week-hdr-sub">'+(tasks.length?tasks.length+' tasks - '+done+' completed':'Coming soon')+'</div></div></div>'+
+          '<div style="display:flex;align-items:center;gap:10px"><span class="ws-pill '+wsc[st]+'">'+sl[st]+'</span><span style="color:var(--muted)">&#8250;</span></div></div>'+
+          '<div class="week-tasks '+(st==='cur'?'open':'')+'">'+rows+'</div></div>';
+      }).join('');
+    }).catch(function(){showErr(document.getElementById('planError'),'Could not load plan. Please refresh.');});
+}
+
+function loadQuestions() {
+  fetch('/api/questions',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (d.error){showErr(document.getElementById('questionsError'),d.error);return;}
+      var qs=d.questions||[], wk=d.week||1;
+      document.getElementById('questionsSub').textContent='Week '+wk+' questions - submit answers for AI scoring';
+      document.getElementById('questionsDeadline').style.display='inline-block';
+      if (!qs.length){document.getElementById('questionsContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#10067;</div><div class="empty-text">No questions for this week yet. Check back Monday!</div></div>';return;}
+      document.getElementById('questionsContent').innerHTML=qs.map(function(q,i){
+        var sub=q.Submitted==='TRUE';
+        var tc=q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
+        var sc=q.Score?' - Score: '+q.Score+'/100':'';
+        return '<div class="question-card" id="qcard-'+i+'">'+
+          '<div class="q-meta"><span class="badge '+tc+'">'+(q.Type||'')+'</span><span class="q-num">Week '+wk+' - '+(q['Q No.']||'')+'</span>'+
+          (sub?'<span class="submitted-badge">&#10003; Submitted'+sc+'</span>':'')+
+          '</div><div class="q-text">'+(q.Question||'')+'</div>'+
+          (sub&&q['AI Feedback']?'<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>':'')+
+          (!sub?'<div class="q-hint">&#128161; Use STAR format - Situation, Task, Action, Result. Aim for 150-250 words.</div>'+
+            '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."></textarea>'+
+            '<div><button class="btn-submit" onclick="submitAnswer('+i+',\''+(q['Q No.']||'')+'\')" id="sbtn-'+i+'">Submit for AI Scoring</button></div>':'')+
+          '</div>';
+      }).join('');
+    }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
+}
+
+function submitAnswer(idx, qno) {
+  var ansEl=document.getElementById('ans-'+idx), btn=document.getElementById('sbtn-'+idx);
+  var ans=ansEl?ansEl.value.trim():'';
+  if (!ans||ans.length<20){alert('Please write a proper answer before submitting.');return;}
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Submitting...';
+  fetch('/api/questions/submit',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionNo:qno,answer:ans})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (d.success){ansEl.disabled=true;ansEl.style.opacity='0.6';btn.parentNode.innerHTML='<div class="submitted-badge">&#10003; Submitted - AI score coming soon!</div>';}
+      else{alert(d.error||'Submission failed.');btn.disabled=false;btn.innerHTML='Submit for AI Scoring';}
+    }).catch(function(){alert('Could not submit. Check your connection.');btn.disabled=false;btn.innerHTML='Submit for AI Scoring';});
+}
+
+function loadScores() {
+  fetch('/api/scores',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (d.error){showErr(document.getElementById('scoresError'),d.error);return;}
+      document.getElementById('latestScoreNum').textContent=d.latest?d.latest.Score:'-';
+      document.getElementById('avgScoreNum').textContent=d.average||'-';
+      document.getElementById('latestScoreSub').textContent=d.latest?'Week '+d.latest.Week+' - '+d.latest['Q No.']:'No submissions yet';
+      if (d.scores&&d.scores.length>1){var diff=parseInt(d.scores[0].Score)-parseInt(d.scores[1].Score);document.getElementById('scoreTrend').textContent=(diff>=0?'up +':'down ')+Math.abs(diff)+' pts from last';}
+      if (d.latest){
+        var s=d.latest;
+        var sk=[['Technical',s.Technical||0],['Communication',s.Communication||0],['Problem Solving',s['Problem Solving']||0],['Behavioral',s.Behavioral||0]];
+        document.getElementById('skillBarsContent').innerHTML=sk.map(function(p){
+          return '<div class="skill-bar-wrap"><div class="skill-bar-meta"><span>'+p[0]+'</span><span>'+p[1]+'/100</span></div><div class="skill-bar-bg"><div class="skill-bar-fill" data-w="'+p[1]+'%"></div></div></div>';
+        }).join('');
+        setTimeout(animateBars,200);
+      }
+      if (d.scores&&d.scores.length){
+        document.getElementById('historyContent').innerHTML=d.scores.map(function(s){
+          var sc=parseInt(s.Score),cl=sc>=80?'great':'ok';
+          return '<div class="history-item"><div><div class="history-week">Week '+s.Week+' - '+s['Q No.']+'</div><div class="history-q">'+(s.Date||'')+'</div></div><div style="display:flex;align-items:center;gap:10px"><div class="history-score '+cl+'">'+s.Score+'</div><span class="badge badge-teal">View</span></div></div>';
+        }).join('');
+      }
+    }).catch(function(){showErr(document.getElementById('scoresError'),'Could not load scores. Please refresh.');});
+}
+
+function loadResume() {
+  fetch('/api/resume',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (d.error){showErr(document.getElementById('resumeError'),d.error);return;}
+      if (!d.atsScore){document.getElementById('resumeContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#128196;</div><div class="empty-text">Your resume analysis is being prepared. Check back soon!</div></div>';return;}
+      var sc=parseInt(d.atsScore),pct=Math.min(sc,100);
+      var tips=(d.atsTips||'').split('\n').filter(function(l){return l.trim();});
+      var tt=['warn','warn','success','info','success'],ti=['&#9888;&#65039;','&#128207;','&#10003;&#65039;','&#128161;','&#10003;&#65039;'];
+      document.getElementById('resumeContent').innerHTML=
+        '<div style="font-size:0.7rem;font-family:\'DM Mono\',monospace;color:var(--muted);letter-spacing:2px;margin-bottom:14px">RESUME ANALYSIS RESULT</div>'+
+        '<div class="ats-section"><div class="ats-ring" style="background:conic-gradient(var(--teal) 0% '+pct+'%, #eef0f8 '+pct+'% 100%)">'+
+        '<div class="ats-ring-inner"><div class="ats-score-num">'+sc+'</div><div class="ats-score-lbl">ATS SCORE</div></div></div>'+
+        '<div><div style="font-weight:700;font-size:1rem;margin-bottom:5px">'+(sc>=80?'Strong - minor tweaks needed':sc>=60?'Good - room to improve':'Needs work - follow the tips')+'</div>'+
+        '<div style="font-size:0.83rem;color:var(--muted)">Follow the tips below to boost your ATS score.</div></div></div>'+
+        (tips.length?tips.map(function(tip,i){return '<div class="tip-item '+(tt[i]||'info')+'"><div class="tip-icon">'+(ti[i]||'&#128161;')+'</div><div><div class="tip-title">'+tip+'</div></div></div>';}).join(''):
+        '<div class="tip-item info"><div class="tip-icon">&#128161;</div><div><div class="tip-title">Detailed tips are being prepared. Check back soon!</div></div></div>');
+    }).catch(function(){showErr(document.getElementById('resumeError'),'Could not load resume data. Please refresh.');});
+}
+function loadSettings() {
+  if (!currentUser) return;
+  document.getElementById('settingsName').textContent  = currentUser.name  || '-';
+  document.getElementById('settingsEmail').textContent = currentUser.email || '-';
+  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (currentUser.experience ? ' - ' + currentUser.experience : '');
+  document.getElementById('settingsWeek').textContent  = 'Week ' + (currentUser.week || 1) + ' of 4';
+  // Reset form
+  document.getElementById('currentPw').value = '';
+  document.getElementById('newPw').value      = '';
+  document.getElementById('confirmPw').value  = '';
+  document.getElementById('pwError').style.display   = 'none';
+  document.getElementById('pwSuccess').style.display = 'none';
+}
+
+function changePassword() {
+  var curPw  = document.getElementById('currentPw').value.trim();
+  var newPw  = document.getElementById('newPw').value.trim();
+  var conPw  = document.getElementById('confirmPw').value.trim();
+  var errEl  = document.getElementById('pwError');
+  var sucEl  = document.getElementById('pwSuccess');
+  var btn    = document.getElementById('changePwBtn');
+
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  if (!curPw || !newPw || !conPw) { showErr(errEl,'Please fill in all three fields'); return; }
+  if (newPw.length < 6)           { showErr(errEl,'New password must be at least 6 characters'); return; }
+  if (newPw !== conPw)            { showErr(errEl,'New passwords do not match'); return; }
+  if (newPw === curPw)            { showErr(errEl,'New password must be different from current password'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Updating...';
+
+  fetch('/api/change-password', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword: curPw, newPassword: newPw })
+  })
+  .then(function(r) { return r.json().then(function(d) { return {ok:r.ok, d:d}; }); })
+  .then(function(x) {
+    if (x.ok) {
+      sucEl.style.display = 'inline-flex';
+      document.getElementById('currentPw').value = '';
+      document.getElementById('newPw').value      = '';
+      document.getElementById('confirmPw').value  = '';
+    } else {
+      showErr(errEl, x.d.error || 'Could not update password. Please try again.');
+    }
+  })
+  .catch(function() { showErr(errEl, 'Connection error. Please try again.'); })
+  .finally(function() { btn.disabled = false; btn.innerHTML = 'Update Password'; });
+}
+</script>
+</body>
+</html>

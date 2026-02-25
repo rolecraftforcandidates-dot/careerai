@@ -409,6 +409,12 @@ app.post('/api/onboard', async (req, res) => {
   }
 });
 
+// POST /api/onboard/debug — log raw Tally payload to see field structure
+app.post('/api/onboard/debug', (req, res) => {
+  console.log('RAW TALLY PAYLOAD:', JSON.stringify(req.body, null, 2));
+  res.json({ received: true, fields: req.body?.data?.fields || req.body });
+});
+
 // POST /api/onboard/test — test onboarding manually with custom data
 app.post('/api/onboard/test', async (req, res) => {
   const { name, email, role, techStack, experience } = req.body;

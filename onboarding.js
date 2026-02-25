@@ -18,13 +18,29 @@ function getAnthropicClient() {
   return new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// ── Gmail transporter ──
+// ── Email transporter (Brevo SMTP — works reliably on cloud servers) ──
 function getMailTransporter() {
+  // Using Brevo (free tier: 300 emails/day)
+  // Fallback to Gmail if Brevo not configured
+  if (process.env.BREVO_SMTP_KEY) {
+    return nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.BREVO_SMTP_LOGIN,  // your Brevo account email
+        pass: process.env.BREVO_SMTP_KEY,    // Brevo SMTP key (not account password)
+      },
+    });
+  }
+  // Gmail fallback
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,  // Gmail App Password (not regular password)
+      pass: process.env.GMAIL_APP_PASSWORD,
     },
   });
 }
@@ -47,7 +63,7 @@ USER DETAILS:
 - Name: ${name}
 - Target Role: ${role}
 - Tech Stack: ${techStack}
-- Experience Level: ${experience}
+- Experience Level: ${experience} years (e.g. 0-5 means junior/fresher, 5-10 means mid-senior)
 - Resume Text: ${resumeText ? resumeText.slice(0, 3000) : 'Not provided'}
 
 Your job is to generate their complete personalised programme. Return ONLY valid JSON — no explanation, no markdown, no code fences. Just raw JSON.
@@ -228,7 +244,7 @@ async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
   const firstName   = (name || 'there').split(' ')[0];
 
   await transporter.sendMail({
-    from: `"RoleCraft" <${process.env.GMAIL_USER}>`,
+    from: `"RoleCraft" <${process.env.BREVO_SMTP_LOGIN || process.env.GMAIL_USER}>`,
     to: email,
     subject: `Your RoleCraft dashboard is ready, ${firstName}! 🚀`,
     html: `
@@ -287,13 +303,52 @@ function parseTallyPayload(body) {
   // Tally webhook format: body.data.fields is an array of field objects
   const fields = body?.data?.fields || [];
 
+  // Log raw fields to help debug field names
+  console.log('Tally fields received:', JSON.stringify(fields.map(f => ({
+    label: f.label, type: f.type, value: f.value
+  })), null, 2));
+
   function getField(label) {
     const field = fields.find(f =>
       (f.label || '').toLowerCase().includes(label.toLowerCase())
     );
     if (!field) return '';
-    // Value can be string, array, or object depending on field type
-    if (Array.isArray(field.value)) return field.value.join(', ');
+
+    // Tally dropdown/multiple choice: value is an array of option IDs
+    // We need to match against field.options to get the actual text
+    if (Array.isArray(field.value)) {
+      if (field.options && Array.isArray(field.options)) {
+        // Map option IDs back to their labels
+        const labels = field.value.map(optId => {
+          const opt = field.options.find(o => o.id === optId);
+          return opt ? opt.text : optId;
+        });
+        return labels.join(', ');
+      }
+      return field.value.join(', ');
+    }
+
+    // Single value — check if it looks like a UUID (option ID)
+    const val = String(field.value || '');
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    if (isUUID && field.options && Array.isArray(field.options)) {
+      const opt = field.options.find(o => o.id === val);
+      return opt ? opt.text : val;
+    }
+
+    return val;
+  }
+
+  // Also handle file upload fields (resume)
+  function getFileUrl(label) {
+    const field = fields.find(f =>
+      (f.label || '').toLowerCase().includes(label.toLowerCase())
+    );
+    if (!field) return '';
+    // File upload value is array of {url, name, mimeType}
+    if (Array.isArray(field.value) && field.value[0] && field.value[0].url) {
+      return field.value[0].url;
+    }
     return String(field.value || '');
   }
 
@@ -302,9 +357,8 @@ function parseTallyPayload(body) {
     email:      getField('email'),
     role:       getField('target role') || getField('role'),
     techStack:  getField('tech stack') || getField('tech'),
-    experience: getField('experience'),
-    // Resume file URL — Tally uploads files and gives a URL
-    resumeUrl:  getField('resume') || '',
+    experience: getField('experience') || getField('years') || getField('exp'),
+    resumeUrl:  getFileUrl('resume'),
   };
 }
 
@@ -338,7 +392,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     // 1. Parse Tally payload
     const { name, email, role, techStack, experience, resumeUrl } = parseTallyPayload(rawBody);
 
-    console.log(`\n🚀 New onboarding: ${name} | ${email} | ${role} | ${experience}`);
+    console.log(`\n🚀 New onboarding: ${name} | ${email} | Role: ${role} | Exp: ${experience} yrs | Tech: ${techStack}`);
 
     if (!email) throw new Error('No email found in Tally payload');
     if (!role)  throw new Error('No role found in Tally payload');

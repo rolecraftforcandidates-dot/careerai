@@ -125,8 +125,39 @@ app.post('/api/login', async (req, res) => {
     res.json({ success: true, user: req.session.user });
   } catch (err) {
     console.error('Login error:', err.message);
-    res.status(500).json({ error: 'Server error — please try again' });
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
+});
+
+// GET /api/debug — diagnose env vars and Sheets connection (remove after go-live)
+app.get('/api/debug', async (req, res) => {
+  const info = {
+    hasSheetId:   !!process.env.SHEET_ID,
+    sheetIdValue: process.env.SHEET_ID ? process.env.SHEET_ID.slice(0,10)+'...' : 'MISSING',
+    hasJson:      !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+    jsonLength:   process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? process.env.GOOGLE_SERVICE_ACCOUNT_JSON.length : 0,
+    jsonParses:   false,
+    clientEmail:  null,
+    sheetsConnects: false,
+    usersCount:   null,
+    error:        null,
+  };
+  try {
+    const parsed = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    info.jsonParses  = true;
+    info.clientEmail = parsed.client_email || 'not found';
+  } catch(e) {
+    info.error = 'JSON parse failed: ' + e.message;
+    return res.json(info);
+  }
+  try {
+    const users = await readSheet('Users');
+    info.sheetsConnects = true;
+    info.usersCount = users.length;
+  } catch(e) {
+    info.error = 'Sheets connection failed: ' + e.message;
+  }
+  res.json(info);
 });
 
 // POST /api/logout

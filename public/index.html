@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CareerAI — Dashboard</title>
+<title>RoleCraft — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -220,7 +220,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
     <div class="login-orb"></div>
     <div class="login-orb"></div>
     <div class="login-card">
-      <div class="login-logo">Career<span>AI</span></div>
+      <div class="login-logo">Role<span>Craft</span></div>
       <div class="login-title">Welcome back</div>
       <div class="login-sub">Sign in to your personalised dashboard</div>
       <div class="login-error" id="loginError"></div>
@@ -242,7 +242,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 <div class="dashboard" id="dashboard">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo"><span class="logo-t">Career</span><span class="logo-d">AI</span></div>
+    <div class="sidebar-logo"><span class="logo-t">Role</span><span class="logo-d">Craft</span></div>
     <div class="sidebar-user">
       <div class="user-avatar" id="userAvatar">?</div>
       <div>
@@ -466,9 +466,15 @@ document.addEventListener('keydown', function(e) {
 
 function doLogout() {
   fetch('/api/logout',{method:'POST',credentials:'include'}).finally(function(){
-    currentUser=null; panelLoaded={}; showLoginPage();
+    currentUser=null; panelLoaded={};
+    // Reset login button and form before showing page
+    var btn = document.getElementById('loginBtn');
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
     document.getElementById('emailInput').value='';
     document.getElementById('passInput').value='';
+    document.getElementById('loginError').style.display='none';
+    showLoginPage();
   });
 }
 

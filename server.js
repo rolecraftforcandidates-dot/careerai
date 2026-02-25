@@ -16,6 +16,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── Trust Railway's proxy (required for secure cookies on HTTPS) ──
+app.set('trust proxy', 1);
+
 // ── Session ──
 app.use(session({
   secret: process.env.SESSION_SECRET || 'careerai-dev-secret-change-in-production',
@@ -24,6 +27,7 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000   // 7 days
   }
 }));

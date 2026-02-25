@@ -183,7 +183,6 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
 async function writeToSheets(sheets, sheetId, name, email, password, role, experience, techStack, generated) {
 
   // ── 1. Add user row to Users tab ──
-  const today = new Date().toISOString().split('T')[0];
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,

@@ -94,6 +94,84 @@ function requireLogin(req, res, next) {
   next();
 }
 
+// ── Helper: check if week should advance and update Sheets + session ──
+// ── Helper: calculate days elapsed since a date string (YYYY-MM-DD) ──
+function daysSince(dateStr) {
+  if (!dateStr) return 0;
+  const start = new Date(dateStr);
+  const today = new Date();
+  start.setHours(0,0,0,0);
+  today.setHours(0,0,0,0);
+  return Math.floor((today - start) / (1000 * 60 * 60 * 24));
+}
+
+// ── Helper: today as YYYY-MM-DD ──
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ── Helper: check if week should advance (all done OR 7 days passed) ──
+// Returns { newWeek, weekStarted, advanced, reason }
+async function checkAndAdvanceWeek(email, currentWeek, weekStarted, sessionRef) {
+  if (currentWeek >= 4) return { newWeek: currentWeek, weekStarted, advanced: false };
+
+  const plans     = await readSheet('Plans');
+  const weekTasks = plans.filter(r =>
+    r.Email.toLowerCase() === email.toLowerCase() &&
+    parseInt(r.Week) === currentWeek
+  );
+
+  if (!weekTasks.length) return { newWeek: currentWeek, weekStarted, advanced: false };
+
+  const allDone      = weekTasks.every(r => r.Status === 'Done');
+  const daysElapsed  = daysSince(weekStarted);
+  const sevenDaysDue = daysElapsed >= 7;
+
+  const shouldAdvance = allDone || sevenDaysDue;
+  if (!shouldAdvance) return { newWeek: currentWeek, weekStarted, advanced: false };
+
+  const reason  = allDone ? 'all tasks completed' : '7 days elapsed';
+  const newWeek = currentWeek + 1;
+  const newDate = todayStr();
+  console.log(`🎉 ${email}: Week ${currentWeek} → ${newWeek} (${reason})`);
+
+  // Update Users sheet — Week and Week Started columns
+  const sheets = getSheetsClient();
+  const raw    = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: 'Users!A:Z',
+  });
+  const [headers, ...rows] = raw.data.values || [];
+  const emailIdx       = headers.indexOf('Email');
+  const weekIdx        = headers.indexOf('Week');
+  const weekStartedIdx = headers.indexOf('Week Started');
+  const rowIdx         = rows.findIndex(r =>
+    (r[emailIdx]||'').toLowerCase() === email.toLowerCase()
+  );
+
+  if (rowIdx !== -1) {
+    const sheetRow = rowIdx + 2;
+    const updates  = [
+      { range: `Users!${String.fromCharCode(65+weekIdx)}${sheetRow}`,        values: [[String(newWeek)]] },
+    ];
+    if (weekStartedIdx !== -1) {
+      updates.push({ range: `Users!${String.fromCharCode(65+weekStartedIdx)}${sheetRow}`, values: [[newDate]] });
+    }
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: { valueInputOption: 'RAW', data: updates }
+    });
+  }
+
+  // Update session
+  if (sessionRef) {
+    sessionRef.week        = newWeek;
+    sessionRef.weekStarted = newDate;
+  }
+
+  return { newWeek, weekStarted: newDate, advanced: true, reason };
+}
+
 // ════════════════════════════════════════
 // AUTH ROUTES
 // ════════════════════════════════════════
@@ -119,13 +197,29 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password' });
 
     // Store session
+    const weekStarted = user['Week Started'] || todayStr();
     req.session.user = {
-      email:      user.Email,
-      name:       user.Name,
-      role:       user.Role,
-      experience: user.Experience,
-      week:       parseInt(user.Week) || 1,
+      email:       user.Email,
+      name:        user.Name,
+      role:        user.Role,
+      experience:  user.Experience,
+      week:        parseInt(user.Week) || 1,
+      weekStarted: weekStarted,
+      dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7), // Day 1–7
     };
+
+    // Check if week should advance (all done OR 7 days)
+    const { newWeek, weekStarted: newWS, advanced } = await checkAndAdvanceWeek(
+      req.session.user.email,
+      req.session.user.week,
+      req.session.user.weekStarted,
+      req.session.user
+    );
+    if (advanced) {
+      req.session.user.week        = newWeek;
+      req.session.user.weekStarted = newWS;
+      req.session.user.dayOfWeek   = 1;
+    }
 
     res.json({ success: true, user: req.session.user });
   } catch (err) {
@@ -388,6 +482,71 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════
+// POST /api/plan/task — update a task's Status (Done / blank)
+app.post('/api/plan/task', requireLogin, async (req, res) => {
+  try {
+    const { week, day, taskTitle, status } = req.body;
+    const email = req.session.user.email;
+
+    if (!taskTitle) return res.status(400).json({ error: 'taskTitle required' });
+
+    // Get raw Plans sheet to find the exact row
+    const sheets = getSheetsClient();
+    const raw = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Plans!A:Z',
+    });
+
+    const [headers, ...rows] = raw.data.values || [];
+    const emailIdx = headers.indexOf('Email');
+    const weekIdx  = headers.indexOf('Week');
+    const dayIdx   = headers.indexOf('Day');
+    const titleIdx = headers.indexOf('Task Title');
+    const statIdx  = headers.indexOf('Status');
+
+    // Find the matching row
+    const rowIdx = rows.findIndex(r =>
+      (r[emailIdx]||'').toLowerCase() === email.toLowerCase() &&
+      String(r[weekIdx]||'') === String(week) &&
+      String(r[dayIdx]||'')  === String(day) &&
+      (r[titleIdx]||'').trim() === taskTitle.trim()
+    );
+
+    if (rowIdx === -1)
+      return res.status(404).json({ error: 'Task not found' });
+
+    // Update Status cell
+    const sheetRow = rowIdx + 2; // +1 header +1 for 1-based
+    const col = String.fromCharCode(65 + statIdx);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Plans!${col}${sheetRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[status || '']] },
+    });
+
+    // Check if this completed the week — advance if so
+    const currentWeek   = req.session.user.week;
+    const weekStarted   = req.session.user.weekStarted || todayStr();
+    const { newWeek, weekStarted: newWS, advanced } = await checkAndAdvanceWeek(
+      req.session.user.email,
+      currentWeek,
+      weekStarted,
+      req.session.user
+    );
+
+    res.json({
+      success:     true,
+      weekAdvanced: advanced,
+      newWeek:     newWeek,
+      dayOfWeek:   advanced ? 1 : req.session.user.dayOfWeek,
+    });
+  } catch (err) {
+    console.error('Task update error:', err.message);
+    res.status(500).json({ error: 'Could not update task: ' + err.message });
+  }
+});
+
 // POST /api/onboard — Tally webhook → Claude → Sheets → Email
 // ══════════════════════════════════════════════════════
 app.post('/api/onboard', async (req, res) => {

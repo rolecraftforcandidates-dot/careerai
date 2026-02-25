@@ -184,6 +184,7 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
 
   // ── 1. Add user row to Users tab ──
   const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
     range: 'Users!A:A',
@@ -191,16 +192,17 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
       values: [[
-        email,                     // Email
-        name,                      // Name
-        password,                  // Password
-        role,                      // Role
-        experience,                // Experience
-        '1',                       // Week (starts at 1)
-        'TRUE',                    // Plan Active
-        String(generated.atsScore),// ATS Score
-        generated.atsTips || '',   // ATS Tips
-        '',                        // Resume URL (empty for now)
+        email,                     // A: Email
+        name,                      // B: Name
+        password,                  // C: Password
+        role,                      // D: Role
+        experience,                // E: Experience
+        '1',                       // F: Week (starts at 1)
+        'TRUE',                    // G: Plan Active
+        String(generated.atsScore),// H: ATS Score
+        generated.atsTips || '',   // I: ATS Tips
+        '',                        // J: Resume URL
+        today,                     // K: Week Started
       ]]
     }
   });

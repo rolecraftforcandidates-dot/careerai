@@ -18,30 +18,35 @@ function getAnthropicClient() {
   return new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// ── Email transporter (Brevo SMTP — works reliably on cloud servers) ──
+// ── Email transporter ──
 function getMailTransporter() {
-  // Using Brevo (free tier: 300 emails/day)
-  // Fallback to Gmail if Brevo not configured
   if (process.env.BREVO_SMTP_KEY) {
     return nodemailer.createTransport({
       host: 'smtp-relay.brevo.com',
       port: 587,
       secure: false,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
       auth: {
-        user: process.env.BREVO_SMTP_LOGIN,  // your Brevo account email
-        pass: process.env.BREVO_SMTP_KEY,    // Brevo SMTP key (not account password)
+        user: process.env.BREVO_SMTP_LOGIN,
+        pass: process.env.BREVO_SMTP_KEY,
       },
+      tls: { rejectUnauthorized: false },
     });
   }
-  // Gmail fallback
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
+    tls: { rejectUnauthorized: false },
   });
 }
 
@@ -439,18 +444,24 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       generated
     );
 
-    // 7. Send welcome email
+    // 7. Send welcome email (wrapped separately — sheet data is already saved)
     const dashboardUrl = process.env.DASHBOARD_URL || 'https://your-app.railway.app';
-    await sendWelcomeEmail(
-      name || email.split('@')[0],
-      email,
-      password,
-      role,
-      dashboardUrl
-    );
+    try {
+      await sendWelcomeEmail(
+        name || email.split('@')[0],
+        email,
+        password,
+        role,
+        dashboardUrl
+      );
+    } catch (emailErr) {
+      // Email failed but data is already in Sheets — log and continue
+      console.error(`⚠️  Email failed for ${email}: ${emailErr.message}`);
+      console.log(`📋 Manual credentials — Email: ${email} | Password: ${password} | URL: ${dashboardUrl}`);
+    }
 
     result.success = true;
-    console.log(`\n✅ Onboarding complete for ${email}`);
+    console.log(`\n✅ Onboarding complete for ${email} (check logs if email failed)`);
 
   } catch (err) {
     result.error = err.message;

@@ -40,7 +40,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .login-hint a{color:var(--teal);text-decoration:none;font-weight:500}
 .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 /* DASHBOARD */
 .dashboard{display:none;min-height:100vh}
@@ -271,7 +271,10 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <button class="hamburger" onclick="openSidebar()">&#9776;</button>
         <div class="topbar-title" id="topbarTitle">Overview</div>
       </div>
-      <div class="week-pill" id="weekPill">WEEK - OF 4</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="week-pill" id="weekPill">WEEK - OF 4</div>
+        <div class="week-pill" id="dayPill" style="background:#f0f0f8;color:var(--muted)">DAY -</div>
+      </div>
     </div>
     <div class="content">
 
@@ -431,14 +434,19 @@ function showDashboard(user) {
 
 function setUserInfo(u) {
   var ini = (u.name||'U').split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
+  var day = Math.min(parseInt(u.dayOfWeek)||1, 7);
+  var daysLeft = 7 - day + 1;
   document.getElementById('userAvatar').textContent = ini;
   document.getElementById('userName').textContent   = u.name||'';
   document.getElementById('userRole').textContent   = (u.role||'') + (u.experience?' - '+u.experience:'');
   document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
+  document.getElementById('dayPill').textContent    = 'DAY '+day+' OF 7';
+  document.getElementById('dayPill').style.background = day >= 6 ? 'var(--orange-light)' : '#f0f0f8';
+  document.getElementById('dayPill').style.color      = day >= 6 ? 'var(--orange)' : 'var(--muted)';
   document.getElementById('welcomeName').textContent = 'HI, '+((u.name||'').split(' ')[0]).toUpperCase()+'!';
-  document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan.';
-  document.getElementById('planRoleTag').textContent = (u.role||'') + ' - ' + (u.experience||'') + ' - Week '+(u.week||1)+' of 4';
-  document.getElementById('statWeek').textContent   = u.week||'-';
+  document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan. Day '+day+' of 7'+(daysLeft<=2?' — <span style="color:#f59e0b;font-weight:600">'+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>':'')+ '.';
+  document.getElementById('planRoleTag').textContent = (u.role||'') + ' · ' + (u.experience||'') + ' · Week '+(u.week||1)+' of 4 · Day '+day+' of 7';
+  document.getElementById('statWeek').textContent   = 'W'+(u.week||1)+'D'+day;
 }
 
 // LOGIN
@@ -513,9 +521,50 @@ function toggleWeek(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
 
 function toggleTask(item) {
   var c=item.querySelector('.task-check'), t=item.querySelector('.task-text');
-  c.classList.toggle('checked');
-  c.textContent = c.classList.contains('checked') ? '\u2713' : '';
-  t.classList.toggle('done', c.classList.contains('checked'));
+  var nowChecked = !c.classList.contains('checked');
+  // Update UI immediately
+  c.classList.toggle('checked', nowChecked);
+  c.innerHTML = nowChecked ? '&#10003;' : '';
+  t.classList.toggle('done', nowChecked);
+  // Save to server
+  var taskKey = item.getAttribute('data-task');
+  if (!taskKey) return;
+  var parts = decodeURIComponent(taskKey).split('|');
+  var week=parts[0], day=parts[1], title=parts[2];
+  var status = nowChecked ? 'Done' : '';
+  item.style.opacity = '0.6';
+  fetch('/api/plan/task', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ week:week, day:day, taskTitle:title, status:status })
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      item.style.opacity = '1';
+      if (d.error) {
+        alert('Could not save: '+d.error);
+        c.classList.toggle('checked',!nowChecked);
+        c.innerHTML=!nowChecked?'&#10003;':'';
+        t.classList.toggle('done',!nowChecked);
+      } else if (d.weekAdvanced && d.newWeek) {
+        // Week advanced! Update session + refresh UI
+        if (currentUser) { currentUser.week = d.newWeek; currentUser.dayOfWeek = 1; }
+        setUserInfo(currentUser);
+        showWeekAdvancedBanner(d.newWeek);
+        panelLoaded = {};
+        setTimeout(function(){ loadPlan(); loadOverview(); }, 2000);
+      }
+    })
+    .catch(function(){ item.style.opacity='1'; });
+}
+
+// Week advanced celebration banner
+function showWeekAdvancedBanner(newWeek) {
+  var wt = {'2':'Strengthen Technical Depth','3':'Real Interview Practice','4':'Final Readiness'};
+  var banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;padding:18px 28px;border-radius:14px;font-family:Bebas Neue,cursive;font-size:1.3rem;letter-spacing:2px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);animation:slideDown 0.4s ease';
+  banner.innerHTML = '&#127881; WEEK '+newWeek+' UNLOCKED &mdash; '+(wt[newWeek]||'Final Week')+'!<br><span style="font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:400;letter-spacing:0;opacity:0.9">Your new tasks and questions are ready</span>';
+  document.body.appendChild(banner);
+  setTimeout(function(){ banner.style.opacity='0'; banner.style.transition='opacity 0.5s'; setTimeout(function(){ banner.remove(); },500); }, 4000);
 }
 
 // DATA LOADERS
@@ -575,12 +624,15 @@ function loadPlan() {
         var wsc={'done':'ws-done','cur':'ws-cur','up':'ws-up'};
         var rows=tasks.length ? tasks.map(function(t){
           var ck=t.Status==='Done',tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
-          return '<div class="task-item" onclick="toggleTask(this)"><div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+' </div><div class="task-text '+(ck?'done':'')+'">'+( t['Task Title']||'')+'</div><span class="badge '+tc+'" style="margin-left:auto;flex-shrink:0">'+(t.Type||'')+'</span></div>';
+          var taskKey=encodeURIComponent(t.Week+'|'+t.Day+'|'+(t['Task Title']||''));
+          return '<div class="task-item" data-task="'+taskKey+'" onclick="toggleTask(this)"><div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+' </div><div class="task-text '+(ck?'done':'')+'">'+( t['Task Title']||'')+'</div><span class="badge '+tc+'" style="margin-left:auto;flex-shrink:0">'+(t.Type||'')+'</span></div>';
         }).join('') : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0">Tasks will appear when this week is unlocked.</div>';
+        var dayBadge = st==='cur' ? '<span style="font-size:0.68rem;font-family:DM Mono,monospace;background:#f0f0f8;color:var(--muted);padding:2px 8px;border-radius:100px;margin-left:6px">Day '+((currentUser&&currentUser.dayOfWeek)||1)+' of 7</span>' : '';
+        var progressBar = st==='cur' && tasks.length ? '<div style="margin-top:6px;background:#eef0f8;border-radius:100px;height:4px;width:140px"><div style="height:100%;background:linear-gradient(90deg,var(--teal),var(--purple));border-radius:100px;width:'+(Math.round(done/tasks.length*100))+'%;transition:width 0.5s"></div></div>' : '';
         return '<div class="week-block '+(st==='cur'?'cw':'')+'"><div class="week-hdr" onclick="toggleWeek(this)">'+
           '<div class="week-hdr-left"><div class="week-circle '+wcc[st]+'">W'+w+'</div>'+
-          '<div><div class="week-hdr-title">Week '+w+' - '+(wt[w]||'')+'</div>'+
-          '<div class="week-hdr-sub">'+(tasks.length?tasks.length+' tasks - '+done+' completed':'Coming soon')+'</div></div></div>'+
+          '<div><div class="week-hdr-title">Week '+w+' - '+(wt[w]||'')+dayBadge+'</div>'+
+          '<div class="week-hdr-sub">'+(tasks.length?tasks.length+' tasks · '+done+' completed':'Coming soon')+progressBar+'</div></div></div>'+
           '<div style="display:flex;align-items:center;gap:10px"><span class="ws-pill '+wsc[st]+'">'+sl[st]+'</span><span style="color:var(--muted)">&#8250;</span></div></div>'+
           '<div class="week-tasks '+(st==='cur'?'open':'')+'">'+rows+'</div></div>';
       }).join('');

@@ -5,6 +5,7 @@ const helmet     = require('helmet');
 const cors       = require('cors');
 const path       = require('path');
 const { google } = require('googleapis');
+const { runOnboarding } = require('./onboarding');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -384,6 +385,50 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
     console.error('Change password error:', err.message);
     res.status(500).json({ error: 'Could not update password. Please try again.' });
   }
+});
+
+// ══════════════════════════════════════════════════════
+// POST /api/onboard — Tally webhook → Claude → Sheets → Email
+// ══════════════════════════════════════════════════════
+app.post('/api/onboard', async (req, res) => {
+  // Verify Tally webhook secret (optional but recommended)
+  const secret = process.env.TALLY_WEBHOOK_SECRET;
+  if (secret && req.headers['tally-webhook-secret'] !== secret) {
+    return res.status(401).json({ error: 'Invalid webhook secret' });
+  }
+
+  // Respond to Tally immediately (Tally expects fast response)
+  res.json({ received: true });
+
+  // Run onboarding async (so Tally doesn't time out)
+  const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID);
+  if (result.success) {
+    console.log(`✅ Onboarding complete: ${result.email}`);
+  } else {
+    console.error(`❌ Onboarding failed: ${result.error}`);
+  }
+});
+
+// POST /api/onboard/test — test onboarding manually with custom data
+app.post('/api/onboard/test', async (req, res) => {
+  const { name, email, role, techStack, experience } = req.body;
+  if (!email || !role) return res.status(400).json({ error: 'email and role required' });
+
+  // Build a fake Tally payload from the test data
+  const fakeTallyPayload = {
+    data: {
+      fields: [
+        { label: 'Name', value: name || 'Test User' },
+        { label: 'Email Address', value: email },
+        { label: 'Target Role', value: role },
+        { label: 'Tech Stack', value: techStack || role },
+        { label: 'Experience', value: experience || 'Mid' },
+      ]
+    }
+  };
+
+  const result = await runOnboarding(fakeTallyPayload, getSheetsClient, SHEET_ID);
+  res.json(result);
 });
 
 // ── Catch-all: serve dashboard for any non-API route ──

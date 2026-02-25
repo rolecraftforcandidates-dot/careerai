@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 const Anthropic  = require('@anthropic-ai/sdk');
-const nodemailer = require('nodemailer');
+const https = require('https');
 
 // ── Anthropic client ──
 function getAnthropicClient() {
@@ -18,35 +18,52 @@ function getAnthropicClient() {
   return new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// ── Email transporter ──
-function getMailTransporter() {
-  if (process.env.BREVO_SMTP_KEY) {
-    return nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
-      port: 587,
-      secure: false,
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-      auth: {
-        user: process.env.BREVO_SMTP_LOGIN,
-        pass: process.env.BREVO_SMTP_KEY,
-      },
-      tls: { rejectUnauthorized: false },
+// ── Send email via Brevo HTTP API (no SMTP, no nodemailer needed) ──
+function sendBrevoEmail(to, toName, subject, htmlContent) {
+  return new Promise((resolve, reject) => {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) {
+      reject(new Error('BREVO_API_KEY not set'));
+      return;
+    }
+
+    const fromEmail = process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER;
+    const fromName  = 'RoleCraft';
+
+    const payload = JSON.stringify({
+      sender:   { name: fromName, email: fromEmail },
+      to:       [{ email: to, name: toName }],
+      subject:  subject,
+      htmlContent: htmlContent,
     });
-  }
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    tls: { rejectUnauthorized: false },
+
+    const options = {
+      hostname: 'api.brevo.com',
+      path:     '/v3/smtp/email',
+      method:   'POST',
+      headers:  {
+        'Content-Type':  'application/json',
+        'api-key':       apiKey,
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(`Brevo API error ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Brevo API timeout')); });
+    req.write(payload);
+    req.end();
   });
 }
 
@@ -240,63 +257,41 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
 // SEND WELCOME EMAIL
 // ══════════════════════════════════════════════════════
 async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.warn('⚠️  Gmail not configured — skipping welcome email');
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('⚠️  BREVO_API_KEY not set — skipping welcome email');
     return;
   }
 
-  const transporter = getMailTransporter();
-  const firstName   = (name || 'there').split(' ')[0];
-
-  await transporter.sendMail({
-    from: `"RoleCraft" <${process.env.BREVO_SMTP_LOGIN || process.env.GMAIL_USER}>`,
-    to: email,
-    subject: `Your RoleCraft dashboard is ready, ${firstName}! 🚀`,
-    html: `
-    <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f9ff; padding: 32px 20px;">
-      <div style="background: linear-gradient(135deg, #00b38a, #5048e5); border-radius: 16px; padding: 28px; color: white; text-align: center; margin-bottom: 24px;">
-        <div style="font-size: 28px; font-weight: 900; letter-spacing: 3px; margin-bottom: 6px;">ROLECRAFT</div>
-        <div style="font-size: 16px; opacity: 0.9;">Your 30-Day Interview Prep Plan is Ready</div>
-      </div>
-
-      <div style="background: white; border-radius: 14px; padding: 28px; margin-bottom: 16px; border: 1px solid rgba(0,0,0,0.07);">
-        <p style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Hi ${firstName}! 👋</p>
-        <p style="color: #6b6b8a; line-height: 1.7; margin-bottom: 20px;">
-          Your personalised <strong>${role}</strong> interview preparation programme has been created and your dashboard is ready to use.
-          Claude AI has generated your complete 4-week plan, 12 interview questions, and resume analysis — all tailored specifically for you.
-        </p>
-
-        <div style="background: #e6f7f3; border-radius: 10px; padding: 18px; margin-bottom: 20px; border-left: 4px solid #00b38a;">
-          <div style="font-size: 12px; color: #007a5e; font-weight: 700; letter-spacing: 2px; margin-bottom: 10px;">YOUR LOGIN DETAILS</div>
-          <div style="margin-bottom: 6px;"><strong>Dashboard:</strong> <a href="${dashboardUrl}" style="color: #5048e5;">${dashboardUrl}</a></div>
-          <div style="margin-bottom: 6px;"><strong>Email:</strong> ${email}</div>
-          <div><strong>Password:</strong> <code style="background: white; padding: 2px 8px; border-radius: 5px; font-size: 15px;">${password}</code></div>
-        </div>
-
-        <a href="${dashboardUrl}" style="display: block; background: linear-gradient(135deg, #00b38a, #5048e5); color: white; text-align: center; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 16px; text-decoration: none; margin-bottom: 16px;">
-          Open My Dashboard →
-        </a>
-
-        <p style="color: #6b6b8a; font-size: 13px; margin: 0;">
-          💡 <strong>First thing to do:</strong> Login, check your Week 1 plan, and change your password in Settings.
-        </p>
-      </div>
-
-      <div style="background: white; border-radius: 14px; padding: 20px; border: 1px solid rgba(0,0,0,0.07);">
-        <div style="font-size: 13px; font-weight: 700; margin-bottom: 12px;">What's waiting for you:</div>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px; font-size: 13px; color: #6b6b8a;">✅ &nbsp;16 personalised daily tasks across 4 weeks</div>
-        <div style="font-size: 13px; color: #6b6b8a; margin-bottom: 8px;">✅ &nbsp;12 interview questions (Technical + Behavioral + System Design)</div>
-        <div style="font-size: 13px; color: #6b6b8a; margin-bottom: 8px;">✅ &nbsp;Resume ATS analysis with improvement tips</div>
-        <div style="font-size: 13px; color: #6b6b8a;">✅ &nbsp;AI scoring on your submitted answers</div>
-      </div>
-
-      <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #9999bb;">
-        Questions? Reply to this email. — Team RoleCraft
-      </div>
+  const firstName = (name || 'there').split(' ')[0];
+  const subject   = `Your RoleCraft dashboard is ready, ${firstName}! 🚀`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
+    <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">
+      <div style="font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:6px">ROLECRAFT</div>
+      <div style="font-size:16px;opacity:.9">Your 30-Day Interview Prep Plan is Ready</div>
     </div>
-    `,
-  });
+    <div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">
+      <p style="font-size:18px;font-weight:700;margin-bottom:8px">Hi ${firstName}! 👋</p>
+      <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Claude AI has generated your complete 4-week plan, 12 interview questions, and resume analysis.</p>
+      <div style="background:#e6f7f3;border-radius:10px;padding:18px;margin-bottom:20px;border-left:4px solid #00b38a">
+        <div style="font-size:12px;color:#007a5e;font-weight:700;letter-spacing:2px;margin-bottom:10px">YOUR LOGIN DETAILS</div>
+        <div style="margin-bottom:6px"><strong>Dashboard:</strong> <a href="${dashboardUrl}" style="color:#5048e5">${dashboardUrl}</a></div>
+        <div style="margin-bottom:6px"><strong>Email:</strong> ${email}</div>
+        <div><strong>Password:</strong> <code style="background:white;padding:2px 8px;border-radius:5px;font-size:15px">${password}</code></div>
+      </div>
+      <a href="${dashboardUrl}" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:16px;text-decoration:none;margin-bottom:16px">Open My Dashboard →</a>
+      <p style="color:#6b6b8a;font-size:13px;margin:0">💡 <strong>First thing to do:</strong> Login, check your Week 1 plan, and change your password in Settings.</p>
+    </div>
+    <div style="background:white;border-radius:14px;padding:20px;border:1px solid rgba(0,0,0,.07)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">What is waiting for you:</div>
+      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  16 personalised daily tasks across 4 weeks</div>
+      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  12 interview questions (Technical + Behavioral + System Design)</div>
+      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  Resume ATS analysis with improvement tips</div>
+      <div style="font-size:13px;color:#6b6b8a">✅  AI scoring on your submitted answers</div>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:12px;color:#9999bb">Questions? Reply to this email. — Team RoleCraft</div>
+  </div>`;
 
+  await sendBrevoEmail(email, firstName, subject, html);
   console.log(`✅ Welcome email sent to ${email}`);
 }
 

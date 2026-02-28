@@ -206,7 +206,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .history-week{font-size:0.82rem;font-weight:600}
 .history-q{font-size:0.74rem;color:var(--muted);margin-top:1px}
 .history-score{font-family:'Bebas Neue',cursive;font-size:1.5rem;letter-spacing:1px}
-.history-score.great{color:var(--teal)}.history-score.ok{color:var(--orange)}
+.history-score.great{color:var(--green)}.history-score.ok{color:var(--orange)}.history-score.weak{color:var(--red)}
 
 /* RESUME */
 .ats-section{display:flex;align-items:center;gap:22px;margin-bottom:22px}
@@ -1110,17 +1110,18 @@ function loadQuestions() {
           (sub&&q['AI Feedback']?'<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>':'')+
           (!sub?'<div class="q-hint">&#128161; Use STAR format - Situation, Task, Action, Result. Aim for 150-250 words.</div>'+
             '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."></textarea>'+
-            '<div><button class="btn-submit" onclick="submitAnswer('+i+',\''+(q['Q No.']||'').replace(/\'/, '')+'\','+wk+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>':'')+
+            '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>':'')+
           '</div>';
       }).join('');
     }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
 }
 
-function submitAnswer(idx, qno, weekOverride) {
-  console.log('🚀 submitAnswer called: idx='+idx+' qno='+qno+' week='+weekOverride);
+function submitAnswer(idx) {
+  var btn = document.getElementById('sbtn-'+idx);
+  var qno = btn ? (btn.getAttribute('data-qno')||'') : '';
+  var weekOverride = btn ? parseInt(btn.getAttribute('data-week')||'0') : null;
+  console.log('🚀 submitAnswer: idx='+idx+' qno=['+qno+'] week='+weekOverride);
   var ansEl = document.getElementById('ans-'+idx);
-  var btn   = document.getElementById('sbtn-'+idx);
-  console.log('📝 ansEl found:', !!ansEl, 'value length:', ansEl?ansEl.value.length:0);
   var ans   = ansEl ? ansEl.value.trim() : '';
   if (!ans || ans.length < 20) { alert('Please write a proper answer (min 20 characters).'); return; }
 
@@ -1129,15 +1130,12 @@ function submitAnswer(idx, qno, weekOverride) {
   btn.innerHTML = '<span class="spin"></span> Scoring with AI — takes ~10 seconds...';
   ansEl.disabled = true; ansEl.style.opacity = '0.7';
 
-  // Read qno and week from button data attributes (most reliable)
-  var finalQno  = (btn && btn.getAttribute('data-qno'))  || qno;
-  var finalWeek = (btn && btn.getAttribute('data-week')) ? parseInt(btn.getAttribute('data-week')) : (weekOverride||null);
-  console.log('📤 Sending: qno='+finalQno+' week='+finalWeek);
+  console.log('📤 Sending to server: qno=['+qno+'] week='+weekOverride);
 
   fetch('/api/questions/submit', {
     method: 'POST', credentials: 'include',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ questionNo: finalQno, answer: ans, weekOverride: finalWeek })
+    body: JSON.stringify({ questionNo: qno, answer: ans, weekOverride: weekOverride })
   })
   .then(function(r){ return r.json(); })
   .then(function(d){
@@ -1227,32 +1225,50 @@ function submitAnswer(idx, qno, weekOverride) {
 }
 
 function loadScores() {
-  document.getElementById('scoresError').style.display='none'; // Always clear error first
-  fetch('/api/scores',{credentials:'include'})
-    .then(function(r){return r.json();})
+  document.getElementById('scoresError').style.display = 'none';
+  fetch('/api/scores', {credentials:'include'})
+    .then(function(r){ return r.json(); })
     .then(function(d){
-      if (d.error){showErr(document.getElementById('scoresError'),d.error);return;}
-      document.getElementById('latestScoreNum').textContent=d.latest?d.latest.Score:'-';
-      document.getElementById('avgScoreNum').textContent=d.average||'-';
-      document.getElementById('latestScoreSub').textContent=d.latest?'Week '+d.latest.Week+' - '+d.latest['Q No.']:'No submissions yet';
-      if (d.scores&&d.scores.length>1){var diff=parseInt(d.scores[0].Score)-parseInt(d.scores[1].Score);document.getElementById('scoreTrend').textContent=(diff>=0?'up +':'down ')+Math.abs(diff)+' pts from last';}
-      if (d.latest){
-        var s=d.latest;
-        var sk=[['Technical',s.Technical||0],['Communication',s.Communication||0],['Problem Solving',s['Problem Solving']||0],['Behavioral',s.Behavioral||0]];
+      if (d.error) { showErr(document.getElementById('scoresError'), d.error); return; }
+      var scores = d.scores || [];
+      var latest = d.latest || null;
+
+      document.getElementById('latestScoreNum').textContent = latest ? latest.Score : '-';
+      document.getElementById('avgScoreNum').textContent    = d.average || '-';
+
+      var qLabel = latest ? (latest['Q No.'] ? 'Week '+latest.Week+' · '+latest['Q No.'] : 'Week '+latest.Week) : 'No submissions yet';
+      document.getElementById('latestScoreSub').textContent = qLabel;
+
+      var trendEl = document.getElementById('scoreTrend');
+      if (scores.length > 1) {
+        var diff = parseInt(scores[0].Score||0) - parseInt(scores[1].Score||0);
+        trendEl.textContent = (diff>=0?'up +':'down ')+Math.abs(diff)+' pts from last';
+        trendEl.style.color = diff>=0 ? 'var(--green)' : 'var(--orange)';
+      }
+
+      if (latest) {
+        var sk=[['Technical',latest.Technical||0],['Communication',latest.Communication||0],['Problem Solving',latest['Problem Solving']||0],['Behavioral',latest.Behavioral||0]];
         document.getElementById('skillBarsContent').innerHTML=sk.map(function(p){
-          return '<div class="skill-bar-wrap"><div class="skill-bar-meta"><span>'+p[0]+'</span><span>'+p[1]+'/100</span></div><div class="skill-bar-bg"><div class="skill-bar-fill" data-w="'+p[1]+'%"></div></div></div>';
+          var pct=parseInt(p[1])||0;
+          var col=pct>=75?'var(--green)':pct>=50?'var(--teal)':pct>=35?'var(--orange)':'var(--red)';
+          return '<div class="skill-bar-wrap"><div class="skill-bar-meta"><span>'+p[0]+'</span><span style="color:'+col+';font-weight:600">'+pct+'/100</span></div><div class="skill-bar-bg"><div class="skill-bar-fill" data-w="'+pct+'%" style="background:'+col+'"></div></div></div>';
         }).join('');
         setTimeout(animateBars,200);
       }
-      if (d.scores&&d.scores.length){
-        document.getElementById('historyContent').innerHTML=d.scores.map(function(s){
-          var sc=parseInt(s.Score),cl=sc>=80?'great':'ok';
-          var trend = i>0 ? parseInt(d.scores[i-1].Score)-sc : 0;
-          var trendHtml = i>0 ? '<span style="font-size:0.7rem;color:'+(trend>=0?'var(--red)':'var(--green)')+'">'+( trend>=0?'▼ '+trend:' ▲ '+Math.abs(trend))+'</span>' : '';
-          return '<div class="history-item"><div><div class="history-week">Week '+s.Week+' · '+s['Q No.']+'</div><div class="history-q">'+(s.Date||'Recently')+'</div></div><div style="display:flex;align-items:center;gap:10px">'+trendHtml+'<div class="history-score '+cl+'">'+s.Score+'</div></div></div>';
+
+      if (scores.length) {
+        document.getElementById('historyContent').innerHTML=scores.map(function(s,i){
+          var sc=parseInt(s.Score||0);
+          var cl=sc>=80?'great':sc>=60?'ok':'weak';
+          var qlbl=s['Q No.']?'Week '+s.Week+' · '+s['Q No.']:'Week '+s.Week;
+          var trendHtml='';
+          if (i<scores.length-1){var delta=sc-parseInt(scores[i+1].Score||0);trendHtml='<span style="font-size:0.72rem;color:'+(delta>=0?'var(--green)':'var(--red)')+'">'+( delta>=0?'▲ +'+delta:'▼ '+delta)+'</span>';}
+          return '<div class="history-item"><div><div class="history-week">'+qlbl+'</div><div class="history-q">'+(s.Date||'Recently')+'</div></div><div style="display:flex;align-items:center;gap:10px">'+trendHtml+'<div class="history-score '+cl+'">'+sc+'</div></div></div>';
         }).join('');
+      } else {
+        document.getElementById('historyContent').innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No submissions yet.</div></div>';
       }
-    }).catch(function(){showErr(document.getElementById('scoresError'),'Could not load scores. Please refresh.');});
+    }).catch(function(){ showErr(document.getElementById('scoresError'),'Could not load scores. Please refresh.'); });
 }
 
 function loadResume() {

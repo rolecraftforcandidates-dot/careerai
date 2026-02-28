@@ -307,8 +307,12 @@ app.get('/api/questions', requireLogin, async (req, res) => {
 // POST /api/questions/submit — submit answer + instantly score with Claude
 app.post('/api/questions/submit', requireLogin, async (req, res) => {
   try {
-    const { questionNo, answer } = req.body;
-    const { email, week, role, experience } = req.session.user;
+    const { questionNo, answer, weekOverride } = req.body;
+    const { email, role, experience } = req.session.user;
+    // Use weekOverride from the question card (more reliable than session.week)
+    // because session.week might have advanced but question belongs to previous week
+    const week = weekOverride ? parseInt(weekOverride) : req.session.user.week;
+    console.log(`📝 Submit: qno="${questionNo}" weekOverride=${weekOverride} sessionWeek=${req.session.user.week} → using week=${week}`);
     if (!answer || answer.trim().length < 20)
       return res.status(400).json({ error: 'Answer is too short' });
 
@@ -327,13 +331,37 @@ app.post('/api/questions/submit', requireLogin, async (req, res) => {
     const scoreIdx    = headers.indexOf('Score');
     const feedbackIdx = headers.indexOf('AI Feedback');
 
-    // Match email + week (as string) + Q No. — all three must match
-    const rowIdx = dataRows.findIndex(
-      r => (r[emailIdx]||'').toLowerCase() === email.toLowerCase() &&
-           String(r[weekIdx]||'').trim() === String(week) &&
-           (r[qIdx]||'').trim() === String(questionNo).trim()
-    );
-    if (rowIdx === -1) return res.status(404).json({ error: 'Question not found' });
+    // Log full picture for debugging
+    console.log(`🔍 Submit: email=${email} week=${week} qno="${questionNo}"`);
+    const userRows = dataRows.filter(r => (r[emailIdx]||'').toLowerCase() === email.toLowerCase());
+    console.log('📋 All rows for user:', JSON.stringify(userRows.map((r,i)=>({
+      sheetRow: i+2, w: r[weekIdx], q: r[qIdx], type: r[typeIdx], submitted: r[subIdx]
+    }))));
+
+    // Find ALL matching rows (not just first) — pick the unsubmitted one if multiple
+    const candidateIdxs = [];
+    dataRows.forEach((r, i) => {
+      const rowEmail = (r[emailIdx]||'').toLowerCase().trim();
+      const rowWeek  = String(r[weekIdx]||'').trim();
+      const rowQNo   = (r[qIdx]||'').trim();
+      if (rowEmail === email.toLowerCase().trim() &&
+          rowWeek  === String(week).trim() &&
+          rowQNo   === String(questionNo).trim()) {
+        candidateIdxs.push(i);
+      }
+    });
+
+    console.log(`🔍 Matching rows: ${JSON.stringify(candidateIdxs.map(i=>i+2))}`);
+
+    if (candidateIdxs.length === 0) {
+      console.log('❌ No match found');
+      return res.status(404).json({ error: `Question not found: week=${week} qno=${questionNo}` });
+    }
+
+    // Prefer unsubmitted row; fall back to first match
+    let rowIdx = candidateIdxs.find(i => (dataRows[i][subIdx]||'').toUpperCase() !== 'TRUE');
+    if (rowIdx === undefined) rowIdx = candidateIdxs[0];
+    console.log(`✅ Using row ${rowIdx+2} (submitted=${dataRows[rowIdx][subIdx]})`);
 
     const sheetRow   = rowIdx + 2;
     const questionText = dataRows[rowIdx][questionIdx] || '';
@@ -461,8 +489,8 @@ app.get('/api/scores', requireLogin, async (req, res) => {
     });
 
     const values = raw.data.values || [];
+    console.log(`📊 Scores sheet: ${values.length} rows, headers: ${values[0]?.join('|')}`);
     if (values.length < 2) {
-      // Sheet empty or header only — no scores yet
       return res.json({ scores: [], latest: null, average: 0 });
     }
 

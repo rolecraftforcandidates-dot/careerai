@@ -141,6 +141,9 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .ws-done{background:var(--green-light);color:var(--green)}
 .ws-cur{background:var(--teal-light);color:var(--teal-dark)}
 .ws-up{background:#f0f0f8;color:var(--muted)}
+.ws-overdue{background:var(--red-light);color:var(--red)}
+.wc-overdue{background:var(--red-light);color:var(--red)}
+.week-block.overdue{border-color:var(--red);box-shadow:0 0 0 3px rgba(232,64,64,0.08)}
 .week-tasks{display:none;border-top:1px solid var(--border);padding:14px 20px 18px}
 .week-tasks.open{display:block}
 .task-item{display:flex;align-items:center;gap:11px;padding:9px 12px;background:var(--bg);border-radius:9px;font-size:0.85rem;margin-bottom:7px;cursor:pointer;transition:background 0.15s}
@@ -290,7 +293,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         </div>
         <div class="stats-grid">
           <div class="stat-card t"><div class="stat-icon">&#128197;</div><div class="stat-val" id="statWeek">-</div><div class="stat-lbl">Current Week</div></div>
-          <div class="stat-card g"><div class="stat-icon">&#9989;</div><div class="stat-val" id="statTasks">-</div><div class="stat-lbl">Tasks Done</div></div>
+          <div class="stat-card g" id="statTasksCard"><div class="stat-icon" id="statTasksIcon">&#9989;</div><div class="stat-val" id="statTasks">-</div><div class="stat-lbl" id="statTasksLbl">Tasks Done</div></div>
           <div class="stat-card p"><div class="stat-icon">&#129302;</div><div class="stat-val" id="statScore">-</div><div class="stat-lbl">Latest AI Score</div></div>
           <div class="stat-card o"><div class="stat-icon">&#10067;</div><div class="stat-val" id="statPending">-</div><div class="stat-lbl">Questions Pending</div></div>
         </div>
@@ -578,6 +581,24 @@ function loadOverview() {
       document.getElementById('statTasks').textContent    = d.tasksDone+'/'+d.totalTasks;
       document.getElementById('statScore').textContent    = d.latestScore!==null ? d.latestScore : '-';
       document.getElementById('statPending').textContent  = d.pendingQuestions;
+
+      // ── Show on-track / falling behind / overdue status ──
+      var card  = document.getElementById('statTasksCard');
+      var icon  = document.getElementById('statTasksIcon');
+      var lbl   = document.getElementById('statTasksLbl');
+      if (d.overdueCount && d.overdueCount > 0) {
+        card.style.borderColor = 'var(--red)';
+        icon.textContent = '🔴';
+        lbl.innerHTML = 'Tasks Done <span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+d.overdueCount+' OVERDUE</span>';
+      } else if (d.currentWeekProgress < 50 && d.pendingQuestions > 0) {
+        card.style.borderColor = 'var(--orange)';
+        icon.textContent = '⚠️';
+        lbl.innerHTML = 'Tasks Done <span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
+      } else {
+        card.style.borderColor = '';
+        icon.textContent = '✅';
+        lbl.innerHTML = 'Tasks Done <span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
+      }
       if (d.pendingQuestions>0) {
         var nb=document.getElementById('questionsNavBtn');
         if (!nb.querySelector('.nav-badge')) { var b=document.createElement('span'); b.className='nav-badge'; b.textContent=d.pendingQuestions; nb.appendChild(b); }
@@ -611,30 +632,96 @@ function loadPlan() {
     .then(function(r){return r.json();})
     .then(function(d){
       if (d.error){showErr(document.getElementById('planError'),d.error);return;}
-      var plan=d.plan||[], cw=(currentUser&&currentUser.week)?parseInt(currentUser.week):1;
+      var plan=d.plan||[];
+      var cw=(currentUser&&currentUser.week)?parseInt(currentUser.week):1;
+      var dayOfWeek=(currentUser&&currentUser.dayOfWeek)?parseInt(currentUser.dayOfWeek):1;
       var bw={};
-      plan.forEach(function(t){var w=t.Week||'1';if(!bw[w])bw[w]=[];bw[w].push(t);});
+      plan.forEach(function(t){var w=String(t.Week||'1');if(!bw[w])bw[w]=[];bw[w].push(t);});
       var wt={'1':'Build Foundations','2':'Strengthen Technical Depth','3':'Real Interview Practice','4':'Final Readiness'};
-      if (!plan.length){document.getElementById('planContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#128506;&#65039;</div><div class="empty-text">Your plan is being prepared. Check back soon!</div></div>';return;}
+      if (!plan.length){
+        document.getElementById('planContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#128506;&#65039;</div><div class="empty-text">Your plan is being prepared. Check back soon!</div></div>';
+        return;
+      }
       document.getElementById('planContent').innerHTML=[1,2,3,4].map(function(w){
-        var tasks=bw[w]||[], done=tasks.filter(function(t){return t.Status==='Done';}).length;
-        var st=w<cw?'done':w==cw?'cur':'up';
-        var sl={'done':'&#10003; DONE','cur':'&#9679; IN PROGRESS','up':'UPCOMING'};
-        var wcc={'done':'wc-done','cur':'wc-cur','up':'wc-up'};
-        var wsc={'done':'ws-done','cur':'ws-cur','up':'ws-up'};
-        var rows=tasks.length ? tasks.map(function(t){
-          var ck=t.Status==='Done',tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
-          var taskKey=encodeURIComponent(t.Week+'|'+t.Day+'|'+(t['Task Title']||''));
-          return '<div class="task-item" data-task="'+taskKey+'" onclick="toggleTask(this)"><div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+' </div><div class="task-text '+(ck?'done':'')+'">'+( t['Task Title']||'')+'</div><span class="badge '+tc+'" style="margin-left:auto;flex-shrink:0">'+(t.Type||'')+'</span></div>';
-        }).join('') : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0">Tasks will appear when this week is unlocked.</div>';
-        var dayBadge = st==='cur' ? '<span style="font-size:0.68rem;font-family:DM Mono,monospace;background:#f0f0f8;color:var(--muted);padding:2px 8px;border-radius:100px;margin-left:6px">Day '+((currentUser&&currentUser.dayOfWeek)||1)+' of 7</span>' : '';
-        var progressBar = st==='cur' && tasks.length ? '<div style="margin-top:6px;background:#eef0f8;border-radius:100px;height:4px;width:140px"><div style="height:100%;background:linear-gradient(90deg,var(--teal),var(--purple));border-radius:100px;width:'+(Math.round(done/tasks.length*100))+'%;transition:width 0.5s"></div></div>' : '';
-        return '<div class="week-block '+(st==='cur'?'cw':'')+'"><div class="week-hdr" onclick="toggleWeek(this)">'+
-          '<div class="week-hdr-left"><div class="week-circle '+wcc[st]+'">W'+w+'</div>'+
-          '<div><div class="week-hdr-title">Week '+w+' - '+(wt[w]||'')+dayBadge+'</div>'+
-          '<div class="week-hdr-sub">'+(tasks.length?tasks.length+' tasks · '+done+' completed':'Coming soon')+progressBar+'</div></div></div>'+
-          '<div style="display:flex;align-items:center;gap:10px"><span class="ws-pill '+wsc[st]+'">'+sl[st]+'</span><span style="color:var(--muted)">&#8250;</span></div></div>'+
-          '<div class="week-tasks '+(st==='cur'?'open':'')+'">'+rows+'</div></div>';
+        var tasks=bw[w]||[];
+        var done=tasks.filter(function(t){return t.Status==='Done';}).length;
+        var pending=tasks.length-done;
+        var allDone=tasks.length>0&&done===tasks.length;
+
+        // ── Determine real status ──
+        var st, blockClass='', pillClass, pillLabel, circleClass, subText, extraBadge='';
+
+        if (w < cw) {
+          // Past week
+          if (allDone) {
+            st='done'; blockClass=''; circleClass='wc-done'; pillClass='ws-done';
+            pillLabel='&#10003; COMPLETE';
+            subText=tasks.length+' tasks · all done';
+          } else {
+            // Past but incomplete — OVERDUE
+            st='overdue'; blockClass='overdue'; circleClass='wc-overdue'; pillClass='ws-overdue';
+            pillLabel='&#9888; OVERDUE';
+            subText=tasks.length+' tasks · '+pending+' still pending';
+            extraBadge='<span style="font-size:0.68rem;background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">'+pending+' task'+(pending>1?'s':'')+' overdue</span>';
+          }
+        } else if (w == cw) {
+          // Current week — IN PROGRESS
+          st='cur'; blockClass='cw'; circleClass='wc-cur'; pillClass='ws-cur';
+          pillLabel='&#9679; IN PROGRESS';
+          var pct=tasks.length?Math.round(done/tasks.length*100):0;
+          subText=tasks.length+' tasks · '+done+' completed';
+          extraBadge='<span style="font-size:0.68rem;background:#f0f0f8;color:var(--muted);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">Day '+dayOfWeek+' of 7</span>';
+          if (dayOfWeek >= 6 && pending > 0) {
+            extraBadge += '<span style="font-size:0.68rem;background:var(--orange-light);color:var(--orange);padding:2px 8px;border-radius:100px;margin-left:4px;font-family:DM Mono,monospace">&#9200; '+(7-dayOfWeek+1)+' day'+(7-dayOfWeek===0?'':'s')+' left</span>';
+          }
+        } else {
+          // Future week — show unlock countdown
+          st='up'; blockClass=''; circleClass='wc-up'; pillClass='ws-up';
+          var weeksAway = w - cw;
+          var daysUntilUnlock = (weeksAway - 1) * 7 + (7 - dayOfWeek + 1);
+          pillLabel='UPCOMING';
+          subText = daysUntilUnlock <= 7
+            ? 'Unlocks in '+daysUntilUnlock+' day'+(daysUntilUnlock===1?'':'s')
+            : 'Unlocks in ~'+weeksAway+' week'+(weeksAway===1?'':'s');
+        }
+
+        // ── Progress bar for current week ──
+        var progressBar = (st==='cur' || st==='overdue') && tasks.length
+          ? '<div style="margin-top:7px;background:#eef0f8;border-radius:100px;height:5px;width:160px"><div style="height:100%;background:'+(st==='overdue'?'var(--red)':'linear-gradient(90deg,var(--teal),var(--purple))')+';border-radius:100px;width:'+Math.round(done/tasks.length*100)+'%;transition:width 0.6s ease"></div></div>'
+          : '';
+
+        // ── Task rows — all weeks interactive (including overdue) ──
+        var rows = tasks.length
+          ? tasks.map(function(t){
+              var ck=t.Status==='Done';
+              var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
+              var taskKey=encodeURIComponent(t.Week+'|'+t.Day+'|'+(t['Task Title']||''));
+              return '<div class="task-item" data-task="'+taskKey+'" onclick="toggleTask(this)">'+
+                '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+
+                '<div class="task-text '+(ck?'done':'')+'">'+(t['Task Title']||'')+'</div>'+
+                '<span class="badge '+tc+'" style="margin-left:auto;flex-shrink:0">'+(t.Type||'')+'</span>'+
+                '</div>';
+            }).join('')
+          : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0;font-style:italic">'+subText+'</div>';
+
+        // ── Assemble week block ──
+        var isOpen = (st==='cur' || st==='overdue') ? 'open' : '';
+        return '<div class="week-block '+blockClass+'">'+
+          '<div class="week-hdr" onclick="toggleWeek(this)">'+
+            '<div class="week-hdr-left">'+
+              '<div class="week-circle '+circleClass+'">W'+w+'</div>'+
+              '<div>'+
+                '<div class="week-hdr-title">Week '+w+' · '+(wt[w]||'')+extraBadge+'</div>'+
+                '<div class="week-hdr-sub">'+subText+progressBar+'</div>'+
+              '</div>'+
+            '</div>'+
+            '<div style="display:flex;align-items:center;gap:10px">'+
+              '<span class="ws-pill '+pillClass+'">'+pillLabel+'</span>'+
+              '<span style="color:var(--muted)">&#8250;</span>'+
+            '</div>'+
+          '</div>'+
+          '<div class="week-tasks '+isOpen+'">'+rows+'</div>'+
+        '</div>';
       }).join('');
     }).catch(function(){showErr(document.getElementById('planError'),'Could not load plan. Please refresh.');});
 }

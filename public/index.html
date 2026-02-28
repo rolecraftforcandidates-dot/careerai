@@ -1129,15 +1129,14 @@ function submitAnswer(idx, qno, weekOverride) {
   btn.innerHTML = '<span class="spin"></span> Scoring with AI — takes ~10 seconds...';
   ansEl.disabled = true; ansEl.style.opacity = '0.7';
 
+  // Read qno and week from button data attributes (most reliable)
+  var finalQno  = (btn && btn.getAttribute('data-qno'))  || qno;
+  var finalWeek = (btn && btn.getAttribute('data-week')) ? parseInt(btn.getAttribute('data-week')) : (weekOverride||null);
+  console.log('📤 Sending: qno='+finalQno+' week='+finalWeek);
+
   fetch('/api/questions/submit', {
     method: 'POST', credentials: 'include',
     headers: {'Content-Type':'application/json'},
-    // Also read from button data attributes as fallback
-    var dataQno  = btn ? btn.getAttribute('data-qno')  : null;
-    var dataWeek = btn ? btn.getAttribute('data-week') : null;
-    var finalQno  = dataQno  || qno;
-    var finalWeek = dataWeek ? parseInt(dataWeek) : (weekOverride||null);
-    console.log('📤 Sending: qno='+finalQno+' week='+finalWeek);
     body: JSON.stringify({ questionNo: finalQno, answer: ans, weekOverride: finalWeek })
   })
   .then(function(r){ return r.json(); })

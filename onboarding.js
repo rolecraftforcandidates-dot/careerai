@@ -114,20 +114,25 @@ The JSON must follow this exact structure:
 }
 
 RULES FOR TASKS:
-- Generate exactly 16 tasks total: 4 tasks per week, across 4 weeks
-- Week 1: Foundation building (theory, core concepts for ${role})
-- Week 2: Technical depth (hands-on practice, ${techStack} specifics)
-- Week 3: Interview practice (mock answers, system design, problem solving)
-- Week 4: Final readiness (full mock interviews, polish, confidence)
+- Generate exactly 28 tasks total: 7 tasks per week, across 4 weeks
+- Use Day values 1 through 7 within each week (one task per day)
+- Week 1: Foundation building — theory, core concepts, fundamentals for ${role}
+- Week 2: Technical depth — hands-on practice, ${techStack} specifics, build something
+- Week 3: Interview practice — mock answers, system design, problem solving drills
+- Week 4: Final readiness — full mock interviews, confidence, polish weak areas
+- Spread Types across the week: roughly 3 Theory, 2 Practice, 2 Mock per week
 - Type must be exactly one of: Theory / Practice / Mock
-- Make tasks highly specific to ${role} and ${techStack} — not generic
+- Make tasks highly specific to ${role} and ${techStack} — not generic filler
 
 RULES FOR QUESTIONS:
-- Generate exactly 12 questions total: 3 questions per week, across 4 weeks
-- Each week must have: 1 Technical question + 1 Behavioral question + 1 System Design or Role-specific question
-- Week 1 questions should be foundational, Week 4 should be advanced
-- Q No. format: Q1, Q2, Q3 (reset each week — Week 2 also starts at Q1)
-- Make questions very specific to ${role} and ${techStack} — interviewers at top Indian tech companies would ask these
+- Generate exactly 40 questions total: 10 questions per week, across 4 weeks
+- Each week breakdown: 4 Technical + 3 Behavioral + 3 System Design questions
+- Week 1 questions: foundational and conceptual
+- Week 2 questions: intermediate, hands-on technical depth
+- Week 3 questions: advanced, interview-style
+- Week 4 questions: senior-level, real interview difficulty
+- Q No. format: Q1 through Q10 — RESET each week (Week 2 starts at Q1 again)
+- Make questions very specific to ${role} and ${techStack}
 - Type must be exactly one of: Technical / Behavioral / System Design
 
 RULES FOR ATS ANALYSIS:
@@ -284,7 +289,7 @@ async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
     </div>
     <div style="background:white;border-radius:14px;padding:20px;border:1px solid rgba(0,0,0,.07)">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px">What is waiting for you:</div>
-      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  16 personalised daily tasks across 4 weeks</div>
+      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  28 personalised daily tasks across 4 weeks</div>
       <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  12 interview questions (Technical + Behavioral + System Design)</div>
       <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  Resume ATS analysis with improvement tips</div>
       <div style="font-size:13px;color:#6b6b8a">✅  AI scoring on your submitted answers</div>

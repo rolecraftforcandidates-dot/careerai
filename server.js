@@ -327,10 +327,11 @@ app.post('/api/questions/submit', requireLogin, async (req, res) => {
     const scoreIdx    = headers.indexOf('Score');
     const feedbackIdx = headers.indexOf('AI Feedback');
 
+    // Match email + week (as string) + Q No. — all three must match
     const rowIdx = dataRows.findIndex(
       r => (r[emailIdx]||'').toLowerCase() === email.toLowerCase() &&
-           parseInt(r[weekIdx]) === week &&
-           (r[qIdx]||'') === questionNo
+           String(r[weekIdx]||'').trim() === String(week) &&
+           (r[qIdx]||'').trim() === String(questionNo).trim()
     );
     if (rowIdx === -1) return res.status(404).json({ error: 'Question not found' });
 
@@ -339,37 +340,48 @@ app.post('/api/questions/submit', requireLogin, async (req, res) => {
     const questionType = dataRows[rowIdx][typeIdx]     || 'Technical';
 
     // ── Score with Claude ──
-    let score = null, feedback = '', technical = 0, communication = 0, problemSolving = 0, behavioral = 0;
+    let score = null, feedback = '', technical = 0, communication = 0, problemSolving = 0, behavioral = 0, primarySkill = 'technical';
     try {
       const Anthropic = require('@anthropic-ai/sdk');
       const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-      const scorePrompt = `You are an expert technical interviewer evaluating a candidate's answer for a ${role} role (${experience} years experience).
+      // Type-specific scoring weights
+      const typeWeights = {
+        'Technical':     'Weight technical accuracy (40%), communication clarity (30%), problem solving (20%), behavioral (10%)',
+        'Behavioral':    'Weight behavioral depth/STAR format (40%), communication (35%), technical context (15%), problem solving (10%)',
+        'System Design': 'Weight problem solving/architecture (40%), technical accuracy (35%), communication (20%), behavioral (5%)',
+      };
+      const weightGuide = typeWeights[questionType] || typeWeights['Technical'];
 
-QUESTION (${questionType}):
-${questionText}
+      const scorePrompt = `You are an expert technical interviewer evaluating a ${questionType} question answer for a ${role} role (${experience} years experience).
+
+QUESTION TYPE: ${questionType}
+QUESTION: ${questionText}
 
 CANDIDATE'S ANSWER:
 ${answer.trim()}
 
-Evaluate this answer and return ONLY valid JSON with no markdown or extra text:
+Scoring weights for ${questionType} questions: ${weightGuide}
+
+Return ONLY valid JSON — no markdown, no code fences, nothing else:
 {
-  "score": <integer 0-100>,
-  "technical": <integer 0-100>,
-  "communication": <integer 0-100>,
-  "problemSolving": <integer 0-100>,
-  "behavioral": <integer 0-100>,
-  "feedback": "<2-3 sentences: what was good, what to improve, one specific tip>"
+  "score": <overall integer 0-100 using the weights above>,
+  "technical": <integer 0-100, how technically accurate and deep>,
+  "communication": <integer 0-100, how clear, structured and articulate>,
+  "problemSolving": <integer 0-100, how well they break down and solve the problem>,
+  "behavioral": <integer 0-100, for behavioral: STAR format depth; for others: professional maturity>,
+  "primarySkill": "${questionType === 'Behavioral' ? 'behavioral' : questionType === 'System Design' ? 'problemSolving' : 'technical'}",
+  "feedback": "<3 sentences: 1) what was strong, 2) what was missing or weak, 3) one very specific improvement tip for ${role}>"
 }
 
 Scoring guide:
-- 85-100: Exceptional — clear, structured, specific with examples
-- 70-84: Good — covers main points but missing depth or examples
-- 55-69: Average — basic answer, lacks structure or specifics
-- 40-54: Weak — incomplete or off-topic
-- 0-39: Poor — does not answer the question
+- 85-100: Exceptional — specific, structured, examples from real experience
+- 70-84: Good — covers main points, missing depth or concrete examples
+- 55-69: Average — basic answer, vague or lacks structure
+- 40-54: Weak — incomplete, off-topic, or missing key concepts
+- 0-39: Poor — does not address the question
 
-Be honest and specific. The feedback must directly reference what the candidate wrote.`;
+Be honest. Reference specific things the candidate wrote.`;
 
       const msg = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -384,8 +396,9 @@ Be honest and specific. The feedback must directly reference what the candidate 
       communication = Math.min(100, Math.max(0, parseInt(parsed.communication) || 0));
       problemSolving= Math.min(100, Math.max(0, parseInt(parsed.problemSolving) || 0));
       behavioral    = Math.min(100, Math.max(0, parseInt(parsed.behavioral) || 0));
+      primarySkill  = parsed.primarySkill || (questionType === 'Behavioral' ? 'behavioral' : questionType === 'System Design' ? 'problemSolving' : 'technical');
       feedback      = parsed.feedback || '';
-      console.log(`✅ Claude scored ${email} Week ${week} ${questionNo}: ${score}/100`);
+      console.log(`✅ Claude scored ${email} Week ${week} ${questionNo}: ${score}/100 [${questionType}]`);
     } catch (scoreErr) {
       console.error('Claude scoring failed:', scoreErr.message);
       // Fallback — still save answer even if scoring fails
@@ -422,9 +435,11 @@ Be honest and specific. The feedback must directly reference what the candidate 
     }
 
     res.json({
-      success:   true,
-      score:     score,
-      feedback:  feedback,
+      success:      true,
+      score:        score,
+      feedback:     feedback,
+      questionType: questionType,
+      primarySkill: primarySkill,
       technical, communication, problemSolving, behavioral,
       message:   score !== null ? `Scored ${score}/100` : 'Submitted — scoring unavailable'
     });
@@ -437,21 +452,42 @@ Be honest and specific. The feedback must directly reference what the candidate 
 // GET /api/scores — all scores for logged-in user
 app.get('/api/scores', requireLogin, async (req, res) => {
   try {
-    const email  = req.session.user.email;
-    const rows   = await readSheet('Scores');
-    const scores = rows.filter(r => r.Email.toLowerCase() === email.toLowerCase());
-    // Sort by date desc
-    scores.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+    const email = req.session.user.email;
+
+    // Read raw to handle missing headers gracefully
+    const raw = await getSheetsClient().spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Scores!A:Z',
+    });
+
+    const values = raw.data.values || [];
+    if (values.length < 2) {
+      // Sheet empty or header only — no scores yet
+      return res.json({ scores: [], latest: null, average: 0 });
+    }
+
+    const [headers, ...dataRows] = values;
+    // Map rows to objects using header names
+    const allScores = dataRows.map(row =>
+      Object.fromEntries(headers.map((h, i) => [h.trim(), (row[i]||'').trim()]))
+    );
+
+    const scores = allScores.filter(r =>
+      (r.Email||'').toLowerCase() === email.toLowerCase() && r.Score
+    );
+
+    // Sort newest first
+    scores.sort((a, b) => new Date(b.Date||0) - new Date(a.Date||0));
 
     const latest  = scores[0] || null;
     const average = scores.length
-      ? Math.round(scores.reduce((s, r) => s + parseInt(r.Score||0), 0) / scores.length)
+      ? Math.round(scores.reduce((s, r) => s + (parseInt(r.Score)||0), 0) / scores.length)
       : 0;
 
     res.json({ scores, latest, average });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Could not load scores' });
+    console.error('Scores route error:', err.message);
+    res.json({ scores: [], latest: null, average: 0 }); // Return empty rather than error
   }
 });
 

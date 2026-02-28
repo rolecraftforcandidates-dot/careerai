@@ -420,6 +420,18 @@ app.get('/api/overview', requireLogin, async (req, res) => {
       ...myQuestions.filter(r=>r.Submitted==='TRUE').slice(0,2).map(q => ({ type: 'submit', text: `Submitted Week ${q.Week} ${q['Q No.']} answer`, date: '' })),
     ].slice(0, 4);
 
+    // Overdue = past weeks with incomplete tasks
+    const overdueCount = myPlan.filter(r =>
+      parseInt(r.Week) < week && r.Status !== 'Done'
+    ).length;
+
+    // Current week progress
+    const curWeekTasks    = myPlan.filter(r => parseInt(r.Week) === week);
+    const curWeekDone     = curWeekTasks.filter(r => r.Status === 'Done').length;
+    const curWeekProgress = curWeekTasks.length
+      ? Math.round((curWeekDone / curWeekTasks.length) * 100)
+      : 0;
+
     res.json({
       week,
       tasksDone,
@@ -428,6 +440,8 @@ app.get('/api/overview', requireLogin, async (req, res) => {
       latestScore: latestScore ? parseInt(latestScore.Score) : null,
       pendingQuestions: pendingQs,
       recentActivity,
+      overdueCount,
+      currentWeekProgress: curWeekProgress,
     });
   } catch (err) {
     console.error(err.message);

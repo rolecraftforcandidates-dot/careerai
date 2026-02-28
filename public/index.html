@@ -335,6 +335,39 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
           </div>
 
           <!-- Getting Started Checklist -->
+          <!-- Week Progress Card — shown after 30% complete, replaces getting started -->
+          <div class="card" id="weekProgressCard" style="border-top:3px solid var(--purple);display:none">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+              <div>
+                <div style="font-size:0.65rem;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:2px;margin-bottom:4px">THIS WEEK</div>
+                <div style="font-weight:700;font-size:0.95rem" id="wpWeekTitle">Week 1</div>
+              </div>
+              <div style="font-size:0.78rem" id="wpDayBadge">Day 1 of 7</div>
+            </div>
+            <div style="margin-bottom:18px">
+              <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--muted);margin-bottom:6px">
+                <span>Task completion</span><span id="wpPct">0%</span>
+              </div>
+              <div style="background:#eef0f8;border-radius:100px;height:8px">
+                <div id="wpBar" style="height:100%;border-radius:100px;width:0%;transition:width 0.6s ease;background:var(--teal)"></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--purple-light);border-radius:10px">
+                <span style="font-size:0.82rem;color:var(--purple);font-weight:600">&#129302; Latest AI Score</span>
+                <span style="font-size:0.88rem;font-weight:700;color:var(--purple)" id="wpScore">-</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--teal-light);border-radius:10px">
+                <span style="font-size:0.82rem;color:var(--teal-dark);font-weight:600">&#10067; Questions</span>
+                <span style="font-size:0.88rem;font-weight:700;color:var(--teal-dark)" id="wpPending">-</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--green-light);border-radius:10px">
+                <span style="font-size:0.82rem;color:var(--green);font-weight:600">&#128200; Overall</span>
+                <span style="font-size:0.88rem;font-weight:700;color:var(--green)" id="wpOverall">-</span>
+              </div>
+            </div>
+          </div>
+
           <div class="card" id="gettingStartedCard" style="border-top:3px solid var(--purple)">
             <div class="card-title" style="margin-bottom:12px">&#128640; Your First Steps</div>
             <div id="gettingStartedList">
@@ -527,14 +560,14 @@ function setUserInfo(u) {
   var daysLeft = 7 - day + 1;
   document.getElementById('userAvatar').textContent = ini;
   document.getElementById('userName').textContent   = u.name||'';
-  document.getElementById('userRole').textContent   = (u.role||'') + (u.experience?' - '+u.experience:'');
+  document.getElementById('userRole').textContent   = (u.role||'') + (u.experience?' — '+u.experience+' yrs':'');
   document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
   document.getElementById('dayPill').textContent    = 'DAY '+day+' OF 7';
   document.getElementById('dayPill').style.background = day >= 6 ? 'var(--orange-light)' : '#f0f0f8';
   document.getElementById('dayPill').style.color      = day >= 6 ? 'var(--orange)' : 'var(--muted)';
   document.getElementById('welcomeName').textContent = 'HI, '+((u.name||'').split(' ')[0]).toUpperCase()+'!';
   document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan. Day '+day+' of 7'+(daysLeft<=2?' — <span style="color:#f59e0b;font-weight:600">'+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>':'')+ '.';
-  document.getElementById('planRoleTag').textContent = (u.role||'') + ' · ' + (u.experience||'') + ' · Week '+(u.week||1)+' of 4 · Day '+day+' of 7';
+  document.getElementById('planRoleTag').textContent = (u.role||'') + ' · ' + (u.experience||'') + ' yrs · Week '+(u.week||1)+' of 4 · Day '+day+' of 7';
   document.getElementById('statWeek').textContent   = 'W'+(u.week||1)+'D'+day;
 }
 
@@ -785,7 +818,7 @@ function toggleTask(item) {
 // Toast notification (error/info)
 function showToast(msg, type) {
   var t = document.createElement('div');
-  var bg = type==='error' ? 'var(--red)' : 'var(--teal)';
+  var bg = type==='error' ? 'var(--red)' : type==='success' ? 'var(--green)' : 'var(--teal)';
   t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:'+bg+';color:#fff;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-family:DM Sans,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideDown 0.3s ease';
   t.textContent = msg;
   document.body.appendChild(t);
@@ -847,16 +880,36 @@ function loadOverview() {
         }).join('');
       }
 
-      // ── Getting Started Checklist — shown until 30% complete ──
+      // ── Getting Started Checklist: show until 30%, then swap to Week Progress ──
       var gsCard = document.getElementById('gettingStartedCard');
+      var wpCard = document.getElementById('weekProgressCard');
       if (d.progress < 30) {
         gsCard.style.display = 'block';
-        if (d.tasksDone > 0)       markGSDone('gs-plan');
-        if (d.tasksDone > 0)       markGSDone('gs-task');
-        if (d.latestScore !== null) markGSDone('gs-question');
-        markGSDone('gs-resume'); // Resume always analysed on signup
+        if (wpCard) wpCard.style.display = 'none';
+        if (d.tasksDone > 0)        markGSDone('gs-plan');
+        if (d.tasksDone > 0)        markGSDone('gs-task');
+        if (d.latestScore !== null)  markGSDone('gs-question');
+        markGSDone('gs-resume');
       } else {
         gsCard.style.display = 'none';
+        if (wpCard) {
+          wpCard.style.display = 'block';
+          // Fill week progress card
+          var cw  = d.week || 1;
+          var cwp = d.currentWeekProgress || 0;
+          var wt  = {'1':'Build Foundations','2':'Strengthen Technical Depth','3':'Interview Practice','4':'Final Readiness'};
+          var day = (currentUser && currentUser.dayOfWeek) || 1;
+          var daysLeft = 7 - day + 1;
+          var urgency  = daysLeft <= 2 ? '<span style="color:var(--orange);font-weight:700">⚠ '+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>' : 'Day '+day+' of 7';
+          document.getElementById('wpWeekTitle').textContent  = 'Week '+cw+' · '+(wt[cw]||'');
+          document.getElementById('wpDayBadge').innerHTML     = urgency;
+          document.getElementById('wpPct').textContent        = cwp+'%';
+          document.getElementById('wpBar').style.width        = cwp+'%';
+          document.getElementById('wpBar').style.background   = cwp >= 75 ? 'var(--green)' : cwp >= 40 ? 'linear-gradient(90deg,var(--teal),var(--purple))' : 'var(--orange)';
+          document.getElementById('wpScore').textContent      = d.latestScore !== null ? d.latestScore+'/100' : 'No score yet';
+          document.getElementById('wpPending').textContent    = d.pendingQuestions + ' question'+(d.pendingQuestions===1?'':'s')+' pending';
+          document.getElementById('wpOverall').textContent    = d.progress+'% overall complete';
+        }
       }
 
       // ── Today's Focus ──
@@ -906,12 +959,17 @@ function loadMiniScoreBars() {
     .then(function(d){
       if (!d.scores||!d.scores.length) return;
       var s=d.scores[0];
-      var sk=[['Technical',s.Technical||0],['Communication',s.Communication||0],['Problem Solving',s['Problem Solving']||0],['Behavioral',s.Behavioral||0]];
-      document.getElementById('miniScoreBars').innerHTML=sk.map(function(p){
-        return '<div class="mini-bar-row"><div class="mini-bar-label"><span>'+p[0]+'</span><span>'+p[1]+'/100</span></div><div class="mini-bar-bg"><div class="mini-bar-fill" data-w="'+p[1]+'%"></div></div></div>';
-      }).join('');
-      setTimeout(animateBars,300);
+      renderMiniScoreBars(parseInt(s.Technical)||0,parseInt(s.Communication)||0,parseInt(s['Problem Solving'])||0,parseInt(s.Behavioral)||0);
     }).catch(function(){});
+}
+
+function renderMiniScoreBars(tech,comm,prob,beh) {
+  var sk=[['Technical',tech],['Communication',comm],['Problem Solving',prob],['Behavioral',beh]];
+  document.getElementById('miniScoreBars').innerHTML=sk.map(function(p){
+    var col=p[1]>=75?'var(--green)':p[1]>=50?'var(--teal)':'var(--orange)';
+    return '<div class="mini-bar-row"><div class="mini-bar-label"><span>'+p[0]+'</span><span style="color:'+col+';font-weight:600">'+p[1]+'/100</span></div><div class="mini-bar-bg"><div class="mini-bar-fill" data-w="'+p[1]+'%" style="background:'+col+'"></div></div></div>';
+  }).join('');
+  setTimeout(animateBars,100);
 }
 
 function loadPlan() {
@@ -1042,29 +1100,98 @@ function loadQuestions() {
 }
 
 function submitAnswer(idx, qno) {
-  var ansEl=document.getElementById('ans-'+idx), btn=document.getElementById('sbtn-'+idx);
-  var ans=ansEl?ansEl.value.trim():'';
-  if (!ans||ans.length<20){alert('Please write a proper answer before submitting.');return;}
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Submitting...';
-  fetch('/api/questions/submit',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionNo:qno,answer:ans})})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if (d.success){
-        ansEl.disabled=true;ansEl.style.opacity='0.6';
-        btn.parentNode.innerHTML='<div class="submitted-badge">&#10003; Submitted - AI score coming soon!</div>';
-        // Decrement pending badge
-        var nb=document.getElementById('questionsNavBtn');
-        var badge=nb?nb.querySelector('.nav-badge'):null;
-        if (badge) {
-          var cnt=parseInt(badge.textContent||'0')-1;
-          if (cnt<=0) badge.remove(); else badge.textContent=cnt;
-        }
-        // Update overview pending stat
-        var sp=document.getElementById('statPending');
-        if (sp) { var n=parseInt(sp.textContent||'0')-1; sp.textContent=Math.max(0,n); }
+  var ansEl = document.getElementById('ans-'+idx);
+  var btn   = document.getElementById('sbtn-'+idx);
+  var ans   = ansEl ? ansEl.value.trim() : '';
+  if (!ans || ans.length < 20) { alert('Please write a proper answer (min 20 characters).'); return; }
+
+  // Show loading with scoring message
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Scoring with AI — takes ~10 seconds...';
+  ansEl.disabled = true; ansEl.style.opacity = '0.7';
+
+  fetch('/api/questions/submit', {
+    method: 'POST', credentials: 'include',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ questionNo: qno, answer: ans })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (!d.success) {
+      alert(d.error || 'Submission failed.');
+      btn.disabled = false; btn.innerHTML = 'Submit for AI Scoring';
+      ansEl.disabled = false; ansEl.style.opacity = '1';
+      return;
+    }
+
+    // ── Build score result HTML ──
+    var scoreHtml = '';
+    if (d.score !== null && d.score !== undefined) {
+      var sc    = parseInt(d.score);
+      var scCol = sc>=80 ? 'var(--green)' : sc>=60 ? 'var(--teal)' : sc>=40 ? 'var(--orange)' : 'var(--red)';
+      var scLbl = sc>=80 ? '🎉 Excellent!' : sc>=60 ? '👍 Good answer' : sc>=40 ? '⚠️ Needs improvement' : '❌ Weak answer';
+      var bars  = [
+        ['Technical',      d.technical      || 0],
+        ['Communication',  d.communication  || 0],
+        ['Problem Solving',d.problemSolving || 0],
+        ['Behavioral',     d.behavioral     || 0],
+      ];
+      scoreHtml =
+        '<div style="margin-top:16px;border:1px solid var(--border);border-radius:14px;overflow:hidden">'+
+          '<div style="background:linear-gradient(135deg,'+scCol+'18,'+scCol+'08);padding:16px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border)">'+
+            '<div style="width:62px;height:62px;border-radius:50%;border:3px solid '+scCol+';display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:#fff">'+
+              '<div style="font-size:1.2rem;font-weight:900;color:'+scCol+'">'+sc+'</div>'+
+              '<div style="font-size:0.52rem;color:var(--muted);font-family:DM Mono,monospace">/100</div>'+
+            '</div>'+
+            '<div>'+
+              '<div style="font-weight:700;font-size:1rem;color:'+scCol+'">'+scLbl+'</div>'+
+              '<div style="font-size:0.75rem;color:var(--muted);margin-top:2px">AI scored · '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</div>'+
+            '</div>'+
+          '</div>'+
+          '<div style="padding:14px 16px">'+
+            bars.map(function(b){
+              var pct=b[1]; var bc=pct>=75?'var(--green)':pct>=50?'var(--teal)':'var(--orange)';
+              return '<div style="margin-bottom:9px">'+
+                '<div style="display:flex;justify-content:space-between;font-size:0.74rem;margin-bottom:4px">'+
+                  '<span style="color:var(--muted)">'+b[0]+'</span><span style="font-weight:600;color:'+bc+'">'+pct+'/100</span>'+
+                '</div>'+
+                '<div style="background:#eef0f8;border-radius:100px;height:5px">'+
+                  '<div style="height:100%;width:'+pct+'%;background:'+bc+';border-radius:100px;transition:width 0.8s ease"></div>'+
+                '</div></div>';
+            }).join('')+
+            (d.feedback ?
+              '<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px;font-size:0.82rem;line-height:1.65;color:var(--text)">'+
+                '<span style="font-weight:700">🤖 AI Feedback</span><br>'+d.feedback+
+              '</div>' : '')+
+          '</div>'+
+        '</div>';
+    }
+
+    btn.parentNode.innerHTML = '<div class="submitted-badge">&#10003; Submitted &amp; Scored</div>' + scoreHtml;
+
+    // ── Update pending counters ──
+    var nb = document.getElementById('questionsNavBtn');
+    var badge = nb ? nb.querySelector('.nav-badge') : null;
+    if (badge) { var cnt=parseInt(badge.textContent||'1')-1; if(cnt<=0) badge.remove(); else badge.textContent=cnt; }
+    var sp = document.getElementById('statPending');
+    if (sp) sp.textContent = Math.max(0, parseInt(sp.textContent||'1')-1);
+
+    // ── Update score stat card on overview live ──
+    if (d.score !== null && d.score !== undefined) {
+      var ss = document.getElementById('statScore'); if (ss) ss.textContent = d.score;
+      var ws = document.getElementById('wpScore');   if (ws) ws.textContent = d.score+'/100';
+      showToast('Score: '+d.score+'/100 — '+(d.score>=80?'Excellent!':d.score>=60?'Good answer':'Keep practising'), d.score>=60 ? 'success' : 'info');
+      // Update mini score bars on overview instantly
+      if (typeof renderMiniScoreBars === 'function') {
+        renderMiniScoreBars(d.technical||0, d.communication||0, d.problemSolving||0, d.behavioral||0);
       }
-      else{alert(d.error||'Submission failed.');btn.disabled=false;btn.innerHTML='Submit for AI Scoring';}
-    }).catch(function(){alert('Could not submit. Check your connection.');btn.disabled=false;btn.innerHTML='Submit for AI Scoring';});
+    }
+  })
+  .catch(function(){
+    alert('Connection error — please try again.');
+    btn.disabled=false; btn.innerHTML='Submit for AI Scoring';
+    ansEl.disabled=false; ansEl.style.opacity='1';
+  });
 }
 
 function loadScores() {
@@ -1118,7 +1245,7 @@ function loadSettings() {
   if (!currentUser) return;
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
   document.getElementById('settingsEmail').textContent = currentUser.email || '-';
-  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (currentUser.experience ? ' - ' + currentUser.experience : '');
+  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (currentUser.experience ? ' — ' + currentUser.experience + ' yrs' : '');
   var sw = currentUser.week||1, sd = currentUser.dayOfWeek||1;
   document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 — Day ' + sd + ' of 7';
   // Reset form

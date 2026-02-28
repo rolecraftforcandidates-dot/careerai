@@ -554,7 +554,8 @@ app.get('/api/overview', requireLogin, async (req, res) => {
 
     const tasksDone   = myPlan.filter(r => r.Status === 'Done').length;
     const totalTasks  = myPlan.length;
-    const latestScore = myScores.sort((a,b) => new Date(b.Date)-new Date(a.Date))[0] || null;
+    // Use last appended row as latest (date sort breaks when multiple same-day submissions)
+    const latestScore = myScores.length ? myScores[myScores.length - 1] : null;
     const pendingQs   = myQuestions.filter(r => r.Submitted !== 'TRUE').length;
 
     const recentActivity = [

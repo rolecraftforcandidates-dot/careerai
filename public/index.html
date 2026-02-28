@@ -648,14 +648,16 @@ function toggleWeek(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
 var _taskState = { done:0, total:0, overdue:0, curWeekDone:0, curWeekTotal:0 };
 
 function syncTaskState() {
-  // Recount from DOM — single source of truth
-  var cw = currentUser ? parseInt(currentUser.week)||1 : 1;
-  var all   = document.querySelectorAll('.task-item[data-task]');
-  var done  = document.querySelectorAll('.task-item[data-task] .task-check.checked');
+  var cw  = currentUser ? parseInt(currentUser.week)||1 : 1;
+  var all = document.querySelectorAll('.task-item[data-task]');
+
+  // If plan hasn't rendered yet, don't overwrite server-seeded counts
+  if (all.length === 0 && _taskState._seededFromServer) return;
+
+  var done = document.querySelectorAll('.task-item[data-task] .task-check.checked');
   _taskState.total = all.length;
   _taskState.done  = done.length;
 
-  // Overdue = past week tasks not checked
   var overdue = 0, cwDone = 0, cwTotal = 0;
   all.forEach(function(item){
     var parts = decodeURIComponent(item.getAttribute('data-task')||'').split('|');
@@ -664,9 +666,9 @@ function syncTaskState() {
     if (w < cw && !checked) overdue++;
     if (w === cw) { cwTotal++; if (checked) cwDone++; }
   });
-  _taskState.overdue       = overdue;
-  _taskState.curWeekDone   = cwDone;
-  _taskState.curWeekTotal  = cwTotal;
+  _taskState.overdue     = overdue;
+  _taskState.curWeekDone = cwDone;
+  _taskState.curWeekTotal= cwTotal;
 }
 
 function updateOverviewStats() {
@@ -916,17 +918,21 @@ function loadOverview() {
       loadTodayFocus();
 
       loadMiniScoreBars();
-      // Seed task counts from server data immediately (don't wait for DOM)
+      // Seed task counts from server — authoritative until plan DOM loads
       if (d.tasksDone !== undefined && d.totalTasks !== undefined) {
-        _taskState.done  = d.tasksDone;
-        _taskState.total = d.totalTasks;
-        document.getElementById('statTasks').textContent = d.tasksDone+'/'+d.totalTasks;
+        _taskState.done              = d.tasksDone;
+        _taskState.total             = d.totalTasks;
+        _taskState.overdue           = d.overdueCount || 0;
+        _taskState.curWeekDone       = d.currentWeekProgress ? Math.round(d.currentWeekProgress/100*(d.totalTasks/4)) : 0;
+        _taskState.curWeekTotal      = Math.round(d.totalTasks / 4);
+        _taskState._seededFromServer = true;
+        document.getElementById('statTasks').textContent    = d.tasksDone+'/'+d.totalTasks;
         var pct2 = d.totalTasks ? Math.round(d.tasksDone/d.totalTasks*100) : 0;
         document.getElementById('progressPct').textContent  = pct2+'%';
         document.getElementById('progressFill').style.width = pct2+'%';
       }
-      // Sync with DOM once plan panel renders (may update if plan loaded already)
-      setTimeout(updateOverviewStats, 300);
+      // Once plan loads its DOM, it calls updateOverviewStats which will sync from DOM
+      setTimeout(updateOverviewStats, 500);
     }).catch(function(){});
 }
 
@@ -1078,7 +1084,8 @@ function loadPlan() {
           '<div class="week-tasks '+isOpen+'">'+rows+'</div>'+
         '</div>';
       }).join('');
-      // Sync counters after plan renders
+      // Plan DOM is now ready — clear server seed flag and sync from DOM
+      _taskState._seededFromServer = false;
       setTimeout(updateOverviewStats, 50);
     }).catch(function(){showErr(document.getElementById('planError'),'Could not load plan. Please refresh.');});
 }
@@ -1103,15 +1110,17 @@ function loadQuestions() {
           (sub&&q['AI Feedback']?'<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>':'')+
           (!sub?'<div class="q-hint">&#128161; Use STAR format - Situation, Task, Action, Result. Aim for 150-250 words.</div>'+
             '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."></textarea>'+
-            '<div><button class="btn-submit" onclick="submitAnswer('+i+',\''+(q['Q No.']||'')+'\')" id="sbtn-'+i+'">Submit for AI Scoring</button></div>':'')+
+            '<div><button class="btn-submit" onclick="submitAnswer('+i+',\''+(q['Q No.']||'').replace(/\'/, '')+'\','+wk+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>':'')+
           '</div>';
       }).join('');
     }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
 }
 
-function submitAnswer(idx, qno) {
+function submitAnswer(idx, qno, weekOverride) {
+  console.log('🚀 submitAnswer called: idx='+idx+' qno='+qno+' week='+weekOverride);
   var ansEl = document.getElementById('ans-'+idx);
   var btn   = document.getElementById('sbtn-'+idx);
+  console.log('📝 ansEl found:', !!ansEl, 'value length:', ansEl?ansEl.value.length:0);
   var ans   = ansEl ? ansEl.value.trim() : '';
   if (!ans || ans.length < 20) { alert('Please write a proper answer (min 20 characters).'); return; }
 
@@ -1123,7 +1132,13 @@ function submitAnswer(idx, qno) {
   fetch('/api/questions/submit', {
     method: 'POST', credentials: 'include',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ questionNo: qno, answer: ans })
+    // Also read from button data attributes as fallback
+    var dataQno  = btn ? btn.getAttribute('data-qno')  : null;
+    var dataWeek = btn ? btn.getAttribute('data-week') : null;
+    var finalQno  = dataQno  || qno;
+    var finalWeek = dataWeek ? parseInt(dataWeek) : (weekOverride||null);
+    console.log('📤 Sending: qno='+finalQno+' week='+finalWeek);
+    body: JSON.stringify({ questionNo: finalQno, answer: ans, weekOverride: finalWeek })
   })
   .then(function(r){ return r.json(); })
   .then(function(d){
@@ -1213,6 +1228,7 @@ function submitAnswer(idx, qno) {
 }
 
 function loadScores() {
+  document.getElementById('scoresError').style.display='none'; // Always clear error first
   fetch('/api/scores',{credentials:'include'})
     .then(function(r){return r.json();})
     .then(function(d){

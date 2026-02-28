@@ -309,10 +309,8 @@ app.post('/api/questions/submit', requireLogin, async (req, res) => {
   try {
     const { questionNo, answer, weekOverride } = req.body;
     const { email, role, experience } = req.session.user;
-    // Use weekOverride from the question card (more reliable than session.week)
-    // because session.week might have advanced but question belongs to previous week
     const week = weekOverride ? parseInt(weekOverride) : req.session.user.week;
-    console.log(`📝 Submit: qno="${questionNo}" weekOverride=${weekOverride} sessionWeek=${req.session.user.week} → using week=${week}`);
+    console.log(`📝 Submit received: qno="${questionNo}" type=${typeof questionNo} weekOverride=${weekOverride} week=${week} bodyKeys=${Object.keys(req.body).join(',')}`);
     if (!answer || answer.trim().length < 20)
       return res.status(400).json({ error: 'Answer is too short' });
 
@@ -504,8 +502,9 @@ app.get('/api/scores', requireLogin, async (req, res) => {
       (r.Email||'').toLowerCase() === email.toLowerCase() && r.Score
     );
 
-    // Sort newest first
-    scores.sort((a, b) => new Date(b.Date||0) - new Date(a.Date||0));
+    // Keep original sheet order (appended = newest last), reverse for display
+    // Don't sort by date when same-day — use sheet row order instead
+    scores.reverse(); // Last appended row = most recent
 
     const latest  = scores[0] || null;
     const average = scores.length

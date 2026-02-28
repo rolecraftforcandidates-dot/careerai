@@ -916,7 +916,17 @@ function loadOverview() {
       loadTodayFocus();
 
       loadMiniScoreBars();
-      setTimeout(updateOverviewStats, 100);
+      // Seed task counts from server data immediately (don't wait for DOM)
+      if (d.tasksDone !== undefined && d.totalTasks !== undefined) {
+        _taskState.done  = d.tasksDone;
+        _taskState.total = d.totalTasks;
+        document.getElementById('statTasks').textContent = d.tasksDone+'/'+d.totalTasks;
+        var pct2 = d.totalTasks ? Math.round(d.tasksDone/d.totalTasks*100) : 0;
+        document.getElementById('progressPct').textContent  = pct2+'%';
+        document.getElementById('progressFill').style.width = pct2+'%';
+      }
+      // Sync with DOM once plan panel renders (may update if plan loaded already)
+      setTimeout(updateOverviewStats, 300);
     }).catch(function(){});
 }
 
@@ -1127,42 +1137,50 @@ function submitAnswer(idx, qno) {
     // ── Build score result HTML ──
     var scoreHtml = '';
     if (d.score !== null && d.score !== undefined) {
-      var sc    = parseInt(d.score);
-      var scCol = sc>=80 ? 'var(--green)' : sc>=60 ? 'var(--teal)' : sc>=40 ? 'var(--orange)' : 'var(--red)';
-      var scLbl = sc>=80 ? '🎉 Excellent!' : sc>=60 ? '👍 Good answer' : sc>=40 ? '⚠️ Needs improvement' : '❌ Weak answer';
-      var bars  = [
-        ['Technical',      d.technical      || 0],
-        ['Communication',  d.communication  || 0],
-        ['Problem Solving',d.problemSolving || 0],
-        ['Behavioral',     d.behavioral     || 0],
+      var sc      = parseInt(d.score);
+      var scCol   = sc>=80 ? 'var(--green)' : sc>=60 ? 'var(--teal)' : sc>=40 ? 'var(--orange)' : 'var(--red)';
+      var scLbl   = sc>=80 ? '🎉 Excellent!' : sc>=60 ? '👍 Good answer' : sc>=40 ? '⚠️ Needs improvement' : '❌ Weak answer';
+      var qType   = d.questionType || 'Technical';
+      var primary = d.primarySkill || 'technical';
+      var allBars = [
+        {key:'technical',     label:'Technical Accuracy',   val:parseInt(d.technical||0)},
+        {key:'communication', label:'Communication Clarity',val:parseInt(d.communication||0)},
+        {key:'problemSolving',label:'Problem Solving',      val:parseInt(d.problemSolving||0)},
+        {key:'behavioral',    label:'Behavioral / STAR',    val:parseInt(d.behavioral||0)},
       ];
+      // Put primary skill first
+      allBars.sort(function(a,b){ return a.key===primary?-1:b.key===primary?1:0; });
+
       scoreHtml =
         '<div style="margin-top:16px;border:1px solid var(--border);border-radius:14px;overflow:hidden">'+
-          '<div style="background:linear-gradient(135deg,'+scCol+'18,'+scCol+'08);padding:16px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border)">'+
-            '<div style="width:62px;height:62px;border-radius:50%;border:3px solid '+scCol+';display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:#fff">'+
-              '<div style="font-size:1.2rem;font-weight:900;color:'+scCol+'">'+sc+'</div>'+
+          '<div style="background:linear-gradient(135deg,'+scCol+'22,'+scCol+'06);padding:16px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border)">'+
+            '<div style="width:66px;height:66px;border-radius:50%;border:3px solid '+scCol+';display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:#fff;box-shadow:0 2px 10px '+scCol+'33">'+
+              '<div style="font-size:1.3rem;font-weight:900;color:'+scCol+'">'+sc+'</div>'+
               '<div style="font-size:0.52rem;color:var(--muted);font-family:DM Mono,monospace">/100</div>'+
             '</div>'+
-            '<div>'+
+            '<div style="flex:1">'+
               '<div style="font-weight:700;font-size:1rem;color:'+scCol+'">'+scLbl+'</div>'+
-              '<div style="font-size:0.75rem;color:var(--muted);margin-top:2px">AI scored · '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</div>'+
+              '<div style="font-size:0.7rem;color:var(--muted);margin-top:3px;font-family:DM Mono,monospace">'+qType.toUpperCase()+' QUESTION · AI scored · '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</div>'+
             '</div>'+
           '</div>'+
           '<div style="padding:14px 16px">'+
-            bars.map(function(b){
-              var pct=b[1]; var bc=pct>=75?'var(--green)':pct>=50?'var(--teal)':'var(--orange)';
-              return '<div style="margin-bottom:9px">'+
-                '<div style="display:flex;justify-content:space-between;font-size:0.74rem;margin-bottom:4px">'+
-                  '<span style="color:var(--muted)">'+b[0]+'</span><span style="font-weight:600;color:'+bc+'">'+pct+'/100</span>'+
+            allBars.map(function(b){
+              var pct=b.val; var bc=pct>=75?'var(--green)':pct>=50?'var(--teal)':pct>=35?'var(--orange)':'var(--red)';
+              var isPrimary=b.key===primary;
+              return '<div style="margin-bottom:10px'+(isPrimary?';padding:8px 10px;background:'+scCol+'0a;border-radius:8px;border-left:3px solid '+scCol:'')+'">'+
+                '<div style="display:flex;justify-content:space-between;font-size:0.76rem;margin-bottom:5px">'+
+                  '<span style="font-weight:'+(isPrimary?700:400)+';color:'+(isPrimary?scCol:'var(--muted)')+'">'+b.label+(isPrimary?' ★':'')+'</span>'+
+                  '<span style="font-weight:700;color:'+bc+'">'+pct+'/100</span>'+
                 '</div>'+
-                '<div style="background:#eef0f8;border-radius:100px;height:5px">'+
+                '<div style="background:#eef0f8;border-radius:100px;height:'+(isPrimary?7:5)+'px">'+
                   '<div style="height:100%;width:'+pct+'%;background:'+bc+';border-radius:100px;transition:width 0.8s ease"></div>'+
                 '</div></div>';
             }).join('')+
-            (d.feedback ?
-              '<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px;font-size:0.82rem;line-height:1.65;color:var(--text)">'+
-                '<span style="font-weight:700">🤖 AI Feedback</span><br>'+d.feedback+
-              '</div>' : '')+
+            (d.feedback?
+              '<div style="margin-top:12px;padding:12px 14px;background:var(--bg);border-radius:10px;font-size:0.83rem;line-height:1.7;color:var(--text)">'+
+                '<div style="font-size:0.7rem;font-weight:700;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--purple);margin-bottom:8px">🤖 AI FEEDBACK</div>'+
+                d.feedback+
+              '</div>':'')+
           '</div>'+
         '</div>';
     }

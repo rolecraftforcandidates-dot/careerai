@@ -126,6 +126,26 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 
 /* PLAN */
 .role-tag{display:inline-flex;align-items:center;gap:6px;background:var(--teal-light);border:1px solid var(--teal-mid);color:var(--teal-dark);font-size:0.76rem;font-family:'DM Mono',monospace;padding:4px 13px;border-radius:100px;margin-bottom:18px}
+.gs-step{display:flex;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
+.ov-empty-hint{color:var(--muted);font-size:0.83rem;line-height:1.6;padding:6px 0}
+.ov-action-btn{background:var(--teal-light);color:var(--teal-dark);border:none;border-radius:8px;padding:8px 16px;font-size:0.82rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s;width:100%}
+.ov-action-btn:hover{background:var(--teal);color:#fff}
+@media(max-width:700px){#overviewTopRow{grid-template-columns:1fr!important}}
+.gs-step:last-child{border-bottom:none;padding-bottom:0}
+.gs-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;font-family:'DM Mono',monospace}
+.gs-icon.pending{background:var(--teal-light);color:var(--teal-dark)}
+.gs-icon.done{background:var(--green-light);color:var(--green)}
+.gs-icon.done::after{content:'✓'}
+.gs-title{font-weight:600;font-size:0.88rem;margin-bottom:2px}
+.gs-sub{font-size:0.78rem;color:var(--muted)}
+.gs-body{flex:1}
+.gs-link{background:none;border:none;color:var(--teal);font-size:0.78rem;font-family:'DM Sans',sans-serif;cursor:pointer;padding:0;font-weight:600;text-decoration:underline}
+.gs-link:hover{color:var(--teal-dark)}
+.today-task{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--teal-light);border-radius:10px;margin-bottom:8px}
+.today-task:last-child{margin-bottom:0}
+.today-task-num{font-size:0.68rem;font-family:'DM Mono',monospace;color:var(--teal-dark);font-weight:700;min-width:40px}
+.today-task-text{font-size:0.85rem;font-weight:500;flex:1}
+.week-block{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
 .week-block{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
 .week-block.cw{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,179,138,0.1)}
 .week-hdr{padding:18px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;user-select:none}
@@ -283,6 +303,8 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 
       <!-- OVERVIEW -->
       <div class="panel active" id="panel-overview">
+
+        <!-- Welcome Banner -->
         <div class="welcome-banner">
           <div class="welcome-name" id="welcomeName">LOADING...</div>
           <div class="welcome-sub" id="welcomeSub">Fetching your data...</div>
@@ -291,22 +313,86 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
           </div>
         </div>
+
+        <!-- Stats Grid -->
         <div class="stats-grid">
           <div class="stat-card t"><div class="stat-icon">&#128197;</div><div class="stat-val" id="statWeek">-</div><div class="stat-lbl">Current Week</div></div>
-          <div class="stat-card g" id="statTasksCard"><div class="stat-icon" id="statTasksIcon">&#9989;</div><div class="stat-val" id="statTasks">-</div><div class="stat-lbl" id="statTasksLbl">Tasks Done</div></div>
+          <div class="stat-card g" id="statTasksCard"><div class="stat-icon" id="statTasksIcon">&#9989;</div><div class="stat-val" id="statTasks">-</div><div class="stat-lbl" id="statTasksLbl">Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:'DM Mono',monospace;margin-top:2px">ON TRACK</span></div></div>
           <div class="stat-card p"><div class="stat-icon">&#129302;</div><div class="stat-val" id="statScore">-</div><div class="stat-lbl">Latest AI Score</div></div>
           <div class="stat-card o"><div class="stat-icon">&#10067;</div><div class="stat-val" id="statPending">-</div><div class="stat-lbl">Questions Pending</div></div>
         </div>
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title">Recent Activity</div>
-            <div class="activity-list" id="activityList"><div class="empty-state"><div class="empty-icon">&#128461;</div><div class="empty-text">No activity yet</div></div></div>
+
+        <!-- Today's Focus + Getting Started — two column on larger screens -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px" id="overviewTopRow">
+
+          <!-- Today's Focus -->
+          <div class="card" id="todayFocusCard" style="border-top:3px solid var(--teal)">
+            <div class="card-title" style="margin-bottom:12px">&#127919; Today's Focus</div>
+            <div id="todayFocusContent">
+              <div style="color:var(--muted);font-size:0.85rem;font-style:italic">Loading your tasks...</div>
+            </div>
+            <button class="ov-action-btn" onclick="showPanel('plan',document.querySelector('[onclick*=\'plan\']'))" style="margin-top:14px">View Full Plan →</button>
           </div>
-          <div class="card">
-            <div class="card-title">Score Breakdown <span class="badge badge-teal">Latest</span></div>
-            <div id="miniScoreBars"><div class="empty-state"><div class="empty-icon">&#128202;</div><div class="empty-text">No scores yet</div></div></div>
+
+          <!-- Getting Started Checklist -->
+          <div class="card" id="gettingStartedCard" style="border-top:3px solid var(--purple)">
+            <div class="card-title" style="margin-bottom:12px">&#128640; Your First Steps</div>
+            <div id="gettingStartedList">
+              <div class="gs-step" id="gs-plan">
+                <div class="gs-icon pending">1</div>
+                <div class="gs-body">
+                  <div class="gs-title">Review your plan</div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('plan',document.querySelector('[onclick*=\'plan\']'))">Open My 4-Week Plan →</button></div>
+                </div>
+              </div>
+              <div class="gs-step" id="gs-task">
+                <div class="gs-icon pending">2</div>
+                <div class="gs-body">
+                  <div class="gs-title">Complete your first task</div>
+                  <div class="gs-sub">Check off a task to track progress</div>
+                </div>
+              </div>
+              <div class="gs-step" id="gs-question">
+                <div class="gs-icon pending">3</div>
+                <div class="gs-body">
+                  <div class="gs-title">Answer an interview question</div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('questions',document.querySelector('[onclick*=\'questions\']'))">Open Weekly Questions →</button></div>
+                </div>
+              </div>
+              <div class="gs-step" id="gs-resume">
+                <div class="gs-icon pending">4</div>
+                <div class="gs-body">
+                  <div class="gs-title">Check your ATS resume score</div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('resume',document.querySelector('[onclick*=\'resume\']'))">Open Resume Review →</button></div>
+                </div>
+              </div>
+              <div class="gs-step" id="gs-password">
+                <div class="gs-icon pending">5</div>
+                <div class="gs-body">
+                  <div class="gs-title">Change your default password</div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('settings',document.querySelector('[onclick*=\'settings\']'))">Open Settings →</button></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- Activity + Score Breakdown -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">&#128336; Recent Activity</div>
+            <div class="activity-list" id="activityList">
+              <div class="ov-empty-hint">&#128073; Complete tasks and submit answers — your activity will appear here.</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">&#128202; Score Breakdown <span class="badge badge-teal">Latest</span></div>
+            <div id="miniScoreBars">
+              <div class="ov-empty-hint">&#129302; Submit your first answer in Weekly Questions to get an AI score and skill breakdown.</div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- PLAN -->
@@ -497,15 +583,18 @@ function showPanel(id, btn) {
   btn.classList.add('active');
   document.getElementById('topbarTitle').textContent = panelTitles[id];
   closeSidebar();
+  // Always reload questions + scores (data changes server-side — AI scoring)
+  // Plan reloads only if not already loaded (tasks are live via toggleTask)
+  // Overview always live via updateOverviewStats
   if (!panelLoaded[id]) {
-    panelLoaded[id]=true;
-    if (id==='plan')      loadPlan();
-    if (id==='questions') loadQuestions();
-    if (id==='scores')    loadScores();
-    if (id==='resume')    loadResume();
-    if (id==='settings')  loadSettings();
+    panelLoaded[id] = true;
+    if (id==='plan')     loadPlan();
+    if (id==='resume')   loadResume();
+    if (id==='settings') loadSettings();
   }
-  if (id==='scores') setTimeout(animateBars,300);
+  // Always fresh
+  if (id==='questions') loadQuestions();
+  if (id==='scores')    { loadScores(); setTimeout(animateBars,300); }
 }
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
@@ -522,42 +611,185 @@ function animateBars() {
 
 function toggleWeek(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
 
+// ── Live task counters — track state in memory ──
+var _taskState = { done:0, total:0, overdue:0, curWeekDone:0, curWeekTotal:0 };
+
+function syncTaskState() {
+  // Recount from DOM — single source of truth
+  var cw = currentUser ? parseInt(currentUser.week)||1 : 1;
+  var all   = document.querySelectorAll('.task-item[data-task]');
+  var done  = document.querySelectorAll('.task-item[data-task] .task-check.checked');
+  _taskState.total = all.length;
+  _taskState.done  = done.length;
+
+  // Overdue = past week tasks not checked
+  var overdue = 0, cwDone = 0, cwTotal = 0;
+  all.forEach(function(item){
+    var parts = decodeURIComponent(item.getAttribute('data-task')||'').split('|');
+    var w = parseInt(parts[0])||1;
+    var checked = item.querySelector('.task-check.checked');
+    if (w < cw && !checked) overdue++;
+    if (w === cw) { cwTotal++; if (checked) cwDone++; }
+  });
+  _taskState.overdue       = overdue;
+  _taskState.curWeekDone   = cwDone;
+  _taskState.curWeekTotal  = cwTotal;
+}
+
+function updateOverviewStats() {
+  syncTaskState();
+  var s = _taskState;
+
+  // Tasks done counter
+  document.getElementById('statTasks').textContent = s.done+'/'+s.total;
+
+  // Progress bar
+  var pct = s.total ? Math.round(s.done/s.total*100) : 0;
+  document.getElementById('progressPct').textContent  = pct+'%';
+  document.getElementById('progressFill').style.width = pct+'%';
+
+  // Status badge
+  var card = document.getElementById('statTasksCard');
+  var icon = document.getElementById('statTasksIcon');
+  var lbl  = document.getElementById('statTasksLbl');
+  var cwPct = s.curWeekTotal ? Math.round(s.curWeekDone/s.curWeekTotal*100) : 100;
+
+  if (s.overdue > 0) {
+    card.style.borderColor = 'var(--red)';
+    icon.textContent = '🔴';
+    lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+s.overdue+' OVERDUE</span>';
+  } else if (cwPct < 50 && s.curWeekTotal > 0 && s.curWeekDone < s.curWeekTotal) {
+    card.style.borderColor = 'var(--orange)';
+    icon.textContent = '⚠️';
+    lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
+  } else {
+    card.style.borderColor = '';
+    icon.textContent = '✅';
+    lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
+  }
+
+  // Also update week header subtitles in plan panel
+  refreshPlanHeaders();
+}
+
+function refreshPlanHeaders() {
+  var cw = currentUser ? parseInt(currentUser.week)||1 : 1;
+  var blocks = document.querySelectorAll('.week-block');
+  [1,2,3,4].forEach(function(w){
+    var allItems = document.querySelectorAll('.task-item[data-task]');
+    var wItems = [], wDone = 0;
+    allItems.forEach(function(item){
+      var parts = decodeURIComponent(item.getAttribute('data-task')||'').split('|');
+      if (parseInt(parts[0]) === w) {
+        wItems.push(item);
+        if (item.querySelector('.task-check.checked')) wDone++;
+      }
+    });
+    if (!wItems.length || !blocks[w-1]) return;
+
+    var pending = wItems.length - wDone;
+    var allDone = pending === 0;
+    var isPast  = w < cw;
+    var isCur   = w === cw;
+    var block   = blocks[w-1];
+
+    // ── Update subtitle ──
+    var sub = block.querySelector('.week-hdr-sub');
+    if (sub) {
+      var pct  = wItems.length ? Math.round(wDone/wItems.length*100) : 0;
+      var txt  = wItems.length+' tasks · '+wDone+' completed';
+      if (isPast && !allDone) txt = wItems.length+' tasks · '+pending+' still pending';
+      var barColor = (isPast && !allDone) ? 'var(--red)' : 'linear-gradient(90deg,var(--teal),var(--purple))';
+      var showBar  = isPast || isCur;
+      sub.innerHTML = txt +
+        (showBar ? '<div style="margin-top:6px;background:#eef0f8;border-radius:100px;height:5px;width:160px"><div style="height:100%;background:'+barColor+';border-radius:100px;width:'+pct+'%;transition:width 0.4s ease"></div></div>' : '');
+    }
+
+    // ── Update overdue badge in title ──
+    var titleEl = block.querySelector('.week-hdr-title');
+    if (titleEl) {
+      var existingBadge = titleEl.querySelector('.week-overdue-badge');
+      if (existingBadge) existingBadge.remove();
+      if (isPast && !allDone) {
+        var badge = document.createElement('span');
+        badge.className = 'week-overdue-badge';
+        badge.style.cssText = 'font-size:0.68rem;background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace';
+        badge.textContent = pending+' task'+(pending>1?'s':'')+' overdue';
+        titleEl.appendChild(badge);
+      }
+    }
+
+    // ── Update block border + pill ──
+    var pill   = block.querySelector('.ws-pill');
+    var circle = block.querySelector('.week-circle');
+    if (isPast && !allDone) {
+      block.classList.add('overdue');
+      if (pill)   { pill.textContent = '⚠ OVERDUE';   pill.className = 'ws-pill ws-overdue'; }
+      if (circle) { circle.className = 'week-circle wc-overdue'; }
+    } else if (isPast && allDone) {
+      block.classList.remove('overdue');
+      if (pill)   { pill.textContent = '✓ COMPLETE';  pill.className = 'ws-pill ws-done'; }
+      if (circle) { circle.className = 'week-circle wc-done'; }
+    }
+    // Current week pill doesn't change on toggle
+  });
+}
+
 function toggleTask(item) {
   var c=item.querySelector('.task-check'), t=item.querySelector('.task-text');
   var nowChecked = !c.classList.contains('checked');
-  // Update UI immediately
+
+  // 1. Update UI instantly
   c.classList.toggle('checked', nowChecked);
   c.innerHTML = nowChecked ? '&#10003;' : '';
   t.classList.toggle('done', nowChecked);
-  // Save to server
+
+  // 2. Update all counters/stats instantly (no server round-trip needed for UI)
+  updateOverviewStats();
+
+  // 3. Save to server in background
   var taskKey = item.getAttribute('data-task');
   if (!taskKey) return;
   var parts = decodeURIComponent(taskKey).split('|');
   var week=parts[0], day=parts[1], title=parts[2];
-  var status = nowChecked ? 'Done' : '';
-  item.style.opacity = '0.6';
+  item.style.opacity = '0.7';
+
   fetch('/api/plan/task', {
     method:'POST', credentials:'include',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ week:week, day:day, taskTitle:title, status:status })
+    body: JSON.stringify({ week:week, day:day, taskTitle:title, status: nowChecked?'Done':'' })
   }).then(function(r){ return r.json(); })
     .then(function(d){
       item.style.opacity = '1';
       if (d.error) {
-        alert('Could not save: '+d.error);
+        // Revert on error
         c.classList.toggle('checked',!nowChecked);
         c.innerHTML=!nowChecked?'&#10003;':'';
         t.classList.toggle('done',!nowChecked);
+        updateOverviewStats();
+        showToast('Could not save task. Please try again.', 'error');
       } else if (d.weekAdvanced && d.newWeek) {
-        // Week advanced! Update session + refresh UI
         if (currentUser) { currentUser.week = d.newWeek; currentUser.dayOfWeek = 1; }
         setUserInfo(currentUser);
         showWeekAdvancedBanner(d.newWeek);
         panelLoaded = {};
-        setTimeout(function(){ loadPlan(); loadOverview(); }, 2000);
+        setTimeout(function(){ loadPlan(); loadOverview(); }, 2500);
       }
     })
-    .catch(function(){ item.style.opacity='1'; });
+    .catch(function(){
+      item.style.opacity='1';
+      showToast('Connection error — changes may not have saved.', 'error');
+    });
+}
+
+// Toast notification (error/info)
+function showToast(msg, type) {
+  var t = document.createElement('div');
+  var bg = type==='error' ? 'var(--red)' : 'var(--teal)';
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:'+bg+';color:#fff;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-family:DM Sans,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideDown 0.3s ease';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity 0.4s'; setTimeout(function(){ t.remove(); },400); }, 3000);
 }
 
 // Week advanced celebration banner
@@ -576,40 +808,95 @@ function loadOverview() {
     .then(function(r){return r.json();})
     .then(function(d){
       if (!d.week) return;
+
+      // ── Stats ──
       document.getElementById('progressPct').textContent  = d.progress+'%';
       document.getElementById('progressFill').style.width = d.progress+'%';
       document.getElementById('statTasks').textContent    = d.tasksDone+'/'+d.totalTasks;
       document.getElementById('statScore').textContent    = d.latestScore!==null ? d.latestScore : '-';
       document.getElementById('statPending').textContent  = d.pendingQuestions;
 
-      // ── Show on-track / falling behind / overdue status ──
-      var card  = document.getElementById('statTasksCard');
-      var icon  = document.getElementById('statTasksIcon');
-      var lbl   = document.getElementById('statTasksLbl');
+      // ── On-track status badge ──
+      var card = document.getElementById('statTasksCard');
+      var icon = document.getElementById('statTasksIcon');
+      var lbl  = document.getElementById('statTasksLbl');
       if (d.overdueCount && d.overdueCount > 0) {
-        card.style.borderColor = 'var(--red)';
-        icon.textContent = '🔴';
-        lbl.innerHTML = 'Tasks Done <span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+d.overdueCount+' OVERDUE</span>';
+        card.style.borderColor='var(--red)'; icon.textContent='🔴';
+        lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+d.overdueCount+' OVERDUE</span>';
       } else if (d.currentWeekProgress < 50 && d.pendingQuestions > 0) {
-        card.style.borderColor = 'var(--orange)';
-        icon.textContent = '⚠️';
-        lbl.innerHTML = 'Tasks Done <span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
+        card.style.borderColor='var(--orange)'; icon.textContent='⚠️';
+        lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
       } else {
-        card.style.borderColor = '';
-        icon.textContent = '✅';
-        lbl.innerHTML = 'Tasks Done <span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
+        card.style.borderColor=''; icon.textContent='✅';
+        lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
       }
-      if (d.pendingQuestions>0) {
-        var nb=document.getElementById('questionsNavBtn');
-        if (!nb.querySelector('.nav-badge')) { var b=document.createElement('span'); b.className='nav-badge'; b.textContent=d.pendingQuestions; nb.appendChild(b); }
+
+      // ── Nav badge ──
+      var nb=document.getElementById('questionsNavBtn');
+      var ob=nb?nb.querySelector('.nav-badge'):null;
+      if (ob) ob.remove();
+      if (d.pendingQuestions>0 && nb) {
+        var b=document.createElement('span'); b.className='nav-badge'; b.textContent=d.pendingQuestions; nb.appendChild(b);
       }
-      if (d.recentActivity&&d.recentActivity.length) {
+
+      // ── Recent Activity ──
+      if (d.recentActivity && d.recentActivity.length) {
         document.getElementById('activityList').innerHTML=d.recentActivity.map(function(a){
           var col=a.type==='score'?'var(--purple)':'var(--green)';
           return '<div class="activity-row"><div class="activity-dot" style="background:'+col+'"></div><div><div class="activity-text">'+a.text+'</div><div class="activity-time">'+(a.date||'Recently')+'</div></div></div>';
         }).join('');
       }
+
+      // ── Getting Started Checklist — shown until 30% complete ──
+      var gsCard = document.getElementById('gettingStartedCard');
+      if (d.progress < 30) {
+        gsCard.style.display = 'block';
+        if (d.tasksDone > 0)       markGSDone('gs-plan');
+        if (d.tasksDone > 0)       markGSDone('gs-task');
+        if (d.latestScore !== null) markGSDone('gs-question');
+        markGSDone('gs-resume'); // Resume always analysed on signup
+      } else {
+        gsCard.style.display = 'none';
+      }
+
+      // ── Today's Focus ──
+      loadTodayFocus();
+
       loadMiniScoreBars();
+      setTimeout(updateOverviewStats, 100);
+    }).catch(function(){});
+}
+
+function markGSDone(id) {
+  var step = document.getElementById(id); if (!step) return;
+  var icon = step.querySelector('.gs-icon');
+  if (icon) { icon.className='gs-icon done'; icon.textContent=''; }
+  var title = step.querySelector('.gs-title');
+  if (title) { title.style.textDecoration='line-through'; title.style.color='var(--muted)'; }
+}
+
+function loadTodayFocus() {
+  fetch('/api/plan',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var plan=d.plan||[], cw=currentUser?parseInt(currentUser.week)||1:1;
+      var pending=plan.filter(function(t){return parseInt(t.Week)===cw&&t.Status!=='Done';});
+      var focusCard=document.getElementById('todayFocusCard');
+      var focusContent=document.getElementById('todayFocusContent');
+      focusCard.style.display='block';
+      if (!pending.length) {
+        focusCard.style.borderLeftColor='var(--green)';
+        focusContent.innerHTML='<div style="display:flex;align-items:center;gap:10px;color:var(--green);font-weight:600">&#127881; All Week '+cw+' tasks complete!'+(cw<4?' Week '+(cw+1)+' unlocks soon.':' You\'re in the final stretch!')+'</div>';
+        return;
+      }
+      focusCard.style.borderLeftColor='var(--teal)';
+      focusContent.innerHTML=pending.slice(0,2).map(function(t){
+        var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
+        return '<div class="today-task"><div class="today-task-num">W'+cw+' · D'+t.Day+'</div>'+
+          '<div class="today-task-text">'+(t['Task Title']||'')+'</div>'+
+          '<span class="badge '+tc+'" style="flex-shrink:0">'+(t.Type||'')+'</span></div>';
+      }).join('')+
+      (pending.length>2?'<div style="font-size:0.78rem;color:var(--muted);margin-top:8px;padding-left:4px">+ '+(pending.length-2)+' more this week</div>':'');
     }).catch(function(){});
 }
 
@@ -662,7 +949,7 @@ function loadPlan() {
             st='overdue'; blockClass='overdue'; circleClass='wc-overdue'; pillClass='ws-overdue';
             pillLabel='&#9888; OVERDUE';
             subText=tasks.length+' tasks · '+pending+' still pending';
-            extraBadge='<span style="font-size:0.68rem;background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">'+pending+' task'+(pending>1?'s':'')+' overdue</span>';
+            extraBadge='<span class="week-overdue-badge" data-week="'+w+'" style="font-size:0.68rem;background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">'+pending+' task'+(pending>1?'s':'')+' overdue</span>';
           }
         } else if (w == cw) {
           // Current week — IN PROGRESS
@@ -723,6 +1010,8 @@ function loadPlan() {
           '<div class="week-tasks '+isOpen+'">'+rows+'</div>'+
         '</div>';
       }).join('');
+      // Sync counters after plan renders
+      setTimeout(updateOverviewStats, 50);
     }).catch(function(){showErr(document.getElementById('planError'),'Could not load plan. Please refresh.');});
 }
 
@@ -760,7 +1049,20 @@ function submitAnswer(idx, qno) {
   fetch('/api/questions/submit',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionNo:qno,answer:ans})})
     .then(function(r){return r.json();})
     .then(function(d){
-      if (d.success){ansEl.disabled=true;ansEl.style.opacity='0.6';btn.parentNode.innerHTML='<div class="submitted-badge">&#10003; Submitted - AI score coming soon!</div>';}
+      if (d.success){
+        ansEl.disabled=true;ansEl.style.opacity='0.6';
+        btn.parentNode.innerHTML='<div class="submitted-badge">&#10003; Submitted - AI score coming soon!</div>';
+        // Decrement pending badge
+        var nb=document.getElementById('questionsNavBtn');
+        var badge=nb?nb.querySelector('.nav-badge'):null;
+        if (badge) {
+          var cnt=parseInt(badge.textContent||'0')-1;
+          if (cnt<=0) badge.remove(); else badge.textContent=cnt;
+        }
+        // Update overview pending stat
+        var sp=document.getElementById('statPending');
+        if (sp) { var n=parseInt(sp.textContent||'0')-1; sp.textContent=Math.max(0,n); }
+      }
       else{alert(d.error||'Submission failed.');btn.disabled=false;btn.innerHTML='Submit for AI Scoring';}
     }).catch(function(){alert('Could not submit. Check your connection.');btn.disabled=false;btn.innerHTML='Submit for AI Scoring';});
 }
@@ -785,7 +1087,9 @@ function loadScores() {
       if (d.scores&&d.scores.length){
         document.getElementById('historyContent').innerHTML=d.scores.map(function(s){
           var sc=parseInt(s.Score),cl=sc>=80?'great':'ok';
-          return '<div class="history-item"><div><div class="history-week">Week '+s.Week+' - '+s['Q No.']+'</div><div class="history-q">'+(s.Date||'')+'</div></div><div style="display:flex;align-items:center;gap:10px"><div class="history-score '+cl+'">'+s.Score+'</div><span class="badge badge-teal">View</span></div></div>';
+          var trend = i>0 ? parseInt(d.scores[i-1].Score)-sc : 0;
+          var trendHtml = i>0 ? '<span style="font-size:0.7rem;color:'+(trend>=0?'var(--red)':'var(--green)')+'">'+( trend>=0?'▼ '+trend:' ▲ '+Math.abs(trend))+'</span>' : '';
+          return '<div class="history-item"><div><div class="history-week">Week '+s.Week+' · '+s['Q No.']+'</div><div class="history-q">'+(s.Date||'Recently')+'</div></div><div style="display:flex;align-items:center;gap:10px">'+trendHtml+'<div class="history-score '+cl+'">'+s.Score+'</div></div></div>';
         }).join('');
       }
     }).catch(function(){showErr(document.getElementById('scoresError'),'Could not load scores. Please refresh.');});
@@ -815,7 +1119,8 @@ function loadSettings() {
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
   document.getElementById('settingsEmail').textContent = currentUser.email || '-';
   document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (currentUser.experience ? ' - ' + currentUser.experience : '');
-  document.getElementById('settingsWeek').textContent  = 'Week ' + (currentUser.week || 1) + ' of 4';
+  var sw = currentUser.week||1, sd = currentUser.dayOfWeek||1;
+  document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 — Day ' + sd + ' of 7';
   // Reset form
   document.getElementById('currentPw').value = '';
   document.getElementById('newPw').value      = '';

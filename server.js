@@ -304,54 +304,133 @@ app.get('/api/questions', requireLogin, async (req, res) => {
   }
 });
 
-// POST /api/questions/submit — submit an answer
+// POST /api/questions/submit — submit answer + instantly score with Claude
 app.post('/api/questions/submit', requireLogin, async (req, res) => {
   try {
     const { questionNo, answer } = req.body;
-    const { email, week }        = req.session.user;
+    const { email, week, role, experience } = req.session.user;
     if (!answer || answer.trim().length < 20)
       return res.status(400).json({ error: 'Answer is too short' });
 
-    // Find the row index in the sheet
-    const rows   = await readSheet('Questions');
+    // Find the row in Questions sheet
     const allRaw = await getSheetsClient().spreadsheets.values.get({
       spreadsheetId: SHEET_ID, range: 'Questions!A:Z'
     });
     const [headers, ...dataRows] = allRaw.data.values || [];
-    const emailIdx  = headers.indexOf('Email');
-    const weekIdx   = headers.indexOf('Week');
-    const qIdx      = headers.indexOf('Q No.');
-    const answerIdx = headers.indexOf('Answer');
-    const subIdx    = headers.indexOf('Submitted');
+    const emailIdx    = headers.indexOf('Email');
+    const weekIdx     = headers.indexOf('Week');
+    const qIdx        = headers.indexOf('Q No.');
+    const typeIdx     = headers.indexOf('Type');
+    const questionIdx = headers.indexOf('Question');
+    const answerIdx   = headers.indexOf('Answer');
+    const subIdx      = headers.indexOf('Submitted');
+    const scoreIdx    = headers.indexOf('Score');
+    const feedbackIdx = headers.indexOf('AI Feedback');
 
     const rowIdx = dataRows.findIndex(
       r => (r[emailIdx]||'').toLowerCase() === email.toLowerCase() &&
            parseInt(r[weekIdx]) === week &&
            (r[qIdx]||'') === questionNo
     );
+    if (rowIdx === -1) return res.status(404).json({ error: 'Question not found' });
 
-    if (rowIdx === -1)
-      return res.status(404).json({ error: 'Question not found' });
+    const sheetRow   = rowIdx + 2;
+    const questionText = dataRows[rowIdx][questionIdx] || '';
+    const questionType = dataRows[rowIdx][typeIdx]     || 'Technical';
 
-    const sheetRow = rowIdx + 2; // +1 for header, +1 for 1-based index
-    const sheets   = getSheetsClient();
+    // ── Score with Claude ──
+    let score = null, feedback = '', technical = 0, communication = 0, problemSolving = 0, behavioral = 0;
+    try {
+      const Anthropic = require('@anthropic-ai/sdk');
+      const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // Write answer and mark submitted
+      const scorePrompt = `You are an expert technical interviewer evaluating a candidate's answer for a ${role} role (${experience} years experience).
+
+QUESTION (${questionType}):
+${questionText}
+
+CANDIDATE'S ANSWER:
+${answer.trim()}
+
+Evaluate this answer and return ONLY valid JSON with no markdown or extra text:
+{
+  "score": <integer 0-100>,
+  "technical": <integer 0-100>,
+  "communication": <integer 0-100>,
+  "problemSolving": <integer 0-100>,
+  "behavioral": <integer 0-100>,
+  "feedback": "<2-3 sentences: what was good, what to improve, one specific tip>"
+}
+
+Scoring guide:
+- 85-100: Exceptional — clear, structured, specific with examples
+- 70-84: Good — covers main points but missing depth or examples
+- 55-69: Average — basic answer, lacks structure or specifics
+- 40-54: Weak — incomplete or off-topic
+- 0-39: Poor — does not answer the question
+
+Be honest and specific. The feedback must directly reference what the candidate wrote.`;
+
+      const msg = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: scorePrompt }],
+      });
+
+      const raw     = msg.content[0].text.trim().replace(/```json|```/g,'').trim();
+      const parsed  = JSON.parse(raw);
+      score         = Math.min(100, Math.max(0, parseInt(parsed.score) || 0));
+      technical     = Math.min(100, Math.max(0, parseInt(parsed.technical) || 0));
+      communication = Math.min(100, Math.max(0, parseInt(parsed.communication) || 0));
+      problemSolving= Math.min(100, Math.max(0, parseInt(parsed.problemSolving) || 0));
+      behavioral    = Math.min(100, Math.max(0, parseInt(parsed.behavioral) || 0));
+      feedback      = parsed.feedback || '';
+      console.log(`✅ Claude scored ${email} Week ${week} ${questionNo}: ${score}/100`);
+    } catch (scoreErr) {
+      console.error('Claude scoring failed:', scoreErr.message);
+      // Fallback — still save answer even if scoring fails
+    }
+
+    // ── Write answer + score + feedback to Questions sheet ──
+    const sheets  = getSheetsClient();
+    const updates = [
+      { range: `Questions!${String.fromCharCode(65+answerIdx)}${sheetRow}`, values: [[answer.trim()]] },
+      { range: `Questions!${String.fromCharCode(65+subIdx)}${sheetRow}`,   values: [['TRUE']] },
+    ];
+    if (score !== null && scoreIdx !== -1)    updates.push({ range: `Questions!${String.fromCharCode(65+scoreIdx)}${sheetRow}`,    values: [[String(score)]] });
+    if (feedback && feedbackIdx !== -1)        updates.push({ range: `Questions!${String.fromCharCode(65+feedbackIdx)}${sheetRow}`, values: [[feedback]] });
+
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: SHEET_ID,
-      requestBody: {
-        valueInputOption: 'RAW',
-        data: [
-          { range: `Questions!${String.fromCharCode(65+answerIdx)}${sheetRow}`, values: [[answer.trim()]] },
-          { range: `Questions!${String.fromCharCode(65+subIdx)}${sheetRow}`,   values: [['TRUE']] },
-        ]
-      }
+      requestBody: { valueInputOption: 'RAW', data: updates }
     });
 
-    res.json({ success: true, message: 'Answer submitted! AI score will appear soon.' });
+    // ── Also write to Scores tab for history + graphs ──
+    if (score !== null) {
+      const today = new Date().toISOString().split('T')[0];
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: 'Scores!A:A',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [[
+          email, String(week), questionNo, String(score),
+          String(technical), String(communication), String(problemSolving), String(behavioral),
+          today, feedback
+        ]]}
+      });
+    }
+
+    res.json({
+      success:   true,
+      score:     score,
+      feedback:  feedback,
+      technical, communication, problemSolving, behavioral,
+      message:   score !== null ? `Scored ${score}/100` : 'Submitted — scoring unavailable'
+    });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Could not submit answer' });
+    console.error('Submit error:', err.message);
+    res.status(500).json({ error: 'Could not submit answer: ' + err.message });
   }
 });
 

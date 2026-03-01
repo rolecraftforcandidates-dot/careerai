@@ -639,10 +639,13 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       return res.status(500).json({ error: 'Adzuna API keys not configured. Add ADZUNA_APP_ID and ADZUNA_APP_KEY to Railway environment variables.' });
     }
 
-    // Build a precise search query — use key terms from role to avoid broad matches
-    // e.g. "Data Engineer" not just "engineer", "Frontend Developer" not just "developer"
     const roleKeywords = (role || 'software engineer').trim();
-    const searchQuery  = encodeURIComponent(roleKeywords);
+
+    // Build expanded search terms — "Data Engineer" → also search "data", "engineer", "ETL", "pipeline"
+    // Use &what_or so any of the terms match anywhere in the posting
+    const roleParts    = roleKeywords.split(' ').filter(w => w.length > 2);
+    const searchTerms  = roleParts.join(' ');
+    const searchQuery  = encodeURIComponent(searchTerms);
 
     const locationMap = {
       india: '', bangalore: 'bangalore', mumbai: 'mumbai',
@@ -651,19 +654,17 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
     const locationParam = locationMap[location] || '';
     const locationStr   = locationParam ? '&where=' + encodeURIComponent(locationParam) : '';
 
-    // Fetch last 7 days, 30 results, sorted by date, title-only search for precision
-    // &title_only=1 ensures the role appears in the job title (not just description)
-    // &max_days_old=7 gets last week of postings
+    // Fetch last 30 days, 50 results to have enough after Claude filters weak matches
     const url = 'https://api.adzuna.com/v1/api/jobs/in/search/1' +
       '?app_id=' + appId + '&app_key=' + appKey +
       '&what_or=' + searchQuery +
       locationStr +
-      '&results_per_page=30' +
-      '&max_days_old=7' +
+      '&results_per_page=50' +
+      '&max_days_old=30' +
       '&content-type=application/json' +
       '&sort_by=date';
 
-    console.log('Adzuna URL:', url.replace(appKey, '***'));
+    console.log('Adzuna query:', searchTerms, '| location:', locationParam || 'India');
 
     const https   = require('https');
     const adzData = await new Promise((resolve, reject) => {
@@ -678,25 +679,22 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
     });
 
     let rawJobs = adzData.results || [];
-    if (!rawJobs.length) return res.json({ jobs: [], message: 'No jobs found for this role and location in the last 7 days.' });
+    console.log('Adzuna returned: ' + rawJobs.length + ' jobs');
+    if (!rawJobs.length) return res.json({ jobs: [], message: 'No jobs found. Try Pan India or a different role.' });
 
-    // ── Pre-filter: remove jobs that are clearly wrong role ──
-    // Keep only jobs where title contains at least one meaningful word from target role
-    const roleWords = roleKeywords.toLowerCase()
-      .split(/\s+/)
-      .filter(w => w.length > 3); // skip short words like "of", "and"
-
-    const relevant = rawJobs.filter(job => {
-      const titleLower = (job.title || '').toLowerCase();
-      return roleWords.some(word => titleLower.includes(word));
+    // ── No title filter — let Claude decide relevance via scoring ──
+    // Just deduplicate by title+company to avoid showing same job twice
+    const seen = new Set();
+    rawJobs = rawJobs.filter(job => {
+      const key = (job.title||'').toLowerCase() + '|' + (job.company ? job.company.display_name : '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    // Use filtered list if we have enough, otherwise fall back to all results
-    rawJobs = relevant.length >= 5 ? relevant : rawJobs;
-    console.log('Jobs after title filter: ' + rawJobs.length + ' (from ' + (adzData.results||[]).length + ' total)');
-
-    // Limit to 20 for Claude scoring
+    // Take top 20 for Claude scoring (already sorted by date from Adzuna)
     rawJobs = rawJobs.slice(0, 20);
+    console.log('Sending ' + rawJobs.length + ' jobs to Claude for scoring');
 
     // Get user profile for matching
     const users      = await readSheet('Users');
@@ -719,22 +717,27 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       return '[' + j.index + '] ' + j.title + ' at ' + j.company + '\n' + j.description;
     }).join('\n---\n');
 
-    const batchPrompt = 'You are a strict job matching expert for Indian tech companies. Score each job for this candidate.\n\n' +
+    // Build role-specific context for better scoring
+    // e.g. for "Data Engineer": ETL pipelines, Spark, Airflow, cloud data platforms are all relevant
+    const batchPrompt = 'You are a helpful job matching expert for Indian tech companies.\n\n' +
       'CANDIDATE:\n' +
       '- Target Role: ' + roleKeywords + '\n' +
       '- Years Experience: ' + experience + '\n' +
-      '- Resume/Skills: ' + (resumeText ? resumeText.slice(0,1500) : 'Use role and experience only') + '\n\n' +
-      'JOB LISTINGS:\n' + jobListText + '\n\n' +
-      'SCORING RULES (be strict and honest):\n' +
-      '- If the job title has NOTHING to do with ' + roleKeywords + ' → score 5-15. No exceptions.\n' +
-      '- If the job is in the same broad tech domain but different specialisation → score 20-40\n' +
-      '- If the job matches the role but seniority is wrong → score 35-55\n' +
-      '- If the job is a good match for role and experience → score 55-75\n' +
-      '- If the job is an excellent match (title + skills + seniority all align) → score 75-92\n\n' +
-      'For "have" list: skills from the JD the candidate clearly has (max 6, specific tech skills only).\n' +
-      'For "missing" list: important skills in JD the candidate lacks (max 5, specific and actionable).\n\n' +
-      'Return ONLY a JSON array, no explanation:\n' +
-      '[{"index":0,"score":72,"have":["Python","SQL"],"missing":["dbt","Airflow"]},...]';
+      '- Resume/Skills: ' + (resumeText ? resumeText.slice(0,1500) : 'Not provided') + '\n\n' +
+      'JOB LISTINGS (' + rawJobs.length + ' jobs):\n' + jobListText + '\n\n' +
+      'TASK: Score each job 0-100 for this candidate. Be generous with related roles.\n\n' +
+      'SCORING GUIDE:\n' +
+      '- Completely unrelated field (healthcare, sales, HR, media) → 5-20\n' +
+      '- Same tech domain, different specialisation (e.g. Data Analyst for Data Engineer) → 35-55\n' +
+      '- Related role with overlapping skills (e.g. Data Platform, Big Data, ETL, Cloud Engineer for Data Engineer) → 50-70\n' +
+      '- Good match for role with most skills present → 60-80\n' +
+      '- Excellent match — title + skills + seniority all align → 78-92\n\n' +
+      'IMPORTANT: A job does not need to have the exact title "' + roleKeywords + '" to score well.\n' +
+      'Related roles that use the same skills and experience should score 50+.\n\n' +
+      'For "have": tech skills in the JD the candidate likely has (based on their role/resume, max 6).\n' +
+      'For "missing": important skills in the JD the candidate likely lacks (max 5, be specific).\n\n' +
+      'Return ONLY a JSON array, nothing else:\n' +
+      '[{"index":0,"score":72,"have":["Python","SQL","Spark"],"missing":["dbt","Airflow"]},...]';
 
     let scores = [];
     try {

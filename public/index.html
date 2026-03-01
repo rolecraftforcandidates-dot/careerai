@@ -180,7 +180,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .task-item>div:first-child:hover{opacity:0.85}
 .drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
 @keyframes spin{to{transform:rotate(360deg)}}
-.study-btn{background:var(--teal-light);border:none;border-radius:7px;padding:5px 9px;font-size:0.85rem;cursor:pointer;flex-shrink:0;transition:all 0.15s;color:var(--teal-dark)}
+.study-btn{background:var(--teal-light);border:1px solid rgba(0,179,138,0.2);border-radius:7px;padding:5px 11px;font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s;color:var(--teal-dark);white-space:nowrap}
 .study-btn:hover{background:var(--teal);color:#fff}
 .drawer-section{margin-bottom:24px}
 .drawer-section-title{font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
@@ -511,6 +511,49 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
           <div style="font-weight:700;font-size:0.94rem;margin-bottom:4px">Upload updated resume</div>
           <div style="color:var(--muted);font-size:0.82rem">PDF or DOCX - Get a fresh ATS score after making changes</div>
         </div>
+
+        <!-- Resume Upload -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-title">&#128196; Your Resume</div>
+          <div style="font-size:0.82rem;color:var(--muted);margin-bottom:16px">Upload once — AI extracts the text automatically and uses it for Job Match, Resume Review, and scoring.</div>
+
+          <!-- Current resume status -->
+          <div id="resumeCurrentStatus" style="display:none;margin-bottom:14px;padding:12px 14px;background:var(--teal-light);border-radius:10px;border:1px solid rgba(0,179,138,0.2);display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.2rem">&#128196;</span>
+            <div style="flex:1">
+              <div style="font-size:0.84rem;font-weight:600;color:var(--teal-dark)">Resume on file</div>
+              <a id="resumeDriveLink" href="#" target="_blank" style="font-size:0.76rem;color:var(--teal);text-decoration:none">View on Google Drive ↗</a>
+            </div>
+            <span style="font-size:0.75rem;color:var(--green);font-weight:600">&#10003; Active</span>
+          </div>
+
+          <!-- Drop zone -->
+          <div id="resumeDropZone"
+            ondrop="handleResumeDrop(event)"
+            ondragover="event.preventDefault();this.style.borderColor='var(--teal)';this.style.background='var(--teal-light)'"
+            ondragleave="this.style.borderColor='var(--border)';this.style.background='var(--bg)'"
+            onclick="document.getElementById('resumeFileInput').click()"
+            style="border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg)">
+            <div style="font-size:2rem;margin-bottom:8px">&#128228;</div>
+            <div style="font-weight:700;font-size:0.92rem;margin-bottom:4px">Drop your resume here</div>
+            <div style="font-size:0.8rem;color:var(--muted)">or click to browse — PDF or DOCX, max 10MB</div>
+          </div>
+          <input type="file" id="resumeFileInput" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResume(this.files[0])">
+
+          <!-- Upload progress -->
+          <div id="resumeUploadProgress" style="display:none;margin-top:14px">
+            <div style="display:flex;align-items:center;gap:10px;font-size:0.84rem;color:var(--muted)">
+              <div style="width:20px;height:20px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+              <span id="resumeUploadMsg">Uploading and extracting text...</span>
+            </div>
+            <div style="margin-top:8px;background:#eef0f8;border-radius:100px;height:4px;overflow:hidden">
+              <div id="resumeProgressBar" style="height:100%;width:0%;background:var(--teal);border-radius:100px;transition:width 0.4s ease"></div>
+            </div>
+          </div>
+
+          <!-- Result message -->
+          <div id="resumeUploadResult" style="display:none;margin-top:12px;padding:12px 14px;border-radius:10px;font-size:0.84rem"></div>
+        </div>
       </div>
 
       <!-- JOB MATCH -->
@@ -534,7 +577,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             </label>
           </div>
           <div id="resumeAutoMsg" style="font-size:0.83rem;color:var(--muted);padding:10px 14px;background:var(--teal-light);border-radius:8px">
-            &#9989; Using your resume from onboarding. Toggle above to paste a different version.
+            &#9989; Using your uploaded resume. You can update it in <strong>Settings → Your Resume</strong>, or toggle above to paste a custom version for this analysis.
           </div>
           <textarea id="resumeOverrideInput" style="display:none;width:100%;min-height:120px;border:1.5px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;box-sizing:border-box;margin-top:10px" placeholder="Paste your resume text here (copy from your Word/PDF)..."></textarea>
         </div>
@@ -1177,15 +1220,13 @@ function loadPlan() {
               var ck=t.Status==='Done';
               var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
               var taskKey=encodeURIComponent(t.Week+'|'+t.Day+'|'+(t['Task Title']||''));
-              var titleEnc = encodeURIComponent(t['Task Title']||'');
-              var typeEnc  = encodeURIComponent(t.Type||'Theory');
               return '<div class="task-item" data-task="'+taskKey+'">'+
                 '<div onclick="toggleTask(this.parentNode)" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">'+
                   '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+
                   '<div class="task-text '+(ck?'done':'')+'" style="flex:1">'+(t['Task Title']||'')+'</div>'+
                 '</div>'+
                 '<span class="badge '+tc+'" style="flex-shrink:0;margin:0 8px">'+(t.Type||'')+'</span>'+
-                '<button class="study-btn" onclick="openResourceDrawer('+t.Week+','+t.Day+','+titleEnc+','+typeEnc+')" title="Study resources">&#128218;</button>'+
+                '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="📚 Study this topic">📚 Study</button>'+
                 '</div>';
             }).join('')
           : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0;font-style:italic">'+subText+'</div>';
@@ -1415,6 +1456,266 @@ function loadResume() {
         '<div class="tip-item info"><div class="tip-icon">&#128161;</div><div><div class="tip-title">Detailed tips are being prepared. Check back soon!</div></div></div>');
     }).catch(function(){showErr(document.getElementById('resumeError'),'Could not load resume data. Please refresh.');});
 }
+// ══════════════════════════════════════════════════════
+// RESOURCE DRAWER
+// ══════════════════════════════════════════════════════
+function openResourceDrawer(evt, week, day) {
+  evt.stopPropagation(); // don't toggle task
+  var btn   = evt.currentTarget;
+  var title = btn.getAttribute('data-title') || '';
+  var type  = btn.getAttribute('data-type')  || 'Theory';
+  var tc    = type==='Theory'?'badge-purple':type==='Mock'?'badge-orange':'badge-teal';
+
+  document.getElementById('drawerWeekDay').textContent  = 'WEEK '+week+' · DAY '+day;
+  document.getElementById('drawerTitle').textContent    = title;
+  document.getElementById('drawerTypeBadge').innerHTML  = '<span class="badge '+tc+'">'+type+'</span>';
+  document.getElementById('drawerContent').innerHTML    =
+    '<div style="display:flex;flex-direction:column;align-items:center;padding:60px 0;gap:14px">'+
+    '<div style="width:36px;height:36px;border:3px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>'+
+    '<div style="color:var(--muted);font-size:0.84rem;text-align:center">Generating cheatsheet with AI...<br><span style="font-size:0.75rem;opacity:0.7">takes ~10 seconds</span></div></div>';
+
+  document.getElementById('resourceOverlay').style.display = 'block';
+  document.getElementById('resourceDrawer').style.right    = '0';
+  document.body.style.overflow = 'hidden';
+
+  fetch('/api/resources', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ week:week, day:day, taskTitle:title, taskType:type })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.error) { document.getElementById('drawerContent').innerHTML='<div style="color:var(--red);padding:20px">'+d.error+'</div>'; return; }
+    var html = '';
+    if (d.summary) {
+      html += '<div class="drawer-section"><div class="drawer-section-title">&#128161; Quick Summary</div>'+
+        '<div style="font-size:0.86rem;line-height:1.7;padding:12px 14px;background:var(--teal-light);border-radius:10px;border-left:3px solid var(--teal)">'+d.summary+'</div></div>';
+    }
+    if (d.cheatsheet && d.cheatsheet.length) {
+      html += '<div class="drawer-section"><div class="drawer-section-title">&#128203; Cheatsheet — Key Points</div>'+
+        d.cheatsheet.map(function(item){
+          return '<div class="cheatsheet-item"><div class="cheatsheet-bullet">›</div><div>'+item+'</div></div>';
+        }).join('')+'</div>';
+    }
+    if (d.practice && d.practice.length) {
+      html += '<div class="drawer-section"><div class="drawer-section-title">&#128170; What to Practice Today</div>'+
+        d.practice.map(function(item,i){
+          return '<div style="display:flex;gap:10px;margin-bottom:10px;font-size:0.84rem;line-height:1.55">'+
+            '<div style="background:var(--purple-light);color:var(--purple);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0;margin-top:1px">'+(i+1)+'</div>'+
+            '<div>'+item+'</div></div>';
+        }).join('')+'</div>';
+    }
+    if (d.resources && d.resources.length) {
+      html += '<div class="drawer-section"><div class="drawer-section-title">&#127760; Free Study Resources</div>'+
+        d.resources.map(function(r){
+          var icon = r.type==='video'?'&#127916;':r.type==='docs'?'&#128196;':'&#128279;';
+          return '<a href="'+r.url+'" target="_blank" rel="noopener" class="resource-link">'+
+            '<div class="resource-link-icon">'+icon+'</div>'+
+            '<div style="flex:1"><div>'+r.title+'</div><div class="resource-link-meta">'+r.source+' · '+r.type+'</div></div>'+
+            '<div style="font-size:0.75rem;color:var(--muted)">↗</div></a>';
+        }).join('')+'</div>';
+    }
+    if (d.interviewTip) {
+      html += '<div class="drawer-section"><div class="drawer-section-title">&#129302; AI Interview Tip</div>'+
+        '<div style="font-size:0.84rem;line-height:1.65;padding:12px 14px;background:var(--purple-light);border-radius:10px;border-left:3px solid var(--purple)">'+d.interviewTip+'</div></div>';
+    }
+    document.getElementById('drawerContent').innerHTML = html || '<p style="color:var(--muted)">No content generated.</p>';
+  })
+  .catch(function(){
+    document.getElementById('drawerContent').innerHTML = '<div style="color:var(--red);padding:20px">Connection error — please try again.</div>';
+  });
+}
+
+function closeResourceDrawer() {
+  document.getElementById('resourceDrawer').style.right = '-520px';
+  document.getElementById('resourceOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeResourceDrawer(); });
+
+// ══════════════════════════════════════════════════════
+// JOB MATCH
+// ══════════════════════════════════════════════════════
+function toggleResumeOverride() {
+  var tog = document.getElementById('resumeOverrideToggle');
+  var msg = document.getElementById('resumeAutoMsg');
+  var txt = document.getElementById('resumeOverrideInput');
+  if (tog.checked) { msg.style.display='none'; txt.style.display='block'; txt.focus(); }
+  else             { msg.style.display='block'; txt.style.display='none'; }
+}
+
+function analyseJobMatch() {
+  var jd = (document.getElementById('jdInput').value||'').trim();
+  if (jd.length < 50) {
+    showErr(document.getElementById('jobmatchError'),'Please paste a complete job description (at least 50 characters).');
+    return;
+  }
+  var tog = document.getElementById('resumeOverrideToggle');
+  var customResume = tog && tog.checked ? (document.getElementById('resumeOverrideInput').value||'').trim() : '';
+
+  var btn = document.getElementById('jmAnalyseBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Analysing with AI — takes ~15 seconds...';
+  document.getElementById('jobmatchError').style.display = 'none';
+  document.getElementById('jmResults').style.display = 'none';
+
+  fetch('/api/jobmatch', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ jd:jd, customResume:customResume })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    btn.disabled = false;
+    btn.innerHTML = '&#129302; Analyse Job Match';
+    if (d.error) { showErr(document.getElementById('jobmatchError'), d.error); return; }
+
+    var sc    = parseInt(d.score)||0;
+    var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
+    var scLbl = sc>=75?'🎉 Strong Match!':sc>=55?'👍 Good Match':sc>=40?'⚠️ Moderate Match':'❌ Weak Match';
+
+    var banner = document.getElementById('jmScoreBanner');
+    banner.style.cssText += ';background:linear-gradient(135deg,'+scCol+'18,'+scCol+'06);border:1px solid '+scCol+'33';
+    var circle = document.getElementById('jmScoreCircle');
+    circle.style.borderColor = scCol;
+    document.getElementById('jmScoreNum').style.color  = scCol;
+    document.getElementById('jmScoreNum').textContent  = sc;
+    document.getElementById('jmScoreLabel').textContent = scLbl;
+    document.getElementById('jmScoreLabel').style.color = scCol;
+
+    var slCol = d.shortlist==='High'?'background:var(--green-light);color:var(--green)':
+                d.shortlist==='Medium'?'background:var(--orange-light);color:var(--orange)':'background:var(--red-light);color:var(--red)';
+    document.getElementById('jmShortlistLabel').innerHTML = 'Shortlist likelihood: <strong>'+d.shortlist+'</strong>';
+    document.getElementById('jmShortlistLabel').style.cssText = 'font-size:0.82rem;font-weight:600;padding:4px 12px;border-radius:100px;display:inline-block;'+slCol;
+
+    var have = d.keywordsHave||[];
+    document.getElementById('jmKeywordsHave').innerHTML = have.length
+      ? have.map(function(k){ return '<span class="jm-keyword have">'+k+'</span>'; }).join('')
+      : '<span style="font-size:0.82rem;color:var(--muted);font-style:italic">None detected</span>';
+
+    var miss = d.keywordsMissing||[];
+    document.getElementById('jmKeywordsMissing').innerHTML = miss.length
+      ? miss.map(function(k){ return '<span class="jm-keyword missing">'+k+'</span>'; }).join('')
+      : '<span style="font-size:0.82rem;color:var(--green);font-weight:600">✓ No critical gaps!</span>';
+
+    document.getElementById('jmTweaks').innerHTML = (d.tweaks||[]).map(function(t,i){
+      return '<div class="jm-tweak"><div class="jm-tweak-num">'+(i+1)+'</div><div>'+t+'</div></div>';
+    }).join('') || '<p style="color:var(--muted);font-size:0.84rem">No specific tweaks needed.</p>';
+
+    document.getElementById('jmBreakdown').innerHTML = (d.breakdown||[]).map(function(b){
+      var pct=parseInt(b.score)||0;
+      var bc=pct>=75?'var(--green)':pct>=50?'var(--teal)':pct>=35?'var(--orange)':'var(--red)';
+      return '<div class="jm-bar-row">'+
+        '<div class="jm-bar-row-meta"><span style="color:var(--muted)">'+b.label+'</span><span style="font-weight:700;color:'+bc+'">'+pct+'%</span></div>'+
+        '<div style="background:#eef0f8;border-radius:100px;height:6px">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+bc+';border-radius:100px;transition:width 0.8s ease"></div>'+
+        '</div></div>';
+    }).join('');
+
+    document.getElementById('jmResults').style.display = 'block';
+    document.getElementById('jmResults').scrollIntoView({behavior:'smooth',block:'start'});
+  })
+  .catch(function(){
+    btn.disabled=false; btn.innerHTML='&#129302; Analyse Job Match';
+    showErr(document.getElementById('jobmatchError'),'Connection error — please try again.');
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// RESUME UPLOAD
+// ══════════════════════════════════════════════════════
+function handleResumeDrop(e) {
+  e.preventDefault();
+  var dz = document.getElementById('resumeDropZone');
+  dz.style.borderColor = 'var(--border)';
+  dz.style.background  = 'var(--bg)';
+  var file = e.dataTransfer.files[0];
+  if (file) uploadResume(file);
+}
+
+function uploadResume(file) {
+  if (!file) return;
+  var allowed = ['application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword'];
+  if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|doc|docx)$/i)) {
+    showResumeResult('error', '&#10060; Only PDF and DOCX files are supported.');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showResumeResult('error', '&#10060; File too large — maximum 10MB.');
+    return;
+  }
+
+  // Show progress
+  document.getElementById('resumeUploadProgress').style.display = 'block';
+  document.getElementById('resumeUploadResult').style.display   = 'none';
+  document.getElementById('resumeDropZone').style.opacity       = '0.5';
+  document.getElementById('resumeUploadMsg').textContent        = 'Uploading ' + file.name + '...';
+
+  // Animate progress bar
+  var pct = 0;
+  var bar = document.getElementById('resumeProgressBar');
+  var prog = setInterval(function(){
+    pct = Math.min(pct + (pct < 60 ? 8 : pct < 85 ? 3 : 1), 90);
+    bar.style.width = pct + '%';
+  }, 300);
+
+  var formData = new FormData();
+  formData.append('resume', file);
+
+  fetch('/api/resume/upload', {
+    method: 'POST',
+    credentials: 'include',
+    body: formData
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    clearInterval(prog);
+    bar.style.width = '100%';
+    document.getElementById('resumeUploadProgress').style.display = 'none';
+    document.getElementById('resumeDropZone').style.opacity = '1';
+    document.getElementById('resumeFileInput').value = '';
+
+    if (d.error) {
+      showResumeResult('error', '&#10060; ' + d.error);
+      return;
+    }
+
+    showResumeResult('success',
+      '&#9989; ' + d.message +
+      (d.textLength ? ' <span style="color:var(--muted);font-size:0.78rem">(' + d.textLength + ' chars extracted)</span>' : '')
+    );
+
+    // Update "Resume on file" status card
+    if (d.driveUrl) {
+      document.getElementById('resumeCurrentStatus').style.display = 'flex';
+      document.getElementById('resumeDriveLink').href = d.driveUrl;
+    }
+
+    // Update drop zone text
+    document.getElementById('resumeDropZone').innerHTML =
+      '<div style="font-size:2rem;margin-bottom:8px">&#9989;</div>'+
+      '<div style="font-weight:700;font-size:0.92rem;margin-bottom:4px;color:var(--teal)">'+file.name+' uploaded</div>'+
+      '<div style="font-size:0.8rem;color:var(--muted)">Click to upload a different resume</div>';
+  })
+  .catch(function(){
+    clearInterval(prog);
+    document.getElementById('resumeUploadProgress').style.display = 'none';
+    document.getElementById('resumeDropZone').style.opacity = '1';
+    showResumeResult('error', '&#10060; Upload failed — please try again.');
+  });
+}
+
+function showResumeResult(type, html) {
+  var el = document.getElementById('resumeUploadResult');
+  el.style.display    = 'block';
+  el.style.background = type==='success' ? 'var(--green-light)' : 'var(--red-light)';
+  el.style.color      = type==='success' ? 'var(--green)'       : 'var(--red)';
+  el.style.border     = '1px solid ' + (type==='success' ? 'rgba(0,179,100,0.2)' : 'rgba(220,50,50,0.2)');
+  el.innerHTML = html;
+}
+
 function loadSettings() {
   if (!currentUser) return;
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
@@ -1427,6 +1728,22 @@ function loadSettings() {
   document.getElementById('newPw').value      = '';
   document.getElementById('confirmPw').value  = '';
   document.getElementById('pwError').style.display   = 'none';
+  // Load resume status
+  fetch('/api/resume',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if (d.resumeUrl) {
+        var cs = document.getElementById('resumeCurrentStatus');
+        if (cs) { cs.style.display='flex'; document.getElementById('resumeDriveLink').href=d.resumeUrl; }
+      }
+      if (d.resumeText && d.resumeText.length > 50) {
+        var dz = document.getElementById('resumeDropZone');
+        if (dz) dz.innerHTML =
+          '<div style="font-size:2rem;margin-bottom:8px">&#9989;</div>'+
+          '<div style="font-weight:700;font-size:0.92rem;margin-bottom:4px;color:var(--teal)">Resume on file</div>'+
+          '<div style="font-size:0.8rem;color:var(--muted)">Click to upload a newer version</div>';
+      }
+    }).catch(function(){});
   document.getElementById('pwSuccess').style.display = 'none';
 }
 

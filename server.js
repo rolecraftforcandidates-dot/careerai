@@ -641,21 +641,37 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
 
     const roleKeywords = (role || 'software engineer').trim();
 
-    // ── Fallback keyword map — if primary search returns < 10 jobs, try alternatives ──
-    const fallbackMap = {
-      'data engineer':        ['big data engineer','data platform engineer','etl engineer','data infrastructure engineer','analytics engineer'],
-      'frontend developer':   ['frontend engineer','ui developer','react developer','javascript developer','web developer'],
-      'backend developer':    ['backend engineer','server side developer','api developer','software engineer backend','nodejs developer'],
-      'full stack developer': ['full stack engineer','software engineer','web developer','mean stack','mern stack developer'],
-      'data scientist':       ['machine learning engineer','ml engineer','ai engineer','data analyst','research scientist'],
-      'devops engineer':      ['site reliability engineer','sre','platform engineer','cloud engineer','infrastructure engineer'],
-      'product manager':      ['product owner','program manager','technical product manager','associate product manager'],
-      'android developer':    ['android engineer','mobile developer','kotlin developer','java android'],
-      'ios developer':        ['ios engineer','swift developer','mobile developer','apple developer'],
-      'ml engineer':          ['machine learning engineer','ai engineer','deep learning engineer','data scientist','nlp engineer'],
-    };
-    const roleKey     = roleKeywords.toLowerCase().trim();
-    const fallbacks   = fallbackMap[roleKey] || [];
+    // ── Fallback keyword map — fuzzy matched against user's role ──
+    // Keys are partial patterns, values are alternative search terms
+    const fallbackMap = [
+      { pattern: 'data engineer',      alts: ['big data engineer','data platform engineer','etl engineer','data infrastructure','analytics engineer','azure data engineer','aws data engineer'] },
+      { pattern: 'frontend',           alts: ['frontend engineer','react developer','ui developer','javascript developer','web developer','angular developer','vue developer'] },
+      { pattern: 'front end',          alts: ['frontend engineer','react developer','ui developer','javascript developer','web developer'] },
+      { pattern: 'backend',            alts: ['backend engineer','api developer','nodejs developer','java developer','python developer','software engineer backend'] },
+      { pattern: 'back end',           alts: ['backend engineer','api developer','nodejs developer','java developer'] },
+      { pattern: 'full stack',         alts: ['full stack engineer','software engineer','web developer','mern stack','mean stack developer'] },
+      { pattern: 'fullstack',          alts: ['full stack engineer','software engineer','web developer','mern stack'] },
+      { pattern: 'data scientist',     alts: ['machine learning engineer','ml engineer','ai engineer','data analyst','research scientist'] },
+      { pattern: 'devops',             alts: ['site reliability engineer','platform engineer','cloud engineer','infrastructure engineer','sre'] },
+      { pattern: 'cloud engineer',     alts: ['aws engineer','azure engineer','gcp engineer','devops engineer','platform engineer'] },
+      { pattern: 'product manager',    alts: ['product owner','program manager','technical product manager','senior product manager'] },
+      { pattern: 'android',            alts: ['android engineer','mobile developer','kotlin developer','mobile app developer'] },
+      { pattern: 'ios developer',      alts: ['ios engineer','swift developer','mobile developer','apple developer'] },
+      { pattern: 'ml engineer',        alts: ['machine learning engineer','ai engineer','deep learning engineer','data scientist','nlp engineer'] },
+      { pattern: 'machine learning',   alts: ['ml engineer','ai engineer','data scientist','deep learning engineer','nlp engineer'] },
+      { pattern: 'software engineer',  alts: ['software developer','programmer','application developer','sde','swe'] },
+      { pattern: 'software developer', alts: ['software engineer','application developer','programmer','sde'] },
+      { pattern: 'java developer',     alts: ['java engineer','spring boot developer','j2ee developer','backend developer'] },
+      { pattern: 'python developer',   alts: ['python engineer','django developer','flask developer','backend developer'] },
+      { pattern: 'qa engineer',        alts: ['quality assurance','test engineer','sdet','automation engineer','qa analyst'] },
+      { pattern: 'security engineer',  alts: ['cybersecurity engineer','infosec engineer','application security','cloud security'] },
+    ];
+
+    const roleKey  = roleKeywords.toLowerCase().trim();
+    // Fuzzy match — find first entry whose pattern appears in the role string
+    const matched  = fallbackMap.find(f => roleKey.includes(f.pattern) || f.pattern.includes(roleKey.split(' ')[0]));
+    const fallbacks = matched ? matched.alts : [roleKeywords + ' engineer', roleKeywords + ' developer', 'senior ' + roleKeywords];
+    console.log('Fallbacks for "' + roleKey + '":', fallbacks.slice(0,3));
 
     const locationMap = {
       india: '', bangalore: 'bangalore', mumbai: 'mumbai',
@@ -691,12 +707,61 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
     console.log('Primary search "' + roleKeywords + '": ' + rawJobs.length + ' jobs');
 
     // Fallback searches if primary gives < 10 results
-    if (rawJobs.length < 10 && fallbacks.length) {
-      for (const alt of fallbacks.slice(0, 3)) {
+    // Try fallbacks if < 15 results — keep going until we have 20+
+    if (rawJobs.length < 15 && fallbacks.length) {
+      for (const alt of fallbacks.slice(0, 4)) {
+        if (rawJobs.length >= 20) break;
         const altJobs = await fetchAdzuna(alt);
         console.log('Fallback "' + alt + '": ' + altJobs.length + ' jobs');
         rawJobs = rawJobs.concat(altJobs);
-        if (rawJobs.length >= 15) break;
+      }
+    }
+    // ── Resume keyword fallback — extract top skills from resume and search by skill ──
+    // Triggered if still < 15 jobs after role-based fallbacks
+    if (rawJobs.length < 15) {
+      const users      = await readSheet('Users');
+      const user       = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
+      const resumeText = (user && user['Resume Text']) || (user && user['ATS Tips']) || '';
+
+      if (resumeText.length > 50) {
+        // Use Claude to extract top 5 searchable skills from resume
+        const Anthropic = require('@anthropic-ai/sdk');
+        const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+        try {
+          const skillMsg = await client.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 200,
+            messages: [{
+              role: 'user',
+              content: 'Extract the top 5 most job-searchable tech skills from this resume. ' +
+                'Return ONLY a JSON array of strings — short skill names good for job searching (e.g. ["React","Node.js","AWS","TypeScript","MongoDB"]). ' +
+                'Resume: ' + resumeText.slice(0, 1500)
+            }]
+          });
+          const raw    = skillMsg.content[0].text.trim().replace(/```json|```/g,'').trim();
+          const skills = JSON.parse(raw);
+          console.log('Resume skills extracted:', skills);
+
+          for (const skill of skills.slice(0, 3)) {
+            if (rawJobs.length >= 18) break;
+            const skillJobs = await fetchAdzuna(skill + ' engineer');
+            console.log('Skill fallback "' + skill + ' engineer": ' + skillJobs.length + ' jobs');
+            rawJobs = rawJobs.concat(skillJobs);
+          }
+        } catch(skillErr) {
+          console.log('Skill extraction failed, using broad fallback:', skillErr.message);
+          // Broad fallback — last keyword in role e.g. "Engineer" from "Data Engineer"
+          const broadTerm = roleKeywords.split(' ').pop();
+          const broadJobs = await fetchAdzuna('senior ' + broadTerm);
+          console.log('Broad fallback "senior ' + broadTerm + '": ' + broadJobs.length + ' jobs');
+          rawJobs = rawJobs.concat(broadJobs);
+        }
+      } else {
+        // No resume — use broad role keyword fallback
+        const broadTerm = roleKeywords.split(' ').pop();
+        const broadJobs = await fetchAdzuna('senior ' + broadTerm);
+        console.log('Broad fallback "senior ' + broadTerm + '": ' + broadJobs.length + ' jobs');
+        rawJobs = rawJobs.concat(broadJobs);
       }
     }
 
@@ -735,10 +800,10 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       'khatabook','ofbusiness','darwinbox','leadsquared','hasura','setu','sarvam',
     ]);
 
-    // Get user profile for matching
-    const users      = await readSheet('Users');
-    const user       = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
-    const resumeText = (user && user['Resume Text']) || (user && user['ATS Tips']) || '';
+    // Get user profile for matching (re-use if already loaded in fallback, else load now)
+    const users2      = await readSheet('Users');
+    const user2       = users2.find(u => u.Email.toLowerCase() === email.toLowerCase());
+    const resumeText  = (user2 && user2['Resume Text']) || (user2 && user2['ATS Tips']) || '';
 
     // Build structured job list for Claude batch scoring
     const jobsForScoring = rawJobs.map((job, i) => ({
@@ -762,7 +827,7 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       'CANDIDATE:\n' +
       '- Target Role: ' + roleKeywords + '\n' +
       '- Years Experience: ' + experience + '\n' +
-      '- Resume/Skills: ' + (resumeText ? resumeText.slice(0,1500) : 'Not provided') + '\n\n' +
+      '- Resume/Skills: ' + (resumeText ? resumeText.slice(0,1500) : 'Not provided — use role and experience only') + '\n\n' +
       'JOB LISTINGS (' + rawJobs.length + ' jobs):\n' + jobListText + '\n\n' +
       'TASK: Score each job 0-100 for this candidate. Be generous with related roles.\n\n' +
       'SCORING GUIDE:\n' +

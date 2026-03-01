@@ -641,11 +641,21 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
 
     const roleKeywords = (role || 'software engineer').trim();
 
-    // Build expanded search terms — "Data Engineer" → also search "data", "engineer", "ETL", "pipeline"
-    // Use &what_or so any of the terms match anywhere in the posting
-    const roleParts    = roleKeywords.split(' ').filter(w => w.length > 2);
-    const searchTerms  = roleParts.join(' ');
-    const searchQuery  = encodeURIComponent(searchTerms);
+    // ── Fallback keyword map — if primary search returns < 10 jobs, try alternatives ──
+    const fallbackMap = {
+      'data engineer':        ['big data engineer','data platform engineer','etl engineer','data infrastructure engineer','analytics engineer'],
+      'frontend developer':   ['frontend engineer','ui developer','react developer','javascript developer','web developer'],
+      'backend developer':    ['backend engineer','server side developer','api developer','software engineer backend','nodejs developer'],
+      'full stack developer': ['full stack engineer','software engineer','web developer','mean stack','mern stack developer'],
+      'data scientist':       ['machine learning engineer','ml engineer','ai engineer','data analyst','research scientist'],
+      'devops engineer':      ['site reliability engineer','sre','platform engineer','cloud engineer','infrastructure engineer'],
+      'product manager':      ['product owner','program manager','technical product manager','associate product manager'],
+      'android developer':    ['android engineer','mobile developer','kotlin developer','java android'],
+      'ios developer':        ['ios engineer','swift developer','mobile developer','apple developer'],
+      'ml engineer':          ['machine learning engineer','ai engineer','deep learning engineer','data scientist','nlp engineer'],
+    };
+    const roleKey     = roleKeywords.toLowerCase().trim();
+    const fallbacks   = fallbackMap[roleKey] || [];
 
     const locationMap = {
       india: '', bangalore: 'bangalore', mumbai: 'mumbai',
@@ -654,47 +664,76 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
     const locationParam = locationMap[location] || '';
     const locationStr   = locationParam ? '&where=' + encodeURIComponent(locationParam) : '';
 
-    // Fetch last 30 days, 50 results to have enough after Claude filters weak matches
-    const url = 'https://api.adzuna.com/v1/api/jobs/in/search/1' +
-      '?app_id=' + appId + '&app_key=' + appKey +
-      '&what_or=' + searchQuery +
-      locationStr +
-      '&results_per_page=50' +
-      '&max_days_old=30' +
-      '&content-type=application/json' +
-      '&sort_by=date';
+    const https = require('https');
 
-    console.log('Adzuna query:', searchTerms, '| location:', locationParam || 'India');
+    // Helper to fetch from Adzuna
+    async function fetchAdzuna(query) {
+      const url = 'https://api.adzuna.com/v1/api/jobs/in/search/1' +
+        '?app_id=' + appId + '&app_key=' + appKey +
+        '&what=' + encodeURIComponent(query) +
+        locationStr +
+        '&results_per_page=50&max_days_old=30&content-type=application/json&sort_by=date';
+      console.log('Adzuna query: "' + query + '" | location:', locationParam || 'India');
+      return new Promise((resolve) => {
+        https.get(url, (r) => {
+          let data = '';
+          r.on('data', c => data += c);
+          r.on('end', () => {
+            try { resolve(JSON.parse(data).results || []); }
+            catch(e) { resolve([]); }
+          });
+        }).on('error', () => resolve([]));
+      });
+    }
 
-    const https   = require('https');
-    const adzData = await new Promise((resolve, reject) => {
-      https.get(url, (r) => {
-        let data = '';
-        r.on('data', c => data += c);
-        r.on('end', () => {
-          try { resolve(JSON.parse(data)); }
-          catch(e) { reject(new Error('Invalid Adzuna response: ' + data.slice(0,200))); }
-        });
-      }).on('error', reject);
-    });
+    // Primary search
+    let rawJobs = await fetchAdzuna(roleKeywords);
+    console.log('Primary search "' + roleKeywords + '": ' + rawJobs.length + ' jobs');
 
-    let rawJobs = adzData.results || [];
-    console.log('Adzuna returned: ' + rawJobs.length + ' jobs');
-    if (!rawJobs.length) return res.json({ jobs: [], message: 'No jobs found. Try Pan India or a different role.' });
+    // Fallback searches if primary gives < 10 results
+    if (rawJobs.length < 10 && fallbacks.length) {
+      for (const alt of fallbacks.slice(0, 3)) {
+        const altJobs = await fetchAdzuna(alt);
+        console.log('Fallback "' + alt + '": ' + altJobs.length + ' jobs');
+        rawJobs = rawJobs.concat(altJobs);
+        if (rawJobs.length >= 15) break;
+      }
+    }
 
-    // ── No title filter — let Claude decide relevance via scoring ──
-    // Just deduplicate by title+company to avoid showing same job twice
+    if (!rawJobs.length) return res.json({ jobs: [], message: 'No jobs found. Try Pan India or refresh.' });
+
+    // Deduplicate by title+company
     const seen = new Set();
     rawJobs = rawJobs.filter(job => {
-      const key = (job.title||'').toLowerCase() + '|' + (job.company ? job.company.display_name : '');
+      const key = (job.title||'').toLowerCase().trim() + '|' + (job.company ? job.company.display_name.toLowerCase() : '');
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
-    // Take top 20 for Claude scoring (already sorted by date from Adzuna)
+    // Take top 20 for Claude scoring
     rawJobs = rawJobs.slice(0, 20);
-    console.log('Sending ' + rawJobs.length + ' jobs to Claude for scoring');
+    console.log('Sending ' + rawJobs.length + ' unique jobs to Claude for scoring');
+
+    // ── Top company bonus list ──
+    const premiumCompanies = new Set([
+      // Big tech
+      'google','microsoft','amazon','meta','apple','netflix','uber','airbnb',
+      // Indian unicorns / top product cos
+      'flipkart','swiggy','zomato','phonepe','paytm','razorpay','freshworks',
+      'zoho','byju','cred','meesho','nykaa','ola','rapido','lenskart','sharechat',
+      'groww','zepto','blinkit','slice','dhruva','browserstack','postman',
+      'atlassian','thoughtworks','publicis sapient','moengage','cleartax','clevertap',
+      // IT services (top tier)
+      'tcs','infosys','wipro','hcl','tech mahindra','ltimindtree','mphasis','hexaware',
+      'persistent','zensar','coforge','sonata','cyient',
+      // MNCs with strong India presence
+      'ibm','oracle','sap','salesforce','adobe','intuit','paypal','jp morgan',
+      'goldman sachs','morgan stanley','deutsche bank','barclays','hsbc',
+      'accenture','deloitte','pwc','capgemini','ey','kpmg',
+      // Startups with good rep
+      'khatabook','ofbusiness','darwinbox','leadsquared','hasura','setu','sarvam',
+    ]);
 
     // Get user profile for matching
     const users      = await readSheet('Users');
@@ -758,16 +797,23 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       });
     }
 
-    // Merge scores with job data
+    // Merge scores with job data + apply premium company bonus
     const scoreMap = {};
     scores.forEach(s => { scoreMap[s.index] = s; });
 
     const jobs = rawJobs.map((job, i) => {
-      const s = scoreMap[i] || { score: 30, have: [], missing: [] };
+      const s           = scoreMap[i] || { score: 30, have: [], missing: [] };
+      const companyName = (job.company ? job.company.display_name : '').toLowerCase();
+      const isPremium   = [...premiumCompanies].some(c => companyName.includes(c));
+      const baseScore   = Math.min(97, Math.max(1, parseInt(s.score)||30));
+      // Premium company bonus: +5 points (capped at 99), shown in UI with a badge
+      const finalScore  = isPremium ? Math.min(99, baseScore + 5) : baseScore;
+
       return {
         id:              job.id,
         title:           job.title,
         company:         job.company ? job.company.display_name : 'Company',
+        isPremium:       isPremium,
         location:        job.location ? job.location.display_name : 'India',
         description:     (job.description||'').slice(0, 2000),
         url:             job.redirect_url,
@@ -775,14 +821,17 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
         salaryMax:       job.salary_max || null,
         contractType:    job.contract_type || 'Full-time',
         created:         job.created,
-        matchScore:      Math.min(99, Math.max(1, parseInt(s.score)||30)),
+        matchScore:      finalScore,
         keywordsHave:    (s.have    || []).slice(0, 8),
         keywordsMissing: (s.missing || []).slice(0, 6),
       };
     });
 
-    // Sort by match score descending
-    jobs.sort((a, b) => b.matchScore - a.matchScore);
+    // Sort: primarily by match score, premium companies bubble up on ties
+    jobs.sort((a, b) => {
+      if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+      return (b.isPremium ? 1 : 0) - (a.isPremium ? 1 : 0);
+    });
 
     console.log(`✅ Jobs ready for ${email}: top score=${jobs[0]?.matchScore}, bottom=${jobs[jobs.length-1]?.matchScore}`);
     res.json({ jobs, total: adzData.count || jobs.length });

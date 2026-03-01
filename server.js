@@ -627,6 +627,107 @@ app.get('/api/scores', requireLogin, async (req, res) => {
   }
 });
 
+// GET /api/jobs — fetch live jobs from Adzuna + quick match score
+app.get('/api/jobs', requireLogin, async (req, res) => {
+  try {
+    const { email, role, experience } = req.session.user;
+    const location = req.query.location || 'india';
+
+    const appId  = process.env.ADZUNA_APP_ID;
+    const appKey = process.env.ADZUNA_APP_KEY;
+    if (!appId || !appKey) {
+      return res.status(500).json({ error: 'Adzuna API keys not configured. Add ADZUNA_APP_ID and ADZUNA_APP_KEY to Railway environment variables.' });
+    }
+
+    // Build search query from user role
+    const searchQuery = encodeURIComponent(role);
+    const locationMap = {
+      india: '', bangalore: 'bangalore', mumbai: 'mumbai',
+      delhi: 'delhi', hyderabad: 'hyderabad', pune: 'pune', chennai: 'chennai'
+    };
+    const locationParam = locationMap[location] || '';
+    const locationStr   = locationParam ? `&where=${encodeURIComponent(locationParam)}` : '';
+
+    // Fetch from Adzuna India API
+    const url = `https://api.adzuna.com/v1/api/jobs/in/search/1` +
+      `?app_id=${appId}&app_key=${appKey}` +
+      `&what=${searchQuery}${locationStr}` +
+      `&results_per_page=20&content-type=application/json` +
+      `&sort_by=date`;
+
+    const https   = require('https');
+    const adzData = await new Promise((resolve, reject) => {
+      https.get(url, (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch(e) { reject(new Error('Invalid Adzuna response')); }
+        });
+      }).on('error', reject);
+    });
+
+    const rawJobs = adzData.results || [];
+    if (!rawJobs.length) return res.json({ jobs: [] });
+
+    // Get user's resume text for quick keyword matching
+    const users  = await readSheet('Users');
+    const user   = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
+    const resumeText = (user && user['Resume Text']) || (user && user['ATS Tips']) || '';
+
+    // Quick keyword match (no Claude call — just keyword overlap)
+    const jobs = rawJobs.map(job => {
+      const jdText    = ((job.title||'') + ' ' + (job.description||'')).toLowerCase();
+      const resLower  = resumeText.toLowerCase();
+
+      // Extract tech keywords from JD
+      const techKeywords = [
+        'python','java','scala','sql','spark','kafka','airflow','dbt','aws','gcp','azure',
+        'docker','kubernetes','terraform','react','node','typescript','javascript','go',
+        'hadoop','hive','snowflake','redshift','bigquery','mongodb','postgres','redis',
+        'pyspark','pandas','scikit','tensorflow','pytorch','mlflow','databricks',
+        'data engineering','machine learning','data science','backend','frontend','devops',
+        'ci/cd','rest api','microservices','system design','agile','git'
+      ];
+
+      const jdKw   = techKeywords.filter(k => jdText.includes(k));
+      const haveKw = jdKw.filter(k  => resLower.includes(k));
+      const missKw = jdKw.filter(k  => !resLower.includes(k)).slice(0,6);
+
+      // Match score: keyword overlap + experience bonus
+      const kwScore  = jdKw.length > 0 ? Math.round((haveKw.length / jdKw.length) * 70) : 40;
+      const expBonus = experience ? Math.min(15, Math.round(parseInt(experience) / 2)) : 5;
+      const matchScore = Math.min(98, kwScore + expBonus + Math.floor(Math.random() * 8));
+
+      return {
+        id:           job.id,
+        title:        job.title,
+        company:      job.company ? job.company.display_name : 'Company',
+        location:     job.location ? job.location.display_name : 'India',
+        description:  (job.description||'').slice(0, 2000),
+        url:          job.redirect_url,
+        salaryMin:    job.salary_min || null,
+        salaryMax:    job.salary_max || null,
+        contractType: job.contract_type || 'Full-time',
+        created:      job.created,
+        matchScore:   matchScore,
+        keywordsHave: haveKw.slice(0,8),
+        keywordsMissing: missKw,
+      };
+    });
+
+    // Sort by match score descending
+    jobs.sort((a, b) => b.matchScore - a.matchScore);
+
+    console.log(`✅ Jobs fetched for ${email}: ${jobs.length} results`);
+    res.json({ jobs, total: adzData.count || jobs.length });
+
+  } catch (err) {
+    console.error('Jobs error:', err.message);
+    res.status(500).json({ error: 'Could not fetch jobs: ' + err.message });
+  }
+});
+
 // POST /api/jobmatch — analyse JD against user's resume with Claude
 app.post('/api/jobmatch', requireLogin, async (req, res) => {
   try {

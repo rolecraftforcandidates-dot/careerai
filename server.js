@@ -834,7 +834,7 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
     });
 
     console.log(`✅ Jobs ready for ${email}: top score=${jobs[0]?.matchScore}, bottom=${jobs[jobs.length-1]?.matchScore}`);
-    res.json({ jobs, total: adzData.count || jobs.length });
+    res.json({ jobs, total: jobs.length });
 
   } catch (err) {
     console.error('Jobs error:', err.message);

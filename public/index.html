@@ -126,6 +126,15 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 
 /* PLAN */
 .role-tag{display:inline-flex;align-items:center;gap:6px;background:var(--teal-light);border:1px solid var(--teal-mid);color:var(--teal-dark);font-size:0.76rem;font-family:'DM Mono',monospace;padding:4px 13px;border-radius:100px;margin-bottom:18px}
+.jm-keyword{padding:4px 10px;border-radius:100px;font-size:0.75rem;font-weight:600;font-family:'DM Mono',monospace}
+.jm-keyword.have{background:var(--green-light);color:var(--green)}
+.jm-keyword.missing{background:var(--red-light);color:var(--red)}
+.jm-tweak{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:0.84rem;line-height:1.55}
+.jm-tweak:last-child{border-bottom:none}
+.jm-tweak-num{background:var(--purple-light);color:var(--purple);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0;font-family:'DM Mono',monospace;margin-top:1px}
+.jm-bar-row{margin-bottom:10px}
+.jm-bar-row-meta{display:flex;justify-content:space-between;font-size:0.76rem;margin-bottom:4px}
+.gs-step{display:flex;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
 .gs-step{display:flex;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
 .ov-empty-hint{color:var(--muted);font-size:0.83rem;line-height:1.6;padding:6px 0}
 .ov-action-btn{background:var(--teal-light);color:var(--teal-dark);border:none;border-radius:8px;padding:8px 16px;font-size:0.82rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s;width:100%}
@@ -166,7 +175,22 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .week-block.overdue{border-color:var(--red);box-shadow:0 0 0 3px rgba(232,64,64,0.08)}
 .week-tasks{display:none;border-top:1px solid var(--border);padding:14px 20px 18px}
 .week-tasks.open{display:block}
-.task-item{display:flex;align-items:center;gap:11px;padding:9px 12px;background:var(--bg);border-radius:9px;font-size:0.85rem;margin-bottom:7px;cursor:pointer;transition:background 0.15s}
+.task-item{display:flex;align-items:center;gap:0;padding:9px 12px;background:var(--bg);border-radius:9px;font-size:0.85rem;margin-bottom:7px;transition:background 0.15s}
+.task-item>div:first-child{flex:1;display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0}
+.task-item>div:first-child:hover{opacity:0.85}
+.drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.study-btn{background:var(--teal-light);border:none;border-radius:7px;padding:5px 9px;font-size:0.85rem;cursor:pointer;flex-shrink:0;transition:all 0.15s;color:var(--teal-dark)}
+.study-btn:hover{background:var(--teal);color:#fff}
+.drawer-section{margin-bottom:24px}
+.drawer-section-title{font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.cheatsheet-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px dashed var(--border);font-size:0.84rem;line-height:1.6}
+.cheatsheet-item:last-child{border-bottom:none}
+.cheatsheet-bullet{color:var(--teal);font-weight:700;flex-shrink:0;margin-top:1px}
+.resource-link{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);text-decoration:none;color:var(--text);font-size:0.84rem;font-weight:500;margin-bottom:8px;transition:all 0.15s}
+.resource-link:hover{border-color:var(--teal);background:var(--teal-light);color:var(--teal-dark)}
+.resource-link-icon{font-size:1.1rem;flex-shrink:0}
+.resource-link-meta{font-size:0.7rem;color:var(--muted);margin-top:1px}
 .task-item:hover{background:var(--teal-light)}
 .task-check{width:19px;height:19px;border-radius:5px;border:1.5px solid rgba(0,0,0,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.68rem;font-weight:700;color:#fff;transition:all 0.15s}
 .task-check.checked{background:var(--green);border-color:var(--green)}
@@ -281,6 +305,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       <button class="nav-item" onclick="showPanel('scores',this)"><span class="nav-icon">&#128202;</span>AI Scores</button>
       <div class="nav-section">// Tools</div>
       <button class="nav-item" onclick="showPanel('resume',this)"><span class="nav-icon">&#128196;</span>Resume Review</button>
+      <button class="nav-item" onclick="showPanel('jobmatch',this)"><span class="nav-icon">&#127919;</span>Job Match</button>
       <button class="nav-item" onclick="showPanel('settings',this)"><span class="nav-icon">&#9881;&#65039;</span>Settings</button>
     </nav>
     <div class="sidebar-footer">
@@ -488,6 +513,83 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         </div>
       </div>
 
+      <!-- JOB MATCH -->
+      <div class="panel" id="panel-jobmatch">
+        <div class="panel-title">JOB MATCH</div>
+        <div class="panel-sub">Paste a job description — AI analyses how well your profile matches and what to fix</div>
+        <div class="error-bar" id="jobmatchError"></div>
+
+        <!-- JD Input Card -->
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-title">&#128203; Paste Job Description</div>
+          <textarea id="jdInput" style="width:100%;min-height:160px;border:1.5px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Paste the full job description here — role, requirements, responsibilities, tech stack..."></textarea>
+        </div>
+
+        <!-- Resume Override Card -->
+        <div class="card" style="margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div class="card-title" style="margin-bottom:0">&#128196; Your Resume</div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:var(--muted);cursor:pointer">
+              <input type="checkbox" id="resumeOverrideToggle" onchange="toggleResumeOverride()" style="cursor:pointer"> Use custom resume text
+            </label>
+          </div>
+          <div id="resumeAutoMsg" style="font-size:0.83rem;color:var(--muted);padding:10px 14px;background:var(--teal-light);border-radius:8px">
+            &#9989; Using your resume from onboarding. Toggle above to paste a different version.
+          </div>
+          <textarea id="resumeOverrideInput" style="display:none;width:100%;min-height:120px;border:1.5px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;box-sizing:border-box;margin-top:10px" placeholder="Paste your resume text here (copy from your Word/PDF)..."></textarea>
+        </div>
+
+        <!-- Analyse Button -->
+        <button id="jmAnalyseBtn" onclick="analyseJobMatch()" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(0,179,138,0.25);margin-bottom:22px">
+          &#129302; Analyse Job Match
+        </button>
+
+        <!-- Results (hidden until analysis runs) -->
+        <div id="jmResults" style="display:none">
+
+          <!-- Score Banner -->
+          <div id="jmScoreBanner" style="border-radius:16px;padding:24px;margin-bottom:18px;display:flex;align-items:center;gap:20px">
+            <div id="jmScoreCircle" style="width:80px;height:80px;border-radius:50%;border:4px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:#fff">
+              <div id="jmScoreNum" style="font-size:1.6rem;font-weight:900">-</div>
+              <div style="font-size:0.55rem;color:var(--muted);font-family:'DM Mono',monospace">/ 100</div>
+            </div>
+            <div>
+              <div id="jmScoreLabel" style="font-weight:800;font-size:1.2rem;margin-bottom:4px">Analysing...</div>
+              <div id="jmShortlistLabel" style="font-size:0.82rem;font-weight:600;padding:4px 12px;border-radius:100px;display:inline-block"></div>
+            </div>
+          </div>
+
+          <!-- Keywords Grid -->
+          <div class="grid-2" style="margin-bottom:18px">
+            <div class="card" style="border-top:3px solid var(--green)">
+              <div class="card-title" style="color:var(--green)">&#9989; Keywords You Have</div>
+              <div id="jmKeywordsHave" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+            <div class="card" style="border-top:3px solid var(--red)">
+              <div class="card-title" style="color:var(--red)">&#10060; Missing Keywords</div>
+              <div id="jmKeywordsMissing" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+          </div>
+
+          <!-- Tweaks + Breakdown -->
+          <div class="grid-2" style="margin-bottom:18px">
+            <div class="card">
+              <div class="card-title">&#9999;&#65039; Resume Tweaks for This JD</div>
+              <div id="jmTweaks"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">&#128202; Match Breakdown</div>
+              <div id="jmBreakdown"></div>
+            </div>
+          </div>
+
+          <!-- Re-analyse button -->
+          <button onclick="document.getElementById('jmResults').style.display='none';document.getElementById('jdInput').value='';document.getElementById('jdInput').focus()" style="width:100%;padding:11px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;color:var(--muted);cursor:pointer">
+            &#8635; Analyse Another Job
+          </button>
+        </div>
+      </div>
+
       <!-- SETTINGS -->
       <div class="panel" id="panel-settings">
         <div class="panel-title">SETTINGS</div>
@@ -526,10 +628,28 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   </div>
 </div>
 
+<!-- ── RESOURCE DRAWER ── -->
+<div id="resourceOverlay" onclick="closeResourceDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;backdrop-filter:blur(2px)"></div>
+<div id="resourceDrawer" style="position:fixed;top:0;right:-520px;width:500px;max-width:95vw;height:100vh;background:var(--card);z-index:201;display:flex;flex-direction:column;box-shadow:-4px 0 40px rgba(0,0,0,0.18);transition:right 0.3s cubic-bezier(0.4,0,0.2,1);overflow:hidden">
+  <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:4px" id="drawerWeekDay">WEEK 1 · DAY 1</div>
+        <div style="font-weight:700;font-size:1rem;color:var(--text);line-height:1.4" id="drawerTitle">Loading...</div>
+      </div>
+      <button onclick="closeResourceDrawer()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:1rem;color:var(--muted);margin-left:12px;flex-shrink:0">✕</button>
+    </div>
+    <div style="margin-top:10px" id="drawerTypeBadge"></div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:20px 24px" id="drawerContent">
+    <div class="drawer-loading">Generating your cheatsheet...</div>
+  </div>
+</div>
+
 <script>
 var currentUser = null;
 var panelLoaded = {};
-var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', settings:'Settings' };
+var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', settings:'Settings' };
 
 // INIT
 window.addEventListener('DOMContentLoaded', function() {
@@ -1057,10 +1177,15 @@ function loadPlan() {
               var ck=t.Status==='Done';
               var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
               var taskKey=encodeURIComponent(t.Week+'|'+t.Day+'|'+(t['Task Title']||''));
-              return '<div class="task-item" data-task="'+taskKey+'" onclick="toggleTask(this)">'+
-                '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+
-                '<div class="task-text '+(ck?'done':'')+'">'+(t['Task Title']||'')+'</div>'+
-                '<span class="badge '+tc+'" style="margin-left:auto;flex-shrink:0">'+(t.Type||'')+'</span>'+
+              var titleEnc = encodeURIComponent(t['Task Title']||'');
+              var typeEnc  = encodeURIComponent(t.Type||'Theory');
+              return '<div class="task-item" data-task="'+taskKey+'">'+
+                '<div onclick="toggleTask(this.parentNode)" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">'+
+                  '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+
+                  '<div class="task-text '+(ck?'done':'')+'" style="flex:1">'+(t['Task Title']||'')+'</div>'+
+                '</div>'+
+                '<span class="badge '+tc+'" style="flex-shrink:0;margin:0 8px">'+(t.Type||'')+'</span>'+
+                '<button class="study-btn" onclick="openResourceDrawer('+t.Week+','+t.Day+','+titleEnc+','+typeEnc+')" title="Study resources">&#128218;</button>'+
                 '</div>';
             }).join('')
           : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0;font-style:italic">'+subText+'</div>';

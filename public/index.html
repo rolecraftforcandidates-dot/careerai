@@ -1827,32 +1827,21 @@ function renderJobs(jobs) {
   document.getElementById('jobsPanelSub').textContent =
     'Live listings for your role · click Analyse Match for AI scoring';
 
-  // Separate relevant (>=35) from weak matches
-  var relevant = jobs.filter(function(j){ return j.matchScore >= 35; });
-  var weak     = jobs.filter(function(j){ return j.matchScore < 35; });
-  var showing  = relevant.length ? relevant : jobs; // show all if nothing above threshold
-
   if (!count) {
     document.getElementById('jobsList').innerHTML =
       '<div class="empty-state"><div class="empty-icon">&#128269;</div>'+
-      '<div class="empty-text">No jobs found for this role. Try Pan India or refresh.</div></div>';
+      '<div class="empty-text">No jobs found for this role and location. Try Pan India.</div></div>';
     return;
   }
 
-  document.getElementById('jobsCount').textContent = showing.length + ' jobs' + (weak.length && relevant.length ? ' (' + weak.length + ' weak matches hidden)' : '');
+  document.getElementById('jobsCount').textContent = count + ' jobs';
 
-  var weakToggle = (weak.length && relevant.length)
-    ? '<div style="text-align:center;margin-top:8px">'+
-        '<button onclick="showWeakJobs()" style="border:none;background:none;color:var(--muted);font-size:0.8rem;cursor:pointer;text-decoration:underline">'+
-          'Show '+ weak.length +' low-match jobs too</button></div>'
-    : '';
-
-  document.getElementById('jobsList').innerHTML = showing.map(function(job, i){
+  document.getElementById('jobsList').innerHTML = jobs.map(function(job, i){
     var sc    = job.matchScore || 0;
     var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
     var scLbl = sc>=75?'Strong':sc>=55?'Good':sc>=40?'Fair':'Weak';
     return buildJobCardHtml(job, i, sc, scCol, scLbl);
-  }).join('') + weakToggle;
+  }).join('');
 }
 
 function showWeakJobs() {

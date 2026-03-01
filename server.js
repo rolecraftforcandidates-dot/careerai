@@ -127,7 +127,7 @@ async function uploadToDrive(buffer, filename, mimetype, email) {
   // Delete old resume for this user if exists
   try {
     const existing = await drive.files.list({
-      q: \`name='\${driveFilename}' and '\${folderId}' in parents and trashed=false\`,
+      q: `name='${driveFilename}' and '${folderId}' in parents and trashed=false`,
       fields: 'files(id)',
     });
     for (const f of existing.data.files) {

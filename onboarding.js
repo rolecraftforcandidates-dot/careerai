@@ -358,10 +358,38 @@ function parseTallyPayload(body) {
     return String(field.value || '');
   }
 
+  // If Target Role is "Other", use the free-text field instead
+  const rawRole = getField('target role') || getField('role') || '';
+
+  // Try multiple label patterns for the "Other" free-text field
+  // Tally field is: "Please put Other Target Role details here"
+  const otherRole = (function() {
+    const patterns = ['other target role', 'please put other', 'other role details', 'other role'];
+    for (const p of patterns) {
+      const v = getField(p);
+      if (v && v.trim()) return v.trim();
+    }
+    // Last resort: scan all fields for any text field with "other" in label
+    // that has a non-UUID, non-empty value
+    const otherField = fields.find(f => {
+      const lbl = (f.label || '').toLowerCase();
+      const val = String(f.value || '').trim();
+      const isUUID = /^[0-9a-f-]{36}$/i.test(val);
+      return lbl.includes('other') && val && !isUUID;
+    });
+    return otherField ? String(otherField.value || '').trim() : '';
+  })();
+
+  const resolvedRole = (rawRole.toLowerCase().trim() === 'other' && otherRole)
+    ? otherRole
+    : rawRole;
+
+  console.log('Role resolution → raw: "' + rawRole + '" | other field: "' + otherRole + '" | final: "' + resolvedRole + '"');
+
   return {
     name:       getField('name') || getField('full name'),
     email:      getField('email'),
-    role:       getField('target role') || getField('role'),
+    role:       resolvedRole,
     techStack:  getField('tech stack') || getField('tech'),
     experience: getField('experience') || getField('years') || getField('exp'),
     resumeUrl:  getFileUrl('resume'),

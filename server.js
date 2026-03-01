@@ -5,6 +5,8 @@ const helmet     = require('helmet');
 const cors       = require('cors');
 const path       = require('path');
 const { google } = require('googleapis');
+const multer    = require('multer');
+const upload    = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB max
 const { runOnboarding } = require('./onboarding');
 
 const app  = express();
@@ -46,6 +48,113 @@ function getSheetsClient() {
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return google.sheets({ version: 'v4', auth });
+}
+
+function getDriveClient() {
+  let credentials;
+  try {
+    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  } catch (e) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is missing or invalid');
+  }
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: [
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/spreadsheets',
+    ],
+  });
+  return google.drive({ version: 'v3', auth });
+}
+
+// Extract text from PDF or DOCX buffer
+async function extractResumeText(buffer, mimetype) {
+  try {
+    if (mimetype === 'application/pdf') {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(buffer);
+      return (data.text || '').trim();
+    }
+    if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mimetype === 'application/msword') {
+      const mammoth = require('mammoth');
+      const result  = await mammoth.extractRawText({ buffer });
+      return (result.value || '').trim();
+    }
+    return '';
+  } catch (err) {
+    console.error('Text extraction error:', err.message);
+    return '';
+  }
+}
+
+// Upload file buffer to Google Drive, return public URL
+async function uploadToDrive(buffer, filename, mimetype, email) {
+  const drive = getDriveClient();
+  const { Readable } = require('stream');
+
+  // Get or create a 'RoleCraft Resumes' folder
+  let folderId = process.env.DRIVE_RESUME_FOLDER_ID || null;
+
+  if (!folderId) {
+    // Check if folder exists
+    const folderSearch = await drive.files.list({
+      q: "name='RoleCraft Resumes' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      fields: 'files(id)',
+    });
+    if (folderSearch.data.files.length > 0) {
+      folderId = folderSearch.data.files[0].id;
+    } else {
+      // Create it
+      const folder = await drive.files.create({
+        requestBody: { name: 'RoleCraft Resumes', mimeType: 'application/vnd.google-apps.folder' },
+        fields: 'id',
+      });
+      folderId = folder.data.id;
+      console.log('📁 Created RoleCraft Resumes folder:', folderId);
+    }
+  }
+
+  // Upload file
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+
+  const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
+  const ext       = filename.split('.').pop();
+  const driveFilename = `resume_${safeEmail}.${ext}`;
+
+  // Delete old resume for this user if exists
+  try {
+    const existing = await drive.files.list({
+      q: \`name='\${driveFilename}' and '\${folderId}' in parents and trashed=false\`,
+      fields: 'files(id)',
+    });
+    for (const f of existing.data.files) {
+      await drive.files.delete({ fileId: f.id });
+    }
+  } catch (e) { /* ignore */ }
+
+  const file = await drive.files.create({
+    requestBody: {
+      name: driveFilename,
+      parents: [folderId],
+    },
+    media: { mimeType: mimetype, body: stream },
+    fields: 'id,webViewLink,webContentLink',
+  });
+
+  // Make publicly readable
+  await drive.permissions.create({
+    fileId: file.data.id,
+    requestBody: { role: 'reader', type: 'anyone' },
+  });
+
+  return {
+    fileId:   file.data.id,
+    viewUrl:  file.data.webViewLink,
+    directUrl: file.data.webContentLink,
+  };
 }
 
 const SHEET_ID = process.env.SHEET_ID;
@@ -527,7 +636,7 @@ app.post('/api/jobmatch', requireLogin, async (req, res) => {
     if (!jd || jd.trim().length < 50)
       return res.status(400).json({ error: 'Please paste a complete job description.' });
 
-    // Get user's resume context — prefer custom paste, fall back to ATS tips from sheet
+    // Get user's resume — priority: custom paste > saved resume text > ATS tips
     let resumeContext = customResume && customResume.trim().length > 30
       ? customResume.trim()
       : null;
@@ -535,11 +644,19 @@ app.post('/api/jobmatch', requireLogin, async (req, res) => {
     if (!resumeContext) {
       const users = await readSheet('Users');
       const user  = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
-      const atsTips  = user ? (user['ATS Tips'] || '') : '';
-      const atsScore = user ? (user['ATS Score'] || '') : '';
-      resumeContext = atsTips
-        ? `[Resume analysed at onboarding — ATS Score: ${atsScore}/100. Key tips noted: ${atsTips}]`
-        : '[No resume text available — analyse based on role and experience only]';
+      const savedResumeText = user ? (user['Resume Text'] || '') : '';
+      const atsTips         = user ? (user['ATS Tips']    || '') : '';
+      const atsScore        = user ? (user['ATS Score']   || '') : '';
+
+      if (savedResumeText.length > 50) {
+        resumeContext = savedResumeText;
+        console.log(`📄 Using saved resume text (${savedResumeText.length} chars) for job match`);
+      } else if (atsTips) {
+        resumeContext = `ATS Score at signup: ${atsScore}/100. Resume feedback: ${atsTips}`;
+        console.log('📄 Using ATS tips as resume context for job match');
+      } else {
+        resumeContext = 'No resume provided — analyse based on role and experience level only.';
+      }
     }
 
     const Anthropic = require('@anthropic-ai/sdk');
@@ -699,15 +816,163 @@ app.get('/api/resume', requireLogin, async (req, res) => {
     const users = await readSheet('Users');
     const user  = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
     if (!user) return res.status(404).json({ error: 'User not found' });
-
     res.json({
       atsScore:   user['ATS Score']   || null,
       atsTips:    user['ATS Tips']    || null,
       resumeUrl:  user['Resume URL']  || null,
+      resumeText: user['Resume Text'] || null,
     });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Could not load resume data' });
+  }
+});
+
+// POST /api/resume/upload — upload PDF/DOCX, store on Drive, extract text
+app.post('/api/resume/upload', requireLogin, upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const { email } = req.session.user;
+    const { buffer, originalname, mimetype, size } = req.file;
+
+    // Validate file type
+    const allowed = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+    ];
+    if (!allowed.includes(mimetype))
+      return res.status(400).json({ error: 'Only PDF and DOCX files are supported' });
+
+    console.log(`📤 Uploading resume for ${email}: ${originalname} (${Math.round(size/1024)}KB)`);
+
+    // 1. Extract text from file
+    const resumeText = await extractResumeText(buffer, mimetype);
+    console.log(`📝 Extracted ${resumeText.length} chars from resume`);
+
+    // 2. Upload to Google Drive
+    let driveUrl = null;
+    try {
+      const driveResult = await uploadToDrive(buffer, originalname, mimetype, email);
+      driveUrl = driveResult.viewUrl;
+      console.log(`✅ Uploaded to Drive: ${driveUrl}`);
+    } catch (driveErr) {
+      console.error('Drive upload failed:', driveErr.message);
+      // Continue — still save text even if Drive fails
+    }
+
+    // 3. Save resumeText + driveUrl to Users sheet
+    const raw = await getSheetsClient().spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'Users!A:Z'
+    });
+    const [headers, ...rows] = raw.data.values || [];
+    const emailIdx = headers.indexOf('Email');
+
+    // Ensure Resume Text and Resume URL columns exist
+    let resumeTextIdx = headers.indexOf('Resume Text');
+    let resumeUrlIdx  = headers.indexOf('Resume URL');
+
+    const newHeaders = [];
+    if (resumeTextIdx === -1) {
+      resumeTextIdx = headers.length + newHeaders.length;
+      newHeaders.push({ col: resumeTextIdx, header: 'Resume Text' });
+    }
+    if (resumeUrlIdx === -1) {
+      resumeUrlIdx = headers.length + newHeaders.length;
+      newHeaders.push({ col: resumeUrlIdx, header: 'Resume URL' });
+    }
+
+    // Write any new column headers
+    for (const h of newHeaders) {
+      await getSheetsClient().spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: 'Users!' + String.fromCharCode(65 + h.col) + '1',
+        valueInputOption: 'RAW',
+        requestBody: { values: [[h.header]] }
+      });
+    }
+
+    // Find user row and update
+    const rowIdx = rows.findIndex(r => (r[emailIdx]||'').toLowerCase() === email.toLowerCase());
+    if (rowIdx === -1) return res.status(404).json({ error: 'User not found' });
+    const sheetRow = rowIdx + 2;
+
+    const updates = [];
+    if (resumeText) updates.push({
+      range: 'Users!' + String.fromCharCode(65 + resumeTextIdx) + sheetRow,
+      values: [[resumeText.slice(0, 10000)]] // cap at 10k chars for sheet
+    });
+    if (driveUrl) updates.push({
+      range: 'Users!' + String.fromCharCode(65 + resumeUrlIdx) + sheetRow,
+      values: [[driveUrl]]
+    });
+
+    if (updates.length) {
+      await getSheetsClient().spreadsheets.values.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: { valueInputOption: 'RAW', data: updates }
+      });
+    }
+
+    res.json({
+      success:    true,
+      driveUrl:   driveUrl,
+      textLength: resumeText.length,
+      message:    resumeText.length > 100
+        ? 'Resume uploaded and text extracted successfully!'
+        : 'Resume uploaded! Text extraction was limited — Job Match will use available data.',
+    });
+  } catch (err) {
+    console.error('Resume upload error:', err.message);
+    res.status(500).json({ error: 'Upload failed: ' + err.message });
+  }
+});
+
+// POST /api/resume/save — save resume text to Users sheet
+app.post('/api/resume/save', requireLogin, async (req, res) => {
+  try {
+    const { resumeText } = req.body;
+    const email = req.session.user.email;
+    if (!resumeText || resumeText.trim().length < 20)
+      return res.status(400).json({ error: 'Resume text too short' });
+
+    // Find user row in sheet
+    const raw = await getSheetsClient().spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'Users!A:Z'
+    });
+    const [headers, ...rows] = raw.data.values || [];
+    const emailIdx = headers.indexOf('Email');
+
+    // Find or add 'Resume Text' column
+    let resumeTextIdx = headers.indexOf('Resume Text');
+    if (resumeTextIdx === -1) {
+      // Add header to first empty column
+      resumeTextIdx = headers.length;
+      await getSheetsClient().spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `Users!${String.fromCharCode(65+resumeTextIdx)}1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [['Resume Text']] }
+      });
+    }
+
+    const rowIdx = rows.findIndex(r => (r[emailIdx]||'').toLowerCase() === email.toLowerCase());
+    if (rowIdx === -1) return res.status(404).json({ error: 'User not found' });
+    const sheetRow = rowIdx + 2;
+
+    await getSheetsClient().spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Users!${String.fromCharCode(65+resumeTextIdx)}${sheetRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[resumeText.trim()]] }
+    });
+
+    console.log(`✅ Resume text saved for ${email} (${resumeText.length} chars)`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Resume save error:', err.message);
+    res.status(500).json({ error: 'Could not save resume' });
   }
 });
 

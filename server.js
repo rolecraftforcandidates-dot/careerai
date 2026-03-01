@@ -670,56 +670,91 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
     const rawJobs = adzData.results || [];
     if (!rawJobs.length) return res.json({ jobs: [] });
 
-    // Get user's resume text for quick keyword matching
-    const users  = await readSheet('Users');
-    const user   = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
+    // Get user profile for matching
+    const users      = await readSheet('Users');
+    const user       = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
     const resumeText = (user && user['Resume Text']) || (user && user['ATS Tips']) || '';
 
-    // Quick keyword match (no Claude call — just keyword overlap)
-    const jobs = rawJobs.map(job => {
-      const jdText    = ((job.title||'') + ' ' + (job.description||'')).toLowerCase();
-      const resLower  = resumeText.toLowerCase();
+    // Build structured job list for Claude batch scoring
+    const jobsForScoring = rawJobs.map((job, i) => ({
+      index:       i,
+      title:       job.title || '',
+      company:     job.company ? job.company.display_name : '',
+      description: ((job.description || '')).slice(0, 600), // trim for batch
+    }));
 
-      // Extract tech keywords from JD
-      const techKeywords = [
-        'python','java','scala','sql','spark','kafka','airflow','dbt','aws','gcp','azure',
-        'docker','kubernetes','terraform','react','node','typescript','javascript','go',
-        'hadoop','hive','snowflake','redshift','bigquery','mongodb','postgres','redis',
-        'pyspark','pandas','scikit','tensorflow','pytorch','mlflow','databricks',
-        'data engineering','machine learning','data science','backend','frontend','devops',
-        'ci/cd','rest api','microservices','system design','agile','git'
-      ];
+    // ── Single Claude call to score ALL jobs at once ──
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-      const jdKw   = techKeywords.filter(k => jdText.includes(k));
-      const haveKw = jdKw.filter(k  => resLower.includes(k));
-      const missKw = jdKw.filter(k  => !resLower.includes(k)).slice(0,6);
+    const jobListText = jobsForScoring.map(function(j) {
+      return '[' + j.index + '] ' + j.title + ' at ' + j.company + '\n' + j.description;
+    }).join('\n---\n');
 
-      // Match score: keyword overlap + experience bonus
-      const kwScore  = jdKw.length > 0 ? Math.round((haveKw.length / jdKw.length) * 70) : 40;
-      const expBonus = experience ? Math.min(15, Math.round(parseInt(experience) / 2)) : 5;
-      const matchScore = Math.min(98, kwScore + expBonus + Math.floor(Math.random() * 8));
+    const batchPrompt = 'You are a job matching expert. Score each job listing for this candidate:\n\n' +
+      'CANDIDATE:\n' +
+      '- Target Role: ' + role + '\n' +
+      '- Experience: ' + experience + ' years\n' +
+      '- Resume/Skills Context: ' + (resumeText ? resumeText.slice(0,1500) : 'Not provided — use role and experience only') + '\n\n' +
+      'JOB LISTINGS (' + jobsForScoring.length + ' jobs):\n' +
+      jobListText + '\n\n' +
+      'For each job, return a JSON array. Score how well this candidate fits:\n' +
+      '- Role relevance (is it actually their field?)\n' +
+      '- Experience level match (seniority appropriate?)\n' +
+      '- Skills overlap (do their skills match what is needed?)\n' +
+      '- Company quality signals (known brand = slight bonus)\n\n' +
+      'Jobs completely unrelated to their target role should score 5-25.\n' +
+      'Jobs that match their field but seniority is off should score 30-55.\n' +
+      'Good matches score 55-75. Strong matches 75-95.\n\n' +
+      'Return ONLY this JSON array, nothing else:\n' +
+      '[{"index":0,"score":72,"have":["skill1","skill2"],"missing":["skill3"]},...]';
 
+    let scores = [];
+    try {
+      const msg = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: batchPrompt }],
+      });
+      const raw = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
+      scores = JSON.parse(raw);
+      console.log(`✅ Claude scored ${scores.length} jobs for ${email}`);
+    } catch (scoreErr) {
+      console.error('Batch scoring failed, using fallback:', scoreErr.message);
+      // Fallback: simple role title match only
+      scores = rawJobs.map((job, i) => {
+        const titleMatch = (job.title||'').toLowerCase().includes((role||'').split(' ')[0].toLowerCase());
+        return { index: i, score: titleMatch ? 55 : 25, have: [], missing: [] };
+      });
+    }
+
+    // Merge scores with job data
+    const scoreMap = {};
+    scores.forEach(s => { scoreMap[s.index] = s; });
+
+    const jobs = rawJobs.map((job, i) => {
+      const s = scoreMap[i] || { score: 30, have: [], missing: [] };
       return {
-        id:           job.id,
-        title:        job.title,
-        company:      job.company ? job.company.display_name : 'Company',
-        location:     job.location ? job.location.display_name : 'India',
-        description:  (job.description||'').slice(0, 2000),
-        url:          job.redirect_url,
-        salaryMin:    job.salary_min || null,
-        salaryMax:    job.salary_max || null,
-        contractType: job.contract_type || 'Full-time',
-        created:      job.created,
-        matchScore:   matchScore,
-        keywordsHave: haveKw.slice(0,8),
-        keywordsMissing: missKw,
+        id:              job.id,
+        title:           job.title,
+        company:         job.company ? job.company.display_name : 'Company',
+        location:        job.location ? job.location.display_name : 'India',
+        description:     (job.description||'').slice(0, 2000),
+        url:             job.redirect_url,
+        salaryMin:       job.salary_min || null,
+        salaryMax:       job.salary_max || null,
+        contractType:    job.contract_type || 'Full-time',
+        created:         job.created,
+        matchScore:      Math.min(99, Math.max(1, parseInt(s.score)||30)),
+        keywordsHave:    (s.have    || []).slice(0, 8),
+        keywordsMissing: (s.missing || []).slice(0, 6),
       };
     });
 
     // Sort by match score descending
     jobs.sort((a, b) => b.matchScore - a.matchScore);
 
-    console.log(`✅ Jobs fetched for ${email}: ${jobs.length} results`);
+    console.log(`✅ Jobs ready for ${email}: top score=${jobs[0]?.matchScore}, bottom=${jobs[jobs.length-1]?.matchScore}`);
     res.json({ jobs, total: adzData.count || jobs.length });
 
   } catch (err) {

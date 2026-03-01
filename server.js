@@ -722,14 +722,30 @@ Rules:
   }
 });
 
-// POST /api/resources — generate cheatsheet + curated links for a task
+// POST /api/resources — generate cheatsheet + curated links (cached in Resources sheet)
 app.post('/api/resources', requireLogin, async (req, res) => {
   try {
     const { week, day, taskTitle, taskType } = req.body;
-    const { role, experience } = req.session.user;
+    const { email, role, experience } = req.session.user;
 
     if (!taskTitle) return res.status(400).json({ error: 'Task title required' });
 
+    // ── Check cache first ──
+    const cacheKey = `${email}|W${week}D${day}`;
+    try {
+      const cached = await readSheet('Resources');
+      const hit = cached.find(r =>
+        (r.CacheKey || '').trim() === cacheKey.trim()
+      );
+      if (hit && hit.Data) {
+        console.log(`📦 Cache hit for ${cacheKey}`);
+        return res.json(JSON.parse(hit.Data));
+      }
+    } catch (cacheErr) {
+      console.log('Cache read skipped:', cacheErr.message);
+    }
+
+    console.log(`🔨 Generating resources for ${cacheKey}: "${taskTitle}"`);
     const Anthropic = require('@anthropic-ai/sdk');
     const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -795,14 +811,33 @@ Rules:
     const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
     const result = JSON.parse(raw);
 
-    console.log(`✅ Resources generated for "${taskTitle}" (W${week}D${day})`);
-    res.json({
+    const payload = {
       summary:      result.summary      || '',
       cheatsheet:   result.cheatsheet   || [],
       practice:     result.practice     || [],
       resources:    result.resources    || [],
       interviewTip: result.interviewTip || '',
-    });
+    };
+
+    // ── Save to Resources sheet (cache) ──
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await getSheetsClient().spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: 'Resources!A:A',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [[
+          cacheKey, email, String(week), String(day), taskTitle, taskType, today,
+          JSON.stringify(payload)
+        ]]}
+      });
+      console.log(`✅ Cached resources for ${cacheKey}`);
+    } catch (cacheWriteErr) {
+      console.error('Cache write failed (non-fatal):', cacheWriteErr.message);
+    }
+
+    res.json(payload);
   } catch (err) {
     console.error('Resources error:', err.message);
     res.status(500).json({ error: 'Could not generate resources. Please try again.' });

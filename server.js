@@ -518,6 +518,180 @@ app.get('/api/scores', requireLogin, async (req, res) => {
   }
 });
 
+// POST /api/jobmatch — analyse JD against user's resume with Claude
+app.post('/api/jobmatch', requireLogin, async (req, res) => {
+  try {
+    const { jd, customResume } = req.body;
+    const { email, role, experience } = req.session.user;
+
+    if (!jd || jd.trim().length < 50)
+      return res.status(400).json({ error: 'Please paste a complete job description.' });
+
+    // Get user's resume context — prefer custom paste, fall back to ATS tips from sheet
+    let resumeContext = customResume && customResume.trim().length > 30
+      ? customResume.trim()
+      : null;
+
+    if (!resumeContext) {
+      const users = await readSheet('Users');
+      const user  = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
+      const atsTips  = user ? (user['ATS Tips'] || '') : '';
+      const atsScore = user ? (user['ATS Score'] || '') : '';
+      resumeContext = atsTips
+        ? `[Resume analysed at onboarding — ATS Score: ${atsScore}/100. Key tips noted: ${atsTips}]`
+        : '[No resume text available — analyse based on role and experience only]';
+    }
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `You are an expert ATS and recruitment specialist analysing a candidate's fit for a job.
+
+CANDIDATE PROFILE:
+- Target Role: ${role}
+- Experience: ${experience} years
+- Resume / Profile Context: ${resumeContext.slice(0, 2500)}
+
+JOB DESCRIPTION:
+${jd.slice(0, 3000)}
+
+Analyse the match and return ONLY valid JSON — no markdown, no code fences, nothing else:
+{
+  "score": <integer 0-100, overall match score>,
+  "shortlist": "<High|Medium|Low — likelihood of being shortlisted>",
+  "keywordsHave": ["keyword1", "keyword2", ...],
+  "keywordsMissing": ["keyword1", "keyword2", ...],
+  "tweaks": [
+    "Specific resume change 1 to better match this JD",
+    "Specific resume change 2",
+    "Specific resume change 3"
+  ],
+  "breakdown": [
+    {"label": "Technical Skills Match", "score": <0-100>},
+    {"label": "Experience Level Match", "score": <0-100>},
+    {"label": "Domain / Industry Match", "score": <0-100>},
+    {"label": "Keywords & ATS Score", "score": <0-100>}
+  ]
+}
+
+Rules:
+- keywordsHave: skills/tools/technologies from the JD that the candidate clearly has (max 12)
+- keywordsMissing: important keywords in the JD NOT in the candidate's profile (max 10, most critical first)
+- tweaks: 3 very specific, actionable resume changes for THIS job (not generic advice)
+- shortlist: High = 75+, Medium = 50-74, Low = below 50
+- Be honest — don't inflate scores`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const result = JSON.parse(raw);
+    console.log(`✅ Job match for ${email}: ${result.score}/100 [${result.shortlist}]`);
+
+    res.json({
+      score:           Math.min(100, Math.max(0, parseInt(result.score)||0)),
+      shortlist:       result.shortlist || 'Medium',
+      keywordsHave:    result.keywordsHave   || [],
+      keywordsMissing: result.keywordsMissing || [],
+      tweaks:          result.tweaks         || [],
+      breakdown:       result.breakdown      || [],
+    });
+  } catch (err) {
+    console.error('Job match error:', err.message);
+    res.status(500).json({ error: 'Could not analyse job match. Please try again.' });
+  }
+});
+
+// POST /api/resources — generate cheatsheet + curated links for a task
+app.post('/api/resources', requireLogin, async (req, res) => {
+  try {
+    const { week, day, taskTitle, taskType } = req.body;
+    const { role, experience } = req.session.user;
+
+    if (!taskTitle) return res.status(400).json({ error: 'Task title required' });
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `You are an expert career coach and technical trainer for ${role} roles in India.
+
+A candidate (${experience} years experience, targeting ${role}) is working on this task:
+TASK: "${taskTitle}"
+TYPE: ${taskType} (Theory = learn concepts | Practice = hands-on | Mock = interview simulation)
+WEEK: ${week} of 4 (Week 1=foundations, Week 2=technical depth, Week 3=interview practice, Week 4=final readiness)
+
+Generate a personalised study resource for this task. Return ONLY valid JSON:
+{
+  "summary": "<2-3 sentence plain-English explanation of what this task covers and why it matters for ${role} interviews>",
+  "cheatsheet": [
+    "<key concept or fact — concise, specific, interview-relevant>",
+    "<key concept or fact>",
+    "<key concept or fact>",
+    "<key concept or fact>",
+    "<key concept or fact>",
+    "<key concept or fact>"
+  ],
+  "practice": [
+    "<specific action to do today — hands-on, concrete>",
+    "<specific action to do today>",
+    "<specific action to do today>"
+  ],
+  "resources": [
+    {
+      "title": "<resource title>",
+      "url": "<real working URL — YouTube video, official docs, or well-known article>",
+      "source": "<YouTube | Official Docs | GeeksforGeeks | Medium | etc>",
+      "type": "<video | docs | article>"
+    },
+    {
+      "title": "<resource title>",
+      "url": "<real working URL>",
+      "source": "<source name>",
+      "type": "<video | docs | article>"
+    },
+    {
+      "title": "<resource title>",
+      "url": "<real working URL>",
+      "source": "<source name>",
+      "type": "<video | docs | article>"
+    }
+  ],
+  "interviewTip": "<one highly specific tip: what interviewers at top Indian tech companies actually ask about this topic, and the #1 mistake candidates make>"
+}
+
+Rules:
+- cheatsheet: exactly 6 points, each under 20 words, fact-dense and interview-ready
+- practice: exactly 3 concrete actions for TODAY (not vague like "study X" — specific like "implement X function", "write 3 SQL queries for Y")
+- resources: ONLY use real, well-known URLs that actually exist (YouTube search URLs are fine: https://www.youtube.com/results?search_query=...)
+- interviewTip: be very specific to ${role} and this exact task — not generic advice
+- All content must be specific to ${role} with ${experience} years experience level`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const result = JSON.parse(raw);
+
+    console.log(`✅ Resources generated for "${taskTitle}" (W${week}D${day})`);
+    res.json({
+      summary:      result.summary      || '',
+      cheatsheet:   result.cheatsheet   || [],
+      practice:     result.practice     || [],
+      resources:    result.resources    || [],
+      interviewTip: result.interviewTip || '',
+    });
+  } catch (err) {
+    console.error('Resources error:', err.message);
+    res.status(500).json({ error: 'Could not generate resources. Please try again.' });
+  }
+});
+
 // GET /api/resume — resume review data for logged-in user
 app.get('/api/resume', requireLogin, async (req, res) => {
   try {

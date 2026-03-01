@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <title>RoleCraft — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -332,6 +333,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       <button class="nav-item" onclick="showPanel('settings',this)"><span class="nav-icon">&#9881;&#65039;</span>Settings</button>
     </nav>
     <div class="sidebar-footer">
+      <button id="upgradeNavBtn" onclick="showUpgradeModal()" style="width:100%;padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.83rem;font-weight:700;cursor:pointer;margin-bottom:8px;display:none">⚡ Upgrade to Pro</button>
       <button class="logout-btn" onclick="doLogout()"><span>&#128682;</span> Sign Out</button>
     </div>
   </aside>
@@ -818,6 +820,7 @@ document.addEventListener('keydown', function(e) {
 function doLogout() {
   fetch('/api/logout',{method:'POST',credentials:'include'}).finally(function(){
     currentUser=null; panelLoaded={};
+    _jobsCache=null; _jobsLoading=false; _jobsScoring={};  // clear jobs cache on logout
     // Reset login button and form before showing page
     var btn = document.getElementById('loginBtn');
     btn.disabled = false;
@@ -1519,7 +1522,11 @@ function loadResume() {
 // RESOURCE DRAWER
 // ══════════════════════════════════════════════════════
 function openResourceDrawer(evt, week, day) {
-  evt.stopPropagation(); // don't toggle task
+  evt.stopPropagation();
+  if (_userTier === 'free') {
+    showProGate('Study Resources — Pro Feature', 'Get AI-generated cheatsheets, practice guides, and curated links for every task. Upgrade to Pro to unlock Study Resources.', '📚');
+    return;
+  } // don't toggle task
   var btn   = evt.currentTarget;
   var title = btn.getAttribute('data-title') || '';
   var type  = btn.getAttribute('data-type')  || 'Theory';
@@ -1886,6 +1893,10 @@ function escHtml(str) {
 }
 
 function analyseJobFromListing(idx) {
+  if (_userTier === 'free') {
+    showProGate('Analyse Match — Pro Feature', 'Run AI-powered match analysis on any job listing against your resume. Upgrade to Pro for unlimited job match scoring.', '🎯');
+    return;
+  }
   if (_jobsScoring[idx]) return;
   var job = _jobsCache[idx];
   if (!job) return;
@@ -1901,7 +1912,7 @@ function analyseJobFromListing(idx) {
     '<div style="width:16px;height:16px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>'+
     'Running AI analysis against your resume...</div>';
 
-  fetch('/api/jobmatch', {
+  proFetch('/api/jobmatch', {
     method:'POST', credentials:'include',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ jd: job.description || (job.title + ' ' + job.company), customResume:'' })
@@ -1961,6 +1972,164 @@ function buildJobSkeletons(n) {
     '</div>';
   }
   return s;
+}
+
+// ══════════════════════════════════════════════════════
+// TIER + PAYWALL SYSTEM
+// ══════════════════════════════════════════════════════
+var _userTier    = 'free';
+var _billingMode = 'monthly';
+
+var PRICES = {
+  pro_monthly:     { amount: 499,  plan: 'pro_monthly'     },
+  pro_yearly:      { amount: 333,  plan: 'pro_yearly'      }, // per month
+  premium_monthly: { amount: 999,  plan: 'premium_monthly' },
+  premium_yearly:  { amount: 667,  plan: 'premium_yearly'  },
+};
+
+function initTier(tier) {
+  _userTier = tier || 'free';
+
+  // Show/hide upgrade button
+  var upgradeBtn = document.getElementById('upgradeNavBtn');
+  if (upgradeBtn) upgradeBtn.style.display = tier === 'free' ? 'block' : 'none';
+
+  // Show tier badge
+  var badge = document.getElementById('tierBadge');
+  if (badge) {
+    if (tier === 'pro') {
+      badge.style.display = 'inline-block';
+      badge.innerHTML = '<span style="background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:100px;letter-spacing:0.5px">⚡ PRO</span>';
+    } else if (tier === 'premium') {
+      badge.style.display = 'inline-block';
+      badge.innerHTML = '<span style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:100px;letter-spacing:0.5px">👑 PREMIUM</span>';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+function showUpgradeModal() {
+  document.getElementById('upgradeOverlay').style.display = 'block';
+  document.getElementById('upgradeModal').style.display   = 'block';
+  setBilling(_billingMode);
+}
+
+function hideUpgradeModal() {
+  document.getElementById('upgradeOverlay').style.display = 'none';
+  document.getElementById('upgradeModal').style.display   = 'none';
+}
+
+function setBilling(mode) {
+  _billingMode = mode;
+  var mBtn = document.getElementById('billingMonthly');
+  var yBtn = document.getElementById('billingYearly');
+  if (mode === 'monthly') {
+    mBtn.style.background = 'var(--teal)'; mBtn.style.borderColor = 'var(--teal)'; mBtn.style.color = '#fff';
+    yBtn.style.background = 'none'; yBtn.style.borderColor = 'var(--border)'; yBtn.style.color = 'var(--muted)';
+    document.getElementById('proPrice').innerHTML     = '₹499<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('proNote').textContent    = 'billed monthly';
+    document.getElementById('premiumPrice').innerHTML = '₹999<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('premiumNote').textContent = 'billed monthly';
+  } else {
+    yBtn.style.background = 'var(--teal)'; yBtn.style.borderColor = 'var(--teal)'; yBtn.style.color = '#fff';
+    mBtn.style.background = 'none'; mBtn.style.borderColor = 'var(--border)'; mBtn.style.color = 'var(--muted)';
+    document.getElementById('proPrice').innerHTML     = '₹333<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('proNote').innerHTML      = '<span style="color:var(--green)">₹3,999/year · save ₹1,989</span>';
+    document.getElementById('premiumPrice').innerHTML = '₹667<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('premiumNote').innerHTML  = '<span style="color:var(--green)">₹7,999/year · save ₹3,989</span>';
+  }
+}
+
+function startPayment(tier) {
+  var plan = tier + '_' + _billingMode;
+  fetch('/api/payment/create-order', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ plan })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.error) { alert('Payment error: ' + d.error); return; }
+
+    var options = {
+      key:         d.keyId,
+      amount:      d.amount,
+      currency:    d.currency,
+      name:        'RoleCraft',
+      description: d.planLabel,
+      order_id:    d.orderId,
+      prefill:     { email: d.email, name: d.name },
+      theme:       { color: '#00b38a' },
+      handler: function(response) {
+        // Payment success — verify with server
+        fetch('/api/payment/verify', {
+          method:'POST', credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            orderId:   d.orderId,
+            paymentId: response.razorpay_payment_id,
+            signature: response.razorpay_signature,
+            plan:      plan,
+          })
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(v){
+          if (v.success) {
+            _userTier = v.tier;
+            initTier(v.tier);
+            hideUpgradeModal();
+            showPaymentSuccess(v.tier, v.expiryStr);
+          } else {
+            alert('Payment verification failed. Please contact support.');
+          }
+        });
+      },
+    };
+    var rzp = new Razorpay(options);
+    rzp.open();
+  })
+  .catch(function(){ alert('Could not initiate payment. Please try again.'); });
+}
+
+function showPaymentSuccess(tier, expiry) {
+  var el = document.getElementById('proGateModal');
+  document.getElementById('proGateIcon').textContent  = '🎉';
+  document.getElementById('proGateTitle').textContent = 'Welcome to ' + (tier==='premium'?'Premium':'Pro') + '!';
+  document.getElementById('proGateMsg').textContent   = 'Your account has been upgraded. All Pro features are now unlocked. Enjoy your prep!';
+  document.getElementById('proGateOverlay').style.display = 'block';
+  el.style.display = 'block';
+  // Reload to refresh gated content
+  setTimeout(function(){ window.location.reload(); }, 2000);
+}
+
+function showProGate(title, message, icon) {
+  document.getElementById('proGateIcon').textContent  = icon  || '⚡';
+  document.getElementById('proGateTitle').textContent = title || 'Pro Feature';
+  document.getElementById('proGateMsg').textContent   = message || 'Upgrade to RoleCraft Pro to unlock this feature.';
+  document.getElementById('proGateOverlay').style.display = 'block';
+  document.getElementById('proGateModal').style.display   = 'block';
+}
+
+function hideProGate() {
+  document.getElementById('proGateOverlay').style.display = 'none';
+  document.getElementById('proGateModal').style.display   = 'none';
+}
+
+// Intercept 403 pro_required responses globally
+function proFetch(url, opts) {
+  return fetch(url, opts).then(function(r) {
+    if (r.status === 403) {
+      return r.json().then(function(d) {
+        if (d.error === 'pro_required') {
+          showProGate('Pro Feature Required', d.message || 'Upgrade to unlock this feature.', '⚡');
+          throw new Error('pro_required');
+        }
+        throw new Error(d.error || 'Forbidden');
+      });
+    }
+    return r;
+  });
 }
 
 function loadSettings() {
@@ -2033,5 +2202,71 @@ function changePassword() {
   .finally(function() { btn.disabled = false; btn.innerHTML = 'Update Password'; });
 }
 </script>
+
+<!-- ── UPGRADE MODAL ── -->
+<div id="upgradeOverlay" onclick="hideUpgradeModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;backdrop-filter:blur(4px)"></div>
+<div id="upgradeModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;max-width:95vw;max-height:92vh;overflow-y:auto;background:var(--card);border-radius:20px;z-index:301;box-shadow:0 20px 80px rgba(0,0,0,0.3);padding:32px 28px">
+
+  <!-- Header -->
+  <div style="text-align:center;margin-bottom:24px">
+    <div style="font-size:2.2rem;margin-bottom:8px">⚡</div>
+    <div style="font-size:1.4rem;font-weight:800;margin-bottom:6px">Upgrade to RoleCraft Pro</div>
+    <div style="font-size:0.88rem;color:var(--muted)">Unlock unlimited AI coaching and land your dream role faster</div>
+  </div>
+
+  <!-- What you get -->
+  <div style="background:var(--bg);border-radius:14px;padding:18px;margin-bottom:22px">
+    <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:12px">WHAT YOU GET WITH PRO</div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Unlimited AI scoring</strong> with detailed feedback on every answer</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>All weekly questions</strong> — not just 3, get the full question bank</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Study Resources</strong> — AI cheatsheets + curated links for every task</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Unlimited Job Match</strong> — analyse your fit against any JD</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Analyse Match on job listings</strong> — one-click AI scoring on live jobs</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Resume upload + AI extraction</strong> — powers smarter matching everywhere</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--teal);font-size:1rem">⟳</span><span style="color:var(--muted)">Mock Interview with AI voice <em>(coming soon)</em></span></div>
+    </div>
+  </div>
+
+  <!-- Pricing toggle -->
+  <div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px">
+    <button id="billingMonthly" onclick="setBilling('monthly')" style="padding:7px 20px;border-radius:100px;border:1.5px solid var(--teal);background:var(--teal);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer">Monthly</button>
+    <button id="billingYearly" onclick="setBilling('yearly')" style="padding:7px 20px;border-radius:100px;border:1.5px solid var(--border);background:none;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;color:var(--muted);cursor:pointer;position:relative">Yearly <span style="background:#f5576c;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:100px;margin-left:4px">SAVE 33%</span></button>
+  </div>
+
+  <!-- Plan cards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+    <!-- Pro -->
+    <div style="border:2px solid var(--teal);border-radius:14px;padding:18px;position:relative">
+      <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-size:0.65rem;font-weight:700;padding:3px 10px;border-radius:100px;white-space:nowrap">MOST POPULAR</div>
+      <div style="font-weight:800;font-size:1rem;margin-bottom:4px">Pro</div>
+      <div id="proPrice" style="font-size:1.6rem;font-weight:900;color:var(--teal)">₹499<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span></div>
+      <div id="proNote" style="font-size:0.72rem;color:var(--muted);margin-bottom:14px">billed monthly</div>
+      <button onclick="startPayment('pro')" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--teal);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">Get Pro →</button>
+    </div>
+    <!-- Premium -->
+    <div style="border:1.5px solid var(--border);border-radius:14px;padding:18px">
+      <div style="font-weight:800;font-size:1rem;margin-bottom:4px">Premium</div>
+      <div id="premiumPrice" style="font-size:1.6rem;font-weight:900;color:var(--purple)">₹999<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span></div>
+      <div id="premiumNote" style="font-size:0.72rem;color:var(--muted);margin-bottom:14px">billed monthly</div>
+      <button onclick="startPayment('premium')" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--purple);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">Get Premium →</button>
+    </div>
+  </div>
+
+  <div style="text-align:center;font-size:0.75rem;color:var(--muted);margin-bottom:16px">🔒 Secure payment via Razorpay · Cancel anytime</div>
+
+  <button onclick="hideUpgradeModal()" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Maybe later</button>
+</div>
+
+<!-- ── PRO GATE MODAL (inline blocker) ── -->
+<div id="proGateOverlay" onclick="hideProGate()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;backdrop-filter:blur(3px)"></div>
+<div id="proGateModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;max-width:92vw;background:var(--card);border-radius:18px;z-index:301;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:28px 24px;text-align:center">
+  <div style="font-size:2rem;margin-bottom:10px" id="proGateIcon">⚡</div>
+  <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px" id="proGateTitle">Pro Feature</div>
+  <div style="font-size:0.86rem;color:var(--muted);line-height:1.6;margin-bottom:20px" id="proGateMsg">Upgrade to RoleCraft Pro to unlock this feature.</div>
+  <button onclick="hideProGate();showUpgradeModal()" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:10px">⚡ Upgrade to Pro →</button>
+  <button onclick="hideProGate()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Not now</button>
+</div>
+
 </body>
 </html>

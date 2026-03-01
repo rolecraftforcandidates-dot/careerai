@@ -207,6 +207,8 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
         generated.atsTips || '',   // I: ATS Tips
         '',                        // J: Resume URL
         today,                     // K: Week Started
+        'free',                    // L: Tier (free|pro|premium)
+        '',                        // M: Tier Expiry
       ]]
     }
   });

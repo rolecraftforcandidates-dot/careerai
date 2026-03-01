@@ -203,6 +203,21 @@ function requireLogin(req, res, next) {
   next();
 }
 
+function isPro(user) {
+  return user && (user.tier === 'pro' || user.tier === 'premium');
+}
+
+function requirePro(req, res, next) {
+  if (!req.session.user) return res.status(401).json({ error: 'Not logged in' });
+  if (!isPro(req.session.user)) {
+    return res.status(403).json({
+      error: 'pro_required',
+      message: 'This feature requires RoleCraft Pro. Upgrade to unlock unlimited access.',
+    });
+  }
+  next();
+}
+
 // ── Helper: check if week should advance and update Sheets + session ──
 // ── Helper: calculate days elapsed since a date string (YYYY-MM-DD) ──
 function daysSince(dateStr) {
@@ -307,6 +322,19 @@ app.post('/api/login', async (req, res) => {
 
     // Store session
     const weekStarted = user['Week Started'] || todayStr();
+    // Determine tier — check Tier column, default to 'free'
+    const userTier = (user.Tier || 'free').toLowerCase().trim();
+    const tierExpiry = user['Tier Expiry'] || '';
+    // Check if paid tier has expired
+    let activeTier = userTier;
+    if (userTier !== 'free' && tierExpiry) {
+      const expDate = new Date(tierExpiry);
+      if (!isNaN(expDate) && expDate < new Date()) {
+        activeTier = 'free'; // expired — downgrade
+        console.log(`⚠️  Tier expired for ${user.Email} — downgrading to free`);
+      }
+    }
+
     req.session.user = {
       email:       user.Email,
       name:        user.Name,
@@ -314,7 +342,9 @@ app.post('/api/login', async (req, res) => {
       experience:  user.Experience,
       week:        parseInt(user.Week) || 1,
       weekStarted: weekStarted,
-      dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7), // Day 1–7
+      dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7),
+      tier:        activeTier,    // 'free' | 'pro' | 'premium'
+      tierExpiry:  tierExpiry,
     };
 
     // Check if week should advance (all done OR 7 days)
@@ -401,7 +431,7 @@ app.get('/api/plan', requireLogin, async (req, res) => {
 // GET /api/questions — current week's questions for logged-in user
 app.get('/api/questions', requireLogin, async (req, res) => {
   try {
-    const { email, week } = req.session.user;
+    const { email, week, tier } = req.session.user;
     const rows = await readSheet('Questions');
     const questions = rows.filter(
       r => r.Email.toLowerCase() === email.toLowerCase() && parseInt(r.Week) === week
@@ -911,7 +941,43 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
 app.post('/api/jobmatch', requireLogin, async (req, res) => {
   try {
     const { jd, customResume } = req.body;
-    const { email, role, experience } = req.session.user;
+    const { email, role, experience, tier } = req.session.user;
+
+    // Free tier: 2 job match analyses per month
+    if (!isPro(req.session.user)) {
+      const users   = await readSheet('Users');
+      const user    = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
+      const usageRaw = parseInt(user && user['JM Usage'] || '0');
+      const usageMonth = user && user['JM Month'] || '';
+      const thisMonth  = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const monthUsage = usageMonth === thisMonth ? usageRaw : 0;
+      if (monthUsage >= 2) {
+        return res.status(403).json({
+          error: 'pro_required',
+          message: 'Free plan includes 2 Job Match analyses per month. Upgrade to Pro for unlimited.',
+        });
+      }
+      // Increment usage counter
+      try {
+        const raw2  = await getSheetsClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:Z' });
+        const hdrs  = raw2.data.values[0];
+        const rows  = raw2.data.values.slice(1);
+        const eIdx  = hdrs.indexOf('Email');
+        const rowIdx = rows.findIndex(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase());
+        if (rowIdx >= 0) {
+          let jmIdx = hdrs.indexOf('JM Usage');
+          let jmmIdx = hdrs.indexOf('JM Month');
+          // Create columns if missing
+          if (jmIdx === -1) { jmIdx = hdrs.length; await getSheetsClient().spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: 'Users!' + String.fromCharCode(65+jmIdx) + '1', valueInputOption: 'RAW', requestBody: { values: [['JM Usage']] } }); }
+          if (jmmIdx === -1) { jmmIdx = hdrs.length + (jmIdx === hdrs.length ? 1 : 0); await getSheetsClient().spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: 'Users!' + String.fromCharCode(65+jmmIdx) + '1', valueInputOption: 'RAW', requestBody: { values: [['JM Month']] } }); }
+          const sheetRow = rowIdx + 2;
+          await getSheetsClient().spreadsheets.values.batchUpdate({ spreadsheetId: SHEET_ID, requestBody: { valueInputOption: 'RAW', data: [
+            { range: 'Users!' + String.fromCharCode(65+jmIdx) + sheetRow, values: [[String(monthUsage + 1)]] },
+            { range: 'Users!' + String.fromCharCode(65+jmmIdx) + sheetRow, values: [[thisMonth]] },
+          ]}});
+        }
+      } catch(e) { console.error('Usage track failed:', e.message); }
+    }
 
     if (!jd || jd.trim().length < 50)
       return res.status(400).json({ error: 'Please paste a complete job description.' });
@@ -1003,7 +1069,7 @@ Rules:
 });
 
 // POST /api/resources — generate cheatsheet + curated links (cached in Resources sheet)
-app.post('/api/resources', requireLogin, async (req, res) => {
+app.post('/api/resources', requirePro, async (req, res) => {
   try {
     const { week, day, taskTitle, taskType } = req.body;
     const { email, role, experience } = req.session.user;
@@ -1508,6 +1574,150 @@ app.post('/api/onboard/test', async (req, res) => {
 });
 
 // ── Catch-all: serve dashboard for any non-API route ──
+// ══════════════════════════════════════════════════════
+// RAZORPAY PAYMENT ROUTES
+// ══════════════════════════════════════════════════════
+
+// POST /api/payment/create-order — create Razorpay order
+app.post('/api/payment/create-order', requireLogin, async (req, res) => {
+  try {
+    const { plan } = req.body; // 'pro_monthly' | 'pro_yearly' | 'premium_monthly' | 'premium_yearly'
+    const { email, name } = req.session.user;
+
+    const plans = {
+      pro_monthly:      { amount: 49900,  label: 'Pro Monthly',  tier: 'pro',     months: 1  },
+      pro_yearly:       { amount: 399900, label: 'Pro Yearly',   tier: 'pro',     months: 12 },
+      premium_monthly:  { amount: 99900,  label: 'Premium Monthly', tier: 'premium', months: 1 },
+      premium_yearly:   { amount: 799900, label: 'Premium Yearly',  tier: 'premium', months: 12 },
+    };
+
+    const selected = plans[plan];
+    if (!selected) return res.status(400).json({ error: 'Invalid plan' });
+
+    const keyId     = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return res.status(500).json({ error: 'Payment not configured' });
+
+    // Create Razorpay order via API
+    const https      = require('https');
+    const orderData  = JSON.stringify({
+      amount:   selected.amount,
+      currency: 'INR',
+      receipt:  'rc_' + Date.now(),
+      notes:    { email, plan, tier: selected.tier },
+    });
+
+    const order = await new Promise((resolve, reject) => {
+      const opts = {
+        hostname: 'api.razorpay.com',
+        path:     '/v1/orders',
+        method:   'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'Content-Length': Buffer.byteLength(orderData),
+          'Authorization':  'Basic ' + Buffer.from(keyId + ':' + keySecret).toString('base64'),
+        },
+      };
+      const req2 = https.request(opts, (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+      });
+      req2.on('error', reject);
+      req2.write(orderData);
+      req2.end();
+    });
+
+    res.json({
+      orderId:   order.id,
+      amount:    selected.amount,
+      currency:  'INR',
+      keyId:     keyId,
+      planLabel: selected.label,
+      email,
+      name,
+    });
+  } catch (err) {
+    console.error('Create order error:', err.message);
+    res.status(500).json({ error: 'Could not create payment order: ' + err.message });
+  }
+});
+
+// POST /api/payment/verify — verify Razorpay signature and activate tier
+app.post('/api/payment/verify', requireLogin, async (req, res) => {
+  try {
+    const { orderId, paymentId, signature, plan } = req.body;
+    const { email } = req.session.user;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // Verify HMAC signature
+    const crypto   = require('crypto');
+    const expected = crypto.createHmac('sha256', keySecret)
+      .update(orderId + '|' + paymentId)
+      .digest('hex');
+
+    if (expected !== signature) {
+      return res.status(400).json({ error: 'Payment verification failed — invalid signature' });
+    }
+
+    // Calculate expiry date
+    const planMeta = {
+      pro_monthly:      { tier: 'pro',     months: 1  },
+      pro_yearly:       { tier: 'pro',     months: 12 },
+      premium_monthly:  { tier: 'premium', months: 1  },
+      premium_yearly:   { tier: 'premium', months: 12 },
+    };
+    const meta    = planMeta[plan] || { tier: 'pro', months: 1 };
+    const expiry  = new Date();
+    expiry.setMonth(expiry.getMonth() + meta.months);
+    const expiryStr = expiry.toISOString().split('T')[0];
+
+    // Update Users sheet — Tier and Tier Expiry columns
+    const raw    = await getSheetsClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:Z' });
+    const hdrs   = raw.data.values[0];
+    const rows   = raw.data.values.slice(1);
+    const eIdx   = hdrs.indexOf('Email');
+    const rowIdx = rows.findIndex(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase());
+    if (rowIdx === -1) return res.status(404).json({ error: 'User not found' });
+
+    const sheetRow = rowIdx + 2;
+
+    // Ensure Tier and Tier Expiry columns exist
+    let tierIdx   = hdrs.indexOf('Tier');
+    let expiryIdx = hdrs.indexOf('Tier Expiry');
+    if (tierIdx   === -1) { tierIdx   = hdrs.length;     await getSheetsClient().spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: 'Users!' + String.fromCharCode(65+tierIdx)   + '1', valueInputOption: 'RAW', requestBody: { values: [['Tier']] } }); }
+    if (expiryIdx === -1) { expiryIdx = hdrs.length + 1; await getSheetsClient().spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: 'Users!' + String.fromCharCode(65+expiryIdx) + '1', valueInputOption: 'RAW', requestBody: { values: [['Tier Expiry']] } }); }
+
+    await getSheetsClient().spreadsheets.values.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: [
+          { range: 'Users!' + String.fromCharCode(65+tierIdx)   + sheetRow, values: [[meta.tier]] },
+          { range: 'Users!' + String.fromCharCode(65+expiryIdx) + sheetRow, values: [[expiryStr]] },
+        ]
+      }
+    });
+
+    // Update session immediately
+    req.session.user.tier        = meta.tier;
+    req.session.user.tierExpiry  = expiryStr;
+
+    console.log(`✅ Payment verified: ${email} → ${meta.tier} until ${expiryStr}`);
+    res.json({ success: true, tier: meta.tier, expiryStr });
+
+  } catch (err) {
+    console.error('Verify payment error:', err.message);
+    res.status(500).json({ error: 'Verification failed: ' + err.message });
+  }
+});
+
+// GET /api/me/tier — get current user tier (for UI checks)
+app.get('/api/me/tier', requireLogin, (req, res) => {
+  const { tier, tierExpiry } = req.session.user;
+  res.json({ tier: tier || 'free', tierExpiry: tierExpiry || null });
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

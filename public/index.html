@@ -1827,57 +1827,69 @@ function renderJobs(jobs) {
   document.getElementById('jobsPanelSub').textContent =
     'Live listings for your role · click Analyse Match for AI scoring';
 
+  // Separate relevant (>=35) from weak matches
+  var relevant = jobs.filter(function(j){ return j.matchScore >= 35; });
+  var weak     = jobs.filter(function(j){ return j.matchScore < 35; });
+  var showing  = relevant.length ? relevant : jobs; // show all if nothing above threshold
+
   if (!count) {
     document.getElementById('jobsList').innerHTML =
       '<div class="empty-state"><div class="empty-icon">&#128269;</div>'+
-      '<div class="empty-text">No jobs found for this location. Try Pan India.</div></div>';
+      '<div class="empty-text">No jobs found for this role. Try Pan India or refresh.</div></div>';
     return;
   }
 
-  document.getElementById('jobsList').innerHTML = jobs.map(function(job, i){
+  document.getElementById('jobsCount').textContent = showing.length + ' jobs' + (weak.length && relevant.length ? ' (' + weak.length + ' weak matches hidden)' : '');
+
+  var weakToggle = (weak.length && relevant.length)
+    ? '<div style="text-align:center;margin-top:8px">'+
+        '<button onclick="showWeakJobs()" style="border:none;background:none;color:var(--muted);font-size:0.8rem;cursor:pointer;text-decoration:underline">'+
+          'Show '+ weak.length +' low-match jobs too</button></div>'
+    : '';
+
+  document.getElementById('jobsList').innerHTML = showing.map(function(job, i){
     var sc    = job.matchScore || 0;
     var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
     var scLbl = sc>=75?'Strong':sc>=55?'Good':sc>=40?'Fair':'Weak';
+    return buildJobCardHtml(job, i, sc, scCol, scLbl);
+  }).join('') + weakToggle;
+}
 
-    var haveKw = (job.keywordsHave||[]).slice(0,5);
-    var missKw = (job.keywordsMissing||[]).slice(0,4);
-    var kwHtml = haveKw.map(function(k){ return '<span class="job-kw have">'+k+'</span>'; }).join('') +
-                 missKw.map(function(k){ return '<span class="job-kw miss">+'+k+'</span>'; }).join('');
+function showWeakJobs() {
+  if (!_jobsCache) return;
+  var weak = _jobsCache.filter(function(j){ return j.matchScore < 35; });
+  var el   = document.getElementById('jobsList');
+  // Append weak jobs removing the toggle button
+  var toggle = el.querySelector('div[style*="text-align:center"]');
+  if (toggle) toggle.remove();
+  weak.forEach(function(job, wi){
+    var i = _jobsCache.indexOf(job);
+    var sc = job.matchScore||0;
+    var scCol = 'var(--red)';
+    var div = document.createElement('div');
+    div.style.opacity = '0.6';
+    div.innerHTML = buildJobCardHtml(job, i, sc, scCol, 'Weak');
+    el.appendChild(div);
+  });
+}
 
-    var salary = job.salaryMin && job.salaryMax
-      ? '₹' + Math.round(job.salaryMin/100000) + '–' + Math.round(job.salaryMax/100000) + 'L'
-      : job.salaryMin ? '₹' + Math.round(job.salaryMin/100000) + 'L+' : 'Salary not listed';
-
-    var daysAgo = job.created
-      ? Math.floor((Date.now() - new Date(job.created).getTime()) / 86400000)
-      : null;
-    var timeStr = daysAgo !== null ? (daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+'d ago') : '';
-
-    return '<div class="job-card" id="jcard-'+i+'">'+
-      '<div class="job-card-top">'+
-        '<div style="flex:1;min-width:0">'+
-          '<div class="job-title">'+escHtml(job.title)+'</div>'+
-          '<div class="job-company">'+escHtml(job.company)+'</div>'+
-        '</div>'+
-        '<div class="job-match-circle" style="border-color:'+scCol+';background:'+scCol+'12">'+
-          '<div class="job-match-num" style="color:'+scCol+'">'+sc+'</div>'+
-          '<div class="job-match-lbl" style="color:'+scCol+'">'+scLbl+'</div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="job-meta">'+
-        '<div class="job-meta-pill">&#128205; '+escHtml(job.location||'India')+'</div>'+
-        '<div class="job-meta-pill">&#128176; '+salary+'</div>'+
-        (timeStr?'<div class="job-meta-pill">&#128336; '+timeStr+'</div>':'')+
-        '<div class="job-meta-pill">&#127970; '+escHtml(job.contractType||'Full-time')+'</div>'+
-      '</div>'+
-      (kwHtml?'<div class="job-keywords">'+kwHtml+'</div>':'')+
-      '<div class="job-actions">'+
-        '<button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button>'+
-        '<a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job ↗</a>'+
-      '</div>'+
-      '<div class="job-scoring-inline" id="jscoring-'+i+'"></div>'+
-    '</div>';
-  }).join('');
+function buildJobCardHtml(job, i, sc, scCol, scLbl){
+  var haveKw = (job.keywordsHave||[]).slice(0,5);
+  var missKw = (job.keywordsMissing||[]).slice(0,4);
+  var kwHtml = haveKw.map(function(k){ return '<span class="job-kw have">'+k+'</span>'; }).join('') +
+               missKw.map(function(k){ return '<span class="job-kw miss">+'+k+'</span>'; }).join('');
+  var salary = job.salaryMin && job.salaryMax
+    ? '₹' + Math.round(job.salaryMin/100000) + '–' + Math.round(job.salaryMax/100000) + 'L'
+    : job.salaryMin ? '₹' + Math.round(job.salaryMin/100000) + 'L+' : 'Salary not listed';
+  var daysAgo = job.created ? Math.floor((Date.now()-new Date(job.created).getTime())/86400000) : null;
+  var timeStr = daysAgo!==null?(daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+'d ago'):'';
+  return '<div class="job-card" id="jcard-'+i+'">'+
+    '<div class="job-card-top"><div style="flex:1;min-width:0"><div class="job-title">'+escHtml(job.title)+'</div><div class="job-company">'+escHtml(job.company)+'</div></div>'+
+    '<div class="job-match-circle" style="border-color:'+scCol+';background:'+scCol+'12"><div class="job-match-num" style="color:'+scCol+'">'+sc+'</div><div class="job-match-lbl" style="color:'+scCol+'">'+scLbl+'</div></div></div>'+
+    '<div class="job-meta"><div class="job-meta-pill">&#128205; '+escHtml(job.location||'India')+'</div><div class="job-meta-pill">&#128176; '+salary+'</div>'+(timeStr?'<div class="job-meta-pill">&#128336; '+timeStr+'</div>':'')+'<div class="job-meta-pill">&#127970; '+escHtml(job.contractType||'Full-time')+'</div></div>'+
+    (kwHtml?'<div class="job-keywords">'+kwHtml+'</div>':'')+
+    '<div class="job-actions"><button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button><a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job ↗</a></div>'+
+    '<div class="job-scoring-inline" id="jscoring-'+i+'"></div></div>';
 }
 
 function escHtml(str) {

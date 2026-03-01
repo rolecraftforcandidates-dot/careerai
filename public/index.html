@@ -126,6 +126,28 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 
 /* PLAN */
 .role-tag{display:inline-flex;align-items:center;gap:6px;background:var(--teal-light);border:1px solid var(--teal-mid);color:var(--teal-dark);font-size:0.76rem;font-family:'DM Mono',monospace;padding:4px 13px;border-radius:100px;margin-bottom:18px}
+.job-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:14px;transition:all 0.2s;position:relative;overflow:hidden}
+.job-card:hover{border-color:var(--teal);box-shadow:0 4px 20px rgba(0,179,138,0.1)}
+.job-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.job-title{font-weight:700;font-size:0.97rem;color:var(--text);margin-bottom:3px;line-height:1.3}
+.job-company{font-size:0.82rem;color:var(--muted)}
+.job-match-circle{width:52px;height:52px;border-radius:50%;border:3px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.job-match-num{font-size:0.95rem;font-weight:900;line-height:1}
+.job-match-lbl{font-size:0.42rem;font-family:'DM Mono',monospace;margin-top:1px}
+.job-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.job-meta-pill{display:flex;align-items:center;gap:5px;font-size:0.76rem;color:var(--muted);background:var(--bg);padding:4px 10px;border-radius:100px;border:1px solid var(--border)}
+.job-keywords{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.job-kw{padding:3px 9px;border-radius:100px;font-size:0.7rem;font-weight:600;font-family:'DM Mono',monospace}
+.job-kw.have{background:var(--green-light);color:var(--green)}
+.job-kw.miss{background:var(--red-light);color:var(--red)}
+.job-actions{display:flex;gap:10px}
+.job-btn-primary{flex:1;padding:9px;border:none;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.83rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+.job-btn-secondary{padding:9px 16px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:'DM Sans',sans-serif;font-size:0.83rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.job-btn-secondary:hover{border-color:var(--teal);color:var(--teal)}
+.job-scoring-inline{margin-top:12px;padding:12px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);display:none}
+.jobs-skeleton{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.skel{background:linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px;height:14px;margin-bottom:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .jm-keyword{padding:4px 10px;border-radius:100px;font-size:0.75rem;font-weight:600;font-family:'DM Mono',monospace}
 .jm-keyword.have{background:var(--green-light);color:var(--green)}
 .jm-keyword.missing{background:var(--red-light);color:var(--red)}
@@ -306,6 +328,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       <div class="nav-section">// Tools</div>
       <button class="nav-item" onclick="showPanel('resume',this)"><span class="nav-icon">&#128196;</span>Resume Review</button>
       <button class="nav-item" onclick="showPanel('jobmatch',this)"><span class="nav-icon">&#127919;</span>Job Match</button>
+      <button class="nav-item" onclick="showPanel('jobs',this)"><span class="nav-icon">&#128188;</span>Jobs For You</button>
       <button class="nav-item" onclick="showPanel('settings',this)"><span class="nav-icon">&#9881;&#65039;</span>Settings</button>
     </nav>
     <div class="sidebar-footer">
@@ -585,6 +608,48 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         </div>
       </div>
 
+      <!-- JOBS -->
+      <div class="panel" id="panel-jobs">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
+          <div>
+            <div class="panel-title" style="margin-bottom:2px">JOBS FOR YOU</div>
+            <div class="panel-sub" style="margin-bottom:0" id="jobsPanelSub">Live job listings matched to your role and profile</div>
+          </div>
+          <button onclick="loadJobs(true)" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap">&#8635; Refresh</button>
+        </div>
+
+        <div class="error-bar" id="jobsError"></div>
+
+        <!-- Filters -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;margin-top:14px">
+          <select id="jobsLocation" onchange="loadJobs(true)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:0.83rem;background:var(--card);color:var(--text);cursor:pointer;outline:none">
+            <option value="india">🇮🇳 Pan India</option>
+            <option value="bangalore">Bangalore</option>
+            <option value="mumbai">Mumbai</option>
+            <option value="delhi">Delhi / NCR</option>
+            <option value="hyderabad">Hyderabad</option>
+            <option value="pune">Pune</option>
+            <option value="chennai">Chennai</option>
+          </select>
+          <select id="jobsSort" onchange="loadJobs(true)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:0.83rem;background:var(--card);color:var(--text);cursor:pointer;outline:none">
+            <option value="match">Sort: Best Match</option>
+            <option value="date">Sort: Newest First</option>
+            <option value="salary">Sort: Highest Salary</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;font-size:0.82rem;color:var(--muted)">
+            Showing: <strong id="jobsCount" style="color:var(--text);margin-left:4px">—</strong>
+          </div>
+        </div>
+
+        <!-- Jobs list -->
+        <div id="jobsList">
+          <div class="empty-state">
+            <div class="empty-icon">&#128188;</div>
+            <div class="empty-text">Loading jobs...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- SETTINGS -->
       <div class="panel" id="panel-settings">
         <div class="panel-title">SETTINGS</div>
@@ -685,7 +750,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 <script>
 var currentUser = null;
 var panelLoaded = {};
-var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', settings:'Settings' };
+var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', jobs:'Jobs For You', settings:'Settings' };
 
 // INIT
 window.addEventListener('DOMContentLoaded', function() {
@@ -780,6 +845,7 @@ function showPanel(id, btn) {
     if (id==='plan')     loadPlan();
     if (id==='resume')   loadResume();
     if (id==='settings') loadSettings();
+    if (id==='jobs')     loadJobs(false);
   }
   // Always fresh
   if (id==='questions') loadQuestions();
@@ -1707,6 +1773,187 @@ function showResumeResult(type, html) {
   el.style.color      = type==='success' ? 'var(--green)'       : 'var(--red)';
   el.style.border     = '1px solid ' + (type==='success' ? 'rgba(0,179,100,0.2)' : 'rgba(220,50,50,0.2)');
   el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+// JOBS FOR YOU
+// ══════════════════════════════════════════════════════
+var _jobsCache    = null;
+var _jobsLoading  = false;
+var _jobsScoring  = {}; // track which jobs are being scored
+
+function loadJobs(forceRefresh) {
+  if (_jobsLoading) return;
+  if (_jobsCache && !forceRefresh) { renderJobs(_jobsCache); return; }
+
+  _jobsLoading = true;
+  document.getElementById('jobsError').style.display = 'none';
+  var loc  = (document.getElementById('jobsLocation')||{value:'india'}).value;
+  document.getElementById('jobsList').innerHTML = buildJobSkeletons(4);
+
+  fetch('/api/jobs?location='+encodeURIComponent(loc), { credentials:'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _jobsLoading = false;
+      if (d.error) { showErr(document.getElementById('jobsError'), d.error); return; }
+      _jobsCache = d.jobs || [];
+      sortAndRenderJobs();
+    })
+    .catch(function(){
+      _jobsLoading = false;
+      showErr(document.getElementById('jobsError'), 'Could not load jobs. Please refresh.');
+    });
+}
+
+function sortAndRenderJobs() {
+  if (!_jobsCache) return;
+  var sort = (document.getElementById('jobsSort')||{value:'match'}).value;
+  var sorted = _jobsCache.slice();
+  if (sort === 'match')  sorted.sort(function(a,b){ return (b.matchScore||0)-(a.matchScore||0); });
+  if (sort === 'date')   sorted.sort(function(a,b){ return new Date(b.created||0)-new Date(a.created||0); });
+  if (sort === 'salary') sorted.sort(function(a,b){ return (b.salaryMax||0)-(a.salaryMax||0); });
+  renderJobs(sorted);
+}
+
+function renderJobs(jobs) {
+  var count = jobs.length;
+  document.getElementById('jobsCount').textContent = count + ' jobs';
+  document.getElementById('jobsPanelSub').textContent =
+    'Live listings for your role · click Analyse Match for AI scoring';
+
+  if (!count) {
+    document.getElementById('jobsList').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">&#128269;</div>'+
+      '<div class="empty-text">No jobs found for this location. Try Pan India.</div></div>';
+    return;
+  }
+
+  document.getElementById('jobsList').innerHTML = jobs.map(function(job, i){
+    var sc    = job.matchScore || 0;
+    var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
+    var scLbl = sc>=75?'Strong':sc>=55?'Good':sc>=40?'Fair':'Weak';
+
+    var haveKw = (job.keywordsHave||[]).slice(0,5);
+    var missKw = (job.keywordsMissing||[]).slice(0,4);
+    var kwHtml = haveKw.map(function(k){ return '<span class="job-kw have">'+k+'</span>'; }).join('') +
+                 missKw.map(function(k){ return '<span class="job-kw miss">+'+k+'</span>'; }).join('');
+
+    var salary = job.salaryMin && job.salaryMax
+      ? '₹' + Math.round(job.salaryMin/100000) + '–' + Math.round(job.salaryMax/100000) + 'L'
+      : job.salaryMin ? '₹' + Math.round(job.salaryMin/100000) + 'L+' : 'Salary not listed';
+
+    var daysAgo = job.created
+      ? Math.floor((Date.now() - new Date(job.created).getTime()) / 86400000)
+      : null;
+    var timeStr = daysAgo !== null ? (daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+'d ago') : '';
+
+    return '<div class="job-card" id="jcard-'+i+'">'+
+      '<div class="job-card-top">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div class="job-title">'+escHtml(job.title)+'</div>'+
+          '<div class="job-company">'+escHtml(job.company)+'</div>'+
+        '</div>'+
+        '<div class="job-match-circle" style="border-color:'+scCol+';background:'+scCol+'12">'+
+          '<div class="job-match-num" style="color:'+scCol+'">'+sc+'</div>'+
+          '<div class="job-match-lbl" style="color:'+scCol+'">'+scLbl+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="job-meta">'+
+        '<div class="job-meta-pill">&#128205; '+escHtml(job.location||'India')+'</div>'+
+        '<div class="job-meta-pill">&#128176; '+salary+'</div>'+
+        (timeStr?'<div class="job-meta-pill">&#128336; '+timeStr+'</div>':'')+
+        '<div class="job-meta-pill">&#127970; '+escHtml(job.contractType||'Full-time')+'</div>'+
+      '</div>'+
+      (kwHtml?'<div class="job-keywords">'+kwHtml+'</div>':'')+
+      '<div class="job-actions">'+
+        '<button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button>'+
+        '<a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job ↗</a>'+
+      '</div>'+
+      '<div class="job-scoring-inline" id="jscoring-'+i+'"></div>'+
+    '</div>';
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function analyseJobFromListing(idx) {
+  if (_jobsScoring[idx]) return;
+  var job = _jobsCache[idx];
+  if (!job) return;
+
+  _jobsScoring[idx] = true;
+  var btn = document.querySelector('#jcard-'+idx+' .job-btn-primary');
+  var box = document.getElementById('jscoring-'+idx);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Scoring...';
+  box.style.display = 'block';
+  box.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;display:flex;align-items:center;gap:8px">'+
+    '<div style="width:16px;height:16px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>'+
+    'Running AI analysis against your resume...</div>';
+
+  fetch('/api/jobmatch', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ jd: job.description || (job.title + ' ' + job.company), customResume:'' })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    _jobsScoring[idx] = false;
+    btn.disabled  = false;
+    btn.innerHTML = '&#129302; Re-analyse';
+
+    if (d.error) { box.innerHTML='<div style="color:var(--red);font-size:0.82rem">'+d.error+'</div>'; return; }
+
+    var sc    = parseInt(d.score)||0;
+    var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
+
+    // Update match circle
+    var circle = document.querySelector('#jcard-'+idx+' .job-match-circle');
+    var numEl  = document.querySelector('#jcard-'+idx+' .job-match-num');
+    var lblEl  = document.querySelector('#jcard-'+idx+' .job-match-lbl');
+    if (circle) { circle.style.borderColor=scCol; circle.style.background=scCol+'12'; }
+    if (numEl)  { numEl.textContent=sc; numEl.style.color=scCol; }
+    if (lblEl)  { lblEl.textContent=sc>=75?'Strong':sc>=55?'Good':sc>=40?'Fair':'Weak'; lblEl.style.color=scCol; }
+
+    var miss = (d.keywordsMissing||[]).slice(0,5);
+    box.innerHTML =
+      '<div style="font-size:0.76rem;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--muted);margin-bottom:8px">AI ANALYSIS · '+sc+'/100 MATCH</div>'+
+      (miss.length?'<div style="margin-bottom:8px;font-size:0.8rem;color:var(--muted)">Add to resume: '+
+        miss.map(function(k){ return '<span class="job-kw miss" style="margin-left:4px">+'+k+'</span>'; }).join('')+
+      '</div>':'')+
+      '<div style="font-size:0.82rem;line-height:1.6;color:var(--text)">'+(d.tweaks&&d.tweaks[0]?'💡 '+d.tweaks[0]:'')+'</div>';
+
+    // Update _jobsCache with AI score
+    _jobsCache[idx].matchScore       = sc;
+    _jobsCache[idx].keywordsHave    = d.keywordsHave    || [];
+    _jobsCache[idx].keywordsMissing = d.keywordsMissing || [];
+  })
+  .catch(function(){
+    _jobsScoring[idx] = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#129302; Analyse Match';
+    box.innerHTML = '<div style="color:var(--red);font-size:0.82rem">Connection error — try again.</div>';
+  });
+}
+
+function buildJobSkeletons(n) {
+  var s = '';
+  for (var i=0;i<n;i++) {
+    s += '<div class="jobs-skeleton">'+
+      '<div class="skel" style="width:60%;margin-bottom:10px"></div>'+
+      '<div class="skel" style="width:35%;height:10px;margin-bottom:14px"></div>'+
+      '<div style="display:flex;gap:8px;margin-bottom:14px">'+
+        '<div class="skel" style="width:80px;height:24px;border-radius:100px"></div>'+
+        '<div class="skel" style="width:70px;height:24px;border-radius:100px"></div>'+
+        '<div class="skel" style="width:60px;height:24px;border-radius:100px"></div>'+
+      '</div>'+
+      '<div class="skel" style="width:100%;height:36px;border-radius:9px"></div>'+
+    '</div>';
+  }
+  return s;
 }
 
 function loadSettings() {

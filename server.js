@@ -8,6 +8,8 @@ const { google } = require('googleapis');
 const multer    = require('multer');
 const upload    = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB max
 const { runOnboarding } = require('./onboarding');
+const passport       = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +36,99 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000   // 7 days
   }
 }));
+
+// ── Passport / Google OAuth ──
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID:     process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL:  process.env.APP_URL
+                    ? process.env.APP_URL + '/auth/google/callback'
+                    : '/auth/google/callback',
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = (profile.emails && profile.emails[0] && profile.emails[0].value || '').toLowerCase();
+      const name  = profile.displayName || profile.emails[0].value.split('@')[0];
+      if (!email) return done(new Error('No email from Google'));
+
+      // Check if user exists in sheet
+      const users = await readSheet('Users');
+      let user    = users.find(u => (u.Email||'').toLowerCase() === email);
+
+      if (!user) {
+        // ── Auto-register: create a basic account ──
+        console.log('Google OAuth new user — auto-registering:', email);
+        const bcrypt = require('bcryptjs');
+        const randomPw = require('crypto').randomBytes(16).toString('hex');
+        const hashed   = await bcrypt.hash(randomPw, 10);
+        const today    = new Date().toISOString().split('T')[0];
+
+        // Append to Users sheet — minimal row, no plan yet
+        const sheets = getSheetsClient();
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SHEET_ID,
+          range: 'Users!A:A',
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { values: [[
+            email, name, hashed,
+            '',    // Role — empty until they complete profile
+            '',    // Experience
+            '0',   // Week — 0 means no plan yet
+            'FALSE', // Plan Active
+            '0',   // ATS Score
+            '',    // ATS Tips
+            '',    // Resume URL
+            today, // Week Started
+            'free', // Tier
+            '',    // Tier Expiry
+            'google', // Auth Provider
+          ]]}
+        });
+
+        // Re-read to get the row we just wrote
+        const users2 = await readSheet('Users');
+        user = users2.find(u => (u.Email||'').toLowerCase() === email);
+      }
+
+      if (!user) return done(new Error('Could not create/find user'));
+
+      // Build session user — same shape as email/password login
+      const tierExpiry = user['Tier Expiry'] || '';
+      let activeTier   = (user.Tier || 'free').toLowerCase();
+      if (activeTier !== 'free' && tierExpiry) {
+        if (new Date(tierExpiry) < new Date()) activeTier = 'free';
+      }
+
+      const sessionUser = {
+        email:       user.Email,
+        name:        user.Name,
+        role:        user.Role        || '',
+        experience:  user.Experience  || '',
+        week:        parseInt(user.Week) || 0,
+        weekStarted: user['Week Started'] || today,
+        dayOfWeek:   1,
+        tier:        activeTier,
+        tierExpiry:  tierExpiry,
+        authProvider: 'google',
+        needsOnboarding: !user.Role || user.Week === '0',
+      };
+
+      done(null, sessionUser);
+    } catch (err) {
+      done(err);
+    }
+  }));
+  console.log('✅ Google OAuth configured');
+} else {
+  console.log('⚠️  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google login disabled');
+}
 
 // ── Google Sheets client ──
 function getSheetsClient() {

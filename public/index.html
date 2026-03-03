@@ -808,11 +808,19 @@ function showDashboard(user) {
   if (overviewNavBtn) overviewNavBtn.classList.add('active');
   document.getElementById('topbarTitle').textContent = 'Overview';
 
-  // Clear jobs panel content so previous user's data never shows
-  var jobsList = document.getElementById('jobsList');
-  if (jobsList) jobsList.innerHTML = '';
-  var jobsCount = document.getElementById('jobsCount');
-  if (jobsCount) jobsCount.textContent = '';
+  // Clear ALL dynamic panel content so previous user data never bleeds through
+  var clearIds = ['jobsList','jobsCount','planList','overviewStats',
+                  'scoresList','resumeContent','questionsContent'];
+  clearIds.forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  // Also clear overview specific elements
+  ['ovWeekBadge','ovDayBadge','ovTasksDone','ovTasksTotal',
+   'ovScoreAvg','ovWeekProgress','gsTaskTitle','gsTaskType'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
 
   setUserInfo(user);
   initTier(user.tier || 'free');
@@ -868,11 +876,17 @@ function doLogout() {
   fetch('/api/logout',{method:'POST',credentials:'include'}).finally(function(){
     currentUser=null; panelLoaded={};
     _jobsCache=null; _jobsLoading=false; _jobsScoring={};
-    // Clear all panel content so next user sees fresh state
-    var jobsList = document.getElementById('jobsList');
-    if (jobsList) jobsList.innerHTML = '';
-    var jobsCount = document.getElementById('jobsCount');
-    if (jobsCount) jobsCount.textContent = '';
+    // Clear ALL panel content so next user never sees previous user's data
+    ['jobsList','jobsCount','planList','overviewStats','scoresList',
+     'resumeContent','questionsContent'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    ['ovWeekBadge','ovDayBadge','ovTasksDone','ovTasksTotal',
+     'ovScoreAvg','ovWeekProgress','gsTaskTitle','gsTaskType'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.textContent = '';
+    });
     // Reset login button and form before showing page
     var btn = document.getElementById('loginBtn');
     btn.disabled = false;
@@ -897,12 +911,13 @@ function showPanel(id, btn) {
   // Overview always live via updateOverviewStats
   if (!panelLoaded[id]) {
     panelLoaded[id] = true;
-    if (id==='plan')     loadPlan();
     if (id==='resume')   loadResume();
     if (id==='settings') loadSettings();
     if (id==='jobs')     loadJobs(false);
   }
-  // Always fresh
+  // Always reload fresh — these change per user and per action
+  if (id==='plan')      loadPlan();
+  if (id==='overview')  loadOverview();
   if (id==='questions') loadQuestions();
   if (id==='scores')    { loadScores(); setTimeout(animateBars,300); }
 }

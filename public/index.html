@@ -799,8 +799,24 @@ function showDashboard(user) {
   console.log('🚀 showDashboard — user.tier =', user.tier);
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('dashboard').classList.add('active');
+
+  // Always reset to Overview panel on login — clear any previous panel state
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.getElementById('panel-overview').classList.add('active');
+  var overviewNavBtn = document.querySelector('.nav-item[onclick*="overview"]');
+  if (overviewNavBtn) overviewNavBtn.classList.add('active');
+  document.getElementById('topbarTitle').textContent = 'Overview';
+
+  // Clear jobs panel content so previous user's data never shows
+  var jobsList = document.getElementById('jobsList');
+  if (jobsList) jobsList.innerHTML = '';
+  var jobsCount = document.getElementById('jobsCount');
+  if (jobsCount) jobsCount.textContent = '';
+
   setUserInfo(user);
-  initTier(user.tier || 'free');  // always init tier on dashboard load
+  initTier(user.tier || 'free');
+
   if (user.needsOnboarding || !user.role) {
     showNewGoogleUserPrompt(user.name);
   } else {
@@ -851,7 +867,12 @@ document.addEventListener('keydown', function(e) {
 function doLogout() {
   fetch('/api/logout',{method:'POST',credentials:'include'}).finally(function(){
     currentUser=null; panelLoaded={};
-    _jobsCache=null; _jobsLoading=false; _jobsScoring={};  // clear jobs cache on logout
+    _jobsCache=null; _jobsLoading=false; _jobsScoring={};
+    // Clear all panel content so next user sees fresh state
+    var jobsList = document.getElementById('jobsList');
+    if (jobsList) jobsList.innerHTML = '';
+    var jobsCount = document.getElementById('jobsCount');
+    if (jobsCount) jobsCount.textContent = '';
     // Reset login button and form before showing page
     var btn = document.getElementById('loginBtn');
     btn.disabled = false;

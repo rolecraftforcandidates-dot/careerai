@@ -259,7 +259,7 @@ async function readSheet(tabName) {
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: `${tabName}!A:Z`,
+    range: `${tabName}!A:AZ`,
   });
   const [headers, ...rows] = res.data.values || [];
   if (!headers) return [];
@@ -420,6 +420,7 @@ app.post('/api/login', async (req, res) => {
     // Determine tier — check Tier column, default to 'free'
     const userTier = (user.Tier || 'free').toLowerCase().trim();
     const tierExpiry = user['Tier Expiry'] || '';
+    console.log(`🎫 Tier check for ${user.Email}: Tier="${user.Tier}" raw, resolved="${userTier}", expiry="${tierExpiry}"`);
     // Check if paid tier has expired
     let activeTier = userTier;
     if (userTier !== 'free' && tierExpiry) {
@@ -501,7 +502,10 @@ app.post('/api/logout', (req, res) => {
 
 // GET /api/me — check session
 app.get('/api/me', requireLogin, (req, res) => {
-  res.json({ user: req.session.user });
+  // Ensure tier is always present in response
+  const u = req.session.user;
+  if (!u.tier) u.tier = 'free';
+  res.json({ user: u });
 });
 
 // ════════════════════════════════════════

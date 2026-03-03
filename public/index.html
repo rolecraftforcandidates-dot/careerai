@@ -796,10 +796,16 @@ function showLoginPage() {
 
 function showDashboard(user) {
   currentUser = user;
+  console.log('🚀 showDashboard — user.tier =', user.tier);
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('dashboard').classList.add('active');
   setUserInfo(user);
-  loadOverview();
+  initTier(user.tier || 'free');  // always init tier on dashboard load
+  if (user.needsOnboarding || !user.role) {
+    showNewGoogleUserPrompt(user.name);
+  } else {
+    loadOverview();
+  }
 }
 
 function setUserInfo(u) {
@@ -2034,11 +2040,12 @@ var PRICES = {
 };
 
 function initTier(tier) {
-  _userTier = tier || 'free';
+  _userTier = (tier || 'free').toLowerCase().trim();
+  console.log('🎫 initTier called with:', tier, '→ _userTier =', _userTier);
 
   // Show/hide upgrade button
   var upgradeBtn = document.getElementById('upgradeNavBtn');
-  if (upgradeBtn) upgradeBtn.style.display = tier === 'free' ? 'block' : 'none';
+  if (upgradeBtn) upgradeBtn.style.display = _userTier === 'free' ? 'block' : 'none';
 
   // Show tier badge
   var badge = document.getElementById('tierBadge');

@@ -62,42 +62,17 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       let user    = users.find(u => (u.Email||'').toLowerCase() === email);
 
       if (!user) {
-        // ── Auto-register: create a basic account ──
-        console.log('Google OAuth new user — auto-registering:', email);
-        const bcrypt = require('bcryptjs');
-        const randomPw = require('crypto').randomBytes(16).toString('hex');
-        const hashed   = await bcrypt.hash(randomPw, 10);
-        const today    = new Date().toISOString().split('T')[0];
-
-        // Append to Users sheet — minimal row, no plan yet
-        const sheets = getSheetsClient();
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: SHEET_ID,
-          range: 'Users!A:A',
-          valueInputOption: 'RAW',
-          insertDataOption: 'INSERT_ROWS',
-          requestBody: { values: [[
-            email, name, hashed,
-            '',    // Role — empty until they complete profile
-            '',    // Experience
-            '0',   // Week — 0 means no plan yet
-            'FALSE', // Plan Active
-            '0',   // ATS Score
-            '',    // ATS Tips
-            '',    // Resume URL
-            today, // Week Started
-            'free', // Tier
-            '',    // Tier Expiry
-            'google', // Auth Provider
-          ]]}
+        // New Google user — don't create sheet row yet
+        // Send them to Tally form first so they complete onboarding properly
+        console.log('Google OAuth new user (no sheet entry):', email);
+        return done(null, {
+          email, name,
+          role: '', experience: '', week: 0,
+          tier: 'free', tierExpiry: '',
+          authProvider: 'google',
+          needsOnboarding: true,
         });
-
-        // Re-read to get the row we just wrote
-        const users2 = await readSheet('Users');
-        user = users2.find(u => (u.Email||'').toLowerCase() === email);
       }
-
-      if (!user) return done(new Error('Could not create/find user'));
 
       // Build session user — same shape as email/password login
       const tierExpiry = user['Tier Expiry'] || '';

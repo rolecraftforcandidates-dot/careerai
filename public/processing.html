@@ -215,14 +215,12 @@ function pollReady() {
         setTimeout(function() {
           window.location.href = '/welcome?token=' + d.token;
         }, 1200);
-      } else if (!d.processing && elapsed > 15) {
-        // Webhook hasn't arrived yet after 15s — keep polling (webhook can be delayed)
-        // After 120s give up
-        if (elapsed > 120) {
-          clearInterval(pollInterval);
-          clearInterval(stepTimer);
-          showError('This is taking longer than expected. Check your email — your dashboard link will arrive once processing completes. You can also go to <a href="/app" style="color:var(--accent)">your dashboard</a> and sign in directly.');
-        }
+      } else if (elapsed > 90) {
+        // Hard timeout — redirect to dashboard anyway
+        clearInterval(pollInterval); clearInterval(stepTimer);
+        window.location.href = '/app';
+      } else if (!d.processing && elapsed > 20) {
+        document.getElementById('timerText').textContent = 'Still working — almost there…';
       }
     })
     .catch(function() { /* network error — keep trying */ });

@@ -780,6 +780,17 @@ window.addEventListener('DOMContentLoaded', function() {
 
 function showLoginPage() {
   document.getElementById('loginPage').style.display = 'block';
+
+  // Check if Google OAuth is enabled and show button
+  fetch('/auth/google/status')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.enabled) {
+        document.getElementById('googleLoginSection').style.display = 'block';
+      }
+    })
+    .catch(function() {}); // silently fail
+
   // Check URL params for OAuth errors or onboarding redirect
   var params = new URLSearchParams(window.location.search);
   if (params.get('error')) {

@@ -263,10 +263,24 @@
       </div>
 
       <!-- Improvement Tips -->
-      <div class="section-label">// Areas to improve</div>
+      <div class="section-label">// Key improvement areas</div>
       <div class="tips-grid" id="tipsGrid">
         <!-- injected by JS -->
       </div>
+
+      <!-- Two column: strengths + missing keywords -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:40px" id="quickInsights">
+        <div style="background:white;border-radius:14px;padding:18px;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,0.04)">
+          <div class="section-label" style="margin-bottom:10px">// What's working</div>
+          <div id="strengthsList" style="display:flex;flex-direction:column;gap:7px"></div>
+        </div>
+        <div style="background:white;border-radius:14px;padding:18px;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,0.04)">
+          <div class="section-label" style="margin-bottom:10px">// Missing keywords</div>
+          <div id="keywordsList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+      </div>
+
+      @media(max-width:580px){#quickInsights{grid-template-columns:1fr}}
     </div>
   </section>
 
@@ -404,6 +418,27 @@ function renderPage(data) {
       card.classList.add('visible');
     });
   }, 600);
+
+  // Strengths
+  var strengthsList = document.getElementById('strengthsList');
+  var strengths = data.keyStrengths || [];
+  if (strengths.length > 0) {
+    strengthsList.innerHTML = strengths.map(function(s) {
+      return '<div style="display:flex;align-items:flex-start;gap:8px;font-size:0.83rem;line-height:1.5">' +
+        '<span style="color:var(--accent);margin-top:1px;flex-shrink:0">✓</span><span>' + s + '</span></div>';
+    }).join('');
+  } else {
+    document.getElementById('quickInsights').style.display = 'none';
+  }
+
+  // Missing keywords
+  var keywordsList = document.getElementById('keywordsList');
+  var keywords = data.missingKeywords || [];
+  if (keywords.length > 0) {
+    keywordsList.innerHTML = keywords.map(function(k) {
+      return '<span style="background:#fff0f0;color:#c0392b;border:1px solid #fcc;font-size:0.75rem;padding:3px 10px;border-radius:100px;font-family:var(--mono)">' + k + '</span>';
+    }).join('');
+  }
 
   // Counts
   if (data.taskCount) document.getElementById('taskCount').textContent = data.taskCount;

@@ -1624,7 +1624,9 @@ app.post('/api/plan/task', requireLogin, async (req, res) => {
 });
 
 // ── Welcome tokens: email → { name, role, atsScore, atsTips, createdAt } ──
-const welcomeTokens = new Map();
+const welcomeTokens = new Map();   // token → data
+const emailTokenMap = new Map();   // email → token (for polling)
+const processingEmails = new Set(); // emails currently being processed
 // Clean up tokens older than 24 hours every hour
 setInterval(() => {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -1658,6 +1660,21 @@ app.post('/api/onboard', async (req, res) => {
     return res.status(401).json({ error: 'Invalid webhook secret' });
   }
 
+  // Extract email early so we can track processing state
+  let earlyEmail = null;
+  try {
+    const fields = (req.body?.data?.fields || req.body?.fields || []);
+    const emailField = fields.find(f =>
+      f.type === 'INPUT_EMAIL' ||
+      (f.label || '').toLowerCase().includes('email')
+    );
+    earlyEmail = emailField?.value || null;
+    if (earlyEmail) {
+      processingEmails.add(earlyEmail.toLowerCase());
+      console.log(`⏳ Processing started for: ${earlyEmail}`);
+    }
+  } catch(e) { /* non-fatal */ }
+
   // Respond to Tally immediately (Tally expects fast response)
   res.json({ received: true });
   console.log('✅ Responded 200 to Tally');
@@ -1670,6 +1687,7 @@ app.post('/api/onboard', async (req, res) => {
       const crypto  = require('crypto');
       const token   = crypto.randomBytes(20).toString('hex');
       welcomeTokens.set(token, { ...result.welcomeData, createdAt: Date.now() });
+      emailTokenMap.set(result.email.toLowerCase(), token);
       const appUrl     = process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app';
       const welcomeUrl = appUrl + '/welcome?token=' + token;
       console.log(`🎉 Welcome page for ${result.email}: ${welcomeUrl}`);
@@ -1911,11 +1929,12 @@ app.get('/api/me/tier', requireLogin, (req, res) => {
 });
 
 // ── Page routes ──
-app.get('/',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
-app.get('/index.html',(req, res) => res.redirect('/app')); // old bookmarks
-app.get('/app',      (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
-app.get('/welcome',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
-app.get('*',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+app.get('/app',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
+app.get('/welcome',     (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
+app.get('/processing',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html')));
+app.get('/index.html',  (req, res) => res.redirect('/app'));
+app.get('*',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
 // ── Start ──
 app.listen(PORT, () => {

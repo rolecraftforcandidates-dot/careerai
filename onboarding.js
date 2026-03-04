@@ -76,6 +76,24 @@ function generatePassword(name) {
 // ══════════════════════════════════════════════════════
 // CLAUDE PROMPT — generates plan + questions + ATS in one call
 // ══════════════════════════════════════════════════════
+// ── PHASE 1: Fast prompt — ATS score + tips only (~3s) ──
+function buildFastPrompt(name, role, experience, techStack, resumeText) {
+  return 'You are a resume expert for Indian tech hiring. Return ONLY raw JSON, no markdown.' +
+    '\n\nUser: ' + name + ' | Role: ' + role + ' | Experience: ' + experience + ' yrs | Tech: ' + techStack +
+    '\nResume: ' + (resumeText ? resumeText.slice(0, 2000) : 'Not provided') +
+    '\n\nReturn exactly this JSON structure (nothing else):\n' +
+    '{\n' +
+    '  "atsScore": 72,\n' +
+    '  "atsTips": "Tip 1: specific tip\\nTip 2: specific tip\\nTip 3: specific tip\\nTip 4: specific tip\\nTip 5: specific tip",\n' +
+    '  "keyStrengths": ["strength 1", "strength 2", "strength 3"],\n' +
+    '  "missingKeywords": ["keyword1", "keyword2", "keyword3", "keyword4"]\n' +
+    '}\n\n' +
+    'Rules: atsScore = realistic 50-95 based on resume (65 if no resume). ' +
+    'atsTips = exactly 5 lines starting with Tip 1: through Tip 5:, specific to ' + role + ' in Indian job market. ' +
+    'keyStrengths = 3 things already good in resume. missingKeywords = 4 skills/keywords missing for ' + role + '. ' +
+    'Return ONLY the JSON object.';
+}
+
 function buildPrompt(name, email, role, experience, techStack, resumeText) {
   return `You are an expert career coach and interview trainer specialising in tech roles in India.
 
@@ -145,6 +163,25 @@ RULES FOR ATS ANALYSIS:
 // ══════════════════════════════════════════════════════
 // CALL CLAUDE API
 // ══════════════════════════════════════════════════════
+// ── PHASE 1: Generate ATS preview only (fast, ~3s) ──
+async function generateFastPreview(name, role, experience, techStack, resumeText) {
+  const client = getAnthropicClient();
+  console.log('⚡ Phase 1: Fast ATS preview for', name);
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 400,  // Even smaller — we only need 4 fields
+    system: 'You are a resume scoring API. Return ONLY a JSON object. No explanation. No markdown.',
+    messages: [{ role: 'user', content: buildFastPrompt(name, role, experience, techStack, resumeText) }],
+  });
+
+  const raw     = message.content[0].text.trim();
+  const cleaned = raw.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+  const parsed  = JSON.parse(cleaned);
+  console.log('✅ Phase 1 done — ATS score:', parsed.atsScore);
+  return parsed;
+}
+
 async function generateWithClaude(name, email, role, experience, techStack, resumeText) {
   const client = getAnthropicClient();
 
@@ -454,91 +491,196 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
   try {
     // 1. Parse Tally payload
     const { name, email, role, techStack, experience, resumeUrl } = parseTallyPayload(rawBody);
+    const displayName = name || email.split('@')[0];
 
-    console.log(`\n🚀 New onboarding: ${name} | ${email} | Role: ${role} | Exp: ${experience} yrs | Tech: ${techStack}`);
+    console.log(`\n🚀 New onboarding: ${displayName} | ${email} | Role: ${role} | Exp: ${experience} yrs | Tech: ${techStack}`);
 
     if (!email) throw new Error('No email found in Tally payload');
     if (!role)  throw new Error('No role found in Tally payload');
 
     result.email = email;
 
-    // 2. Check if user already exists
+    // 2. Check if user already exists — if so, return their existing data
     const sheets   = getSheetsClientFn();
-    const existing = await sheets.spreadsheets.values.get({
+    const allUsers = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: 'Users!A:A',
+      range: 'Users!A:AZ',
     });
-    const emails = (existing.data.values || []).flat().map(e => e.toLowerCase());
-    if (emails.includes(email.toLowerCase())) {
-      throw new Error(`User ${email} already exists in sheet`);
-    }
+    const [hdrs, ...uRows] = allUsers.data.values || [];
+    const existingRow = uRows.find(r => (r[0]||'').toLowerCase() === email.toLowerCase());
 
-    // 3. Fetch resume text if available
-    const resumeText = await fetchResumeText(resumeUrl);
-
-    // 4. Generate with Claude
-    const generated = await generateWithClaude(
-      name || email.split('@')[0],
-      email,
-      role,
-      experience || 'Mid',
-      techStack || role,
-      resumeText
-    );
-
-    // 5. Generate password
-    const password = generatePassword(name);
-
-    // 6. Write to Google Sheets
-    await writeToSheets(
-      sheets,
-      sheetId,
-      name || email.split('@')[0],
-      email,
-      password,
-      role,
-      experience || 'Mid',
-      techStack || '',
-      generated
-    );
-
-    // 7. Send welcome email (wrapped separately — sheet data is already saved)
-    const dashboardUrl = (process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app') + '/app';
-    // Welcome URL will be updated by server after token generation
-    // For now we send dashboard URL; server logs have full welcome URL
-    try {
-      await sendWelcomeEmail(
-        name || email.split('@')[0],
+    if (existingRow) {
+      console.log(`ℹ️  User ${email} already exists — returning existing data for welcome page`);
+      const userObj = hdrs ? Object.fromEntries(hdrs.map((h,i) => [h.trim(), (existingRow[i]||'').trim()])) : {};
+      result.success     = true;
+      result.phase1Ready = true;
+      result.welcomeData = {
+        name:            userObj.Name || displayName,
         email,
-        password,
-        role,
-        dashboardUrl
-      );
-    } catch (emailErr) {
-      // Email failed but data is already in Sheets — log and continue
-      console.error(`⚠️  Email failed for ${email}: ${emailErr.message}`);
-      console.log(`📋 Manual credentials — Email: ${email} | Password: ${password} | URL: ${dashboardUrl}`);
+        role:            userObj.Role || role,
+        experience:      userObj.Experience || experience || 'Mid',
+        atsScore:        parseInt(userObj['ATS Score']) || 65,
+        atsTips:         userObj['ATS Tips'] || '',
+        keyStrengths:    [],
+        missingKeywords: [],
+        taskCount:       28,
+        qCount:          12,
+        planReady:       userObj['Plan Active'] === 'TRUE',
+        returning:       true,
+      };
+      return result;
     }
 
-    result.success = true;
+    // 3. Fetch resume text + generate password (parallel, instant)
+    const resumeText = await fetchResumeText(resumeUrl);
+    const password   = generatePassword(displayName);
+
+    // ── PHASE 1: Fast ATS preview — Haiku with minimal prompt ──
+    const t1 = Date.now();
+    let fastPreview = null;
+    try {
+      fastPreview = await generateFastPreview(displayName, role, experience || 'Mid', techStack || role, resumeText);
+      console.log('⚡ Phase 1 took', Date.now() - t1, 'ms');
+    } catch(e) {
+      console.error('Phase 1 fast preview failed:', e.message);
+      fastPreview = {
+        atsScore: 65,
+        atsTips: 'Tip 1: Add quantified achievements\nTip 2: Include role-specific keywords\nTip 3: Add professional summary\nTip 4: List relevant certifications\nTip 5: Tailor skills section to job description',
+        keyStrengths: ['Relevant work experience', 'Technical background', 'Domain knowledge'],
+        missingKeywords: ['Leadership', 'Agile', 'Cloud', 'CI/CD']
+      };
+    }
+
+    // Write user row immediately (non-blocking is fine here, await to ensure it's ready before token)
+    await writeBasicUser(sheets, sheetId, displayName, email, password, role, experience || 'Mid', fastPreview);
+    console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms total — welcome page ready');
+
+    // Surface Phase 1 result immediately
+    result.success     = true;
+    result.phase1Ready = true;
     result.welcomeData = {
-      name:     name || email.split('@')[0],
+      name:            displayName,
       email,
       role,
-      experience: experience || 'Mid',
-      atsScore:   generated.atsScore,
-      atsTips:    generated.atsTips,
-      taskCount:  generated.tasks    ? generated.tasks.length    : 28,
-      qCount:     generated.questions ? generated.questions.length : 12,
+      experience:      experience || 'Mid',
+      atsScore:        fastPreview.atsScore,
+      atsTips:         fastPreview.atsTips,
+      keyStrengths:    fastPreview.keyStrengths    || [],
+      missingKeywords: fastPreview.missingKeywords || [],
+      taskCount:       28,
+      qCount:          12,
+      planReady:       false, // plan still generating
     };
-    console.log(`\n✅ Onboarding complete for ${email} (check logs if email failed)`);
+
+    // Send welcome email immediately with credentials
+    const dashboardUrl = (process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app') + '/app';
+    try {
+      await sendWelcomeEmail(displayName, email, password, role, dashboardUrl);
+    } catch(emailErr) {
+      console.error('Welcome email failed:', emailErr.message);
+    }
+
+    // ── PHASE 2: Full plan generation (background, ~30s) ──
+    // This runs after we return — dashboard will be ready by the time user logs in
+    // Phase 2 fires immediately but doesn't block Phase 1 return
+    const t2 = Date.now();
+    setImmediate(async () => {
+      try {
+        console.log('🔄 Phase 2 starting for', email);
+        const generated = await generateWithClaude(displayName, email, role, experience || 'Mid', techStack || role, resumeText);
+        await writeFullPlan(getSheetsClientFn(), sheetId, email, generated);
+        await updatePlanActive(getSheetsClientFn(), sheetId, email);
+        console.log('✅ Phase 2 complete in', Math.round((Date.now()-t2)/1000), 's for', email);
+      } catch(e) {
+        console.error('Phase 2 failed for', email, ':', e.message);
+        // Retry once
+        setTimeout(async () => {
+          try {
+            console.log('🔁 Phase 2 retry for', email);
+            const gen2 = await generateWithClaude(displayName, email, role, experience || 'Mid', techStack || role, resumeText);
+            await writeFullPlan(getSheetsClientFn(), sheetId, email, gen2);
+            await updatePlanActive(getSheetsClientFn(), sheetId, email);
+            console.log('✅ Phase 2 retry succeeded for', email);
+          } catch(e2) { console.error('Phase 2 retry also failed:', e2.message); }
+        }, 10000);
+      }
+    });
+
+    // Skip the old monolithic flow below — return early
+    return result;
 
   } catch (err) {
     result.error = err.message;
     console.error(`\n❌ Onboarding failed:`, err.message);
+    return result;
   }
+}
 
-  return result;
+// ── Write just the user row (Phase 1) ──
+async function writeBasicUser(sheets, sheetId, name, email, password, role, experience, fastPreview) {
+  const today = new Date().toISOString().split('T')[0];
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: 'Users!A:A',
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: [[
+      email, name, password, role, experience,
+      '1',        // Week
+      'FALSE',    // Plan Active — FALSE until Phase 2 completes
+      String(fastPreview.atsScore || 65),
+      fastPreview.atsTips || '',
+      '',         // Resume URL
+      today,      // Week Started
+      'free',     // Tier
+      '',         // Tier Expiry
+    ]]}
+  });
+  console.log('✅ Basic user row created for', email);
+}
+
+// ── Write full plan tasks + questions (Phase 2) ──
+async function writeFullPlan(sheets, sheetId, email, generated) {
+  if (generated.tasks && generated.tasks.length > 0) {
+    const taskRows = generated.tasks.map(task => [
+      email, task['Week'] || '1', task['Day'] || '1',
+      task['Task Title'] || '', task['Type'] || 'Theory', 'FALSE', ''
+    ]);
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId, range: 'Plans!A:A',
+      valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: taskRows }
+    });
+    console.log('✅ Written', taskRows.length, 'tasks for', email);
+  }
+  if (generated.questions && generated.questions.length > 0) {
+    const qRows = generated.questions.map(q => [
+      email, q['Week'] || '1', q['Q No.'] || 'Q1',
+      q['Type'] || 'Technical', q['Question'] || '', '', '', '', ''
+    ]);
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId, range: 'Questions!A:A',
+      valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: qRows }
+    });
+    console.log('✅ Written', qRows.length, 'questions for', email);
+  }
+}
+
+// ── Flip Plan Active to TRUE after Phase 2 ──
+async function updatePlanActive(sheets, sheetId, email) {
+  const raw    = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Users!A:G' });
+  const rows   = raw.data.values || [];
+  const rowIdx = rows.findIndex((r, i) => i > 0 && (r[0]||'').toLowerCase() === email.toLowerCase());
+  if (rowIdx > 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: 'Users!G' + (rowIdx + 1),
+      valueInputOption: 'RAW',
+      requestBody: { values: [['TRUE']] }
+    });
+    console.log('✅ Plan Active set to TRUE for', email);
+  }
 }
 
 module.exports = { runOnboarding, parseTallyPayload };

@@ -1643,14 +1643,24 @@ app.get('/api/welcome/:token', async (req, res) => {
 // POST /api/onboard — Tally webhook → Claude → Sheets → Email
 // ══════════════════════════════════════════════════════
 app.post('/api/onboard', async (req, res) => {
+  console.log('\n📥 Tally webhook received at', new Date().toISOString());
+  console.log('Headers:', JSON.stringify({
+    'content-type': req.headers['content-type'],
+    'tally-webhook-secret': req.headers['tally-webhook-secret'] ? '***set***' : 'NOT SET',
+    'user-agent': req.headers['user-agent'],
+  }));
+  console.log('Body keys:', Object.keys(req.body || {}));
+
   // Verify Tally webhook secret (optional but recommended)
   const secret = process.env.TALLY_WEBHOOK_SECRET;
   if (secret && req.headers['tally-webhook-secret'] !== secret) {
+    console.error('❌ Webhook secret mismatch — rejecting');
     return res.status(401).json({ error: 'Invalid webhook secret' });
   }
 
   // Respond to Tally immediately (Tally expects fast response)
   res.json({ received: true });
+  console.log('✅ Responded 200 to Tally');
 
   // Run onboarding async (so Tally doesn't time out)
   const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID);
@@ -1713,6 +1723,18 @@ app.post('/api/onboard', async (req, res) => {
   } else {
     console.error(`❌ Onboarding failed: ${result.error}`);
   }
+});
+
+// GET /api/onboard/ping — test that onboard endpoint is reachable
+app.get('/api/onboard/ping', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Onboard endpoint is live',
+    webhookUrl: (process.env.APP_URL || 'https://your-app.railway.app') + '/api/onboard',
+    sheetConfigured: !!process.env.SHEET_ID,
+    tallySecretSet: !!process.env.TALLY_WEBHOOK_SECRET,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // POST /api/onboard/debug — log raw Tally payload to see field structure

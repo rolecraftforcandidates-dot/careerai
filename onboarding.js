@@ -476,7 +476,9 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     );
 
     // 7. Send welcome email (wrapped separately — sheet data is already saved)
-    const dashboardUrl = process.env.DASHBOARD_URL || 'https://your-app.railway.app';
+    const dashboardUrl = (process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app') + '/app';
+    // Welcome URL will be updated by server after token generation
+    // For now we send dashboard URL; server logs have full welcome URL
     try {
       await sendWelcomeEmail(
         name || email.split('@')[0],
@@ -492,6 +494,16 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     }
 
     result.success = true;
+    result.welcomeData = {
+      name:     name || email.split('@')[0],
+      email,
+      role,
+      experience: experience || 'Mid',
+      atsScore:   generated.atsScore,
+      atsTips:    generated.atsTips,
+      taskCount:  generated.tasks    ? generated.tasks.length    : 28,
+      qCount:     generated.questions ? generated.questions.length : 12,
+    };
     console.log(`\n✅ Onboarding complete for ${email} (check logs if email failed)`);
 
   } catch (err) {

@@ -1623,6 +1623,23 @@ app.post('/api/plan/task', requireLogin, async (req, res) => {
   }
 });
 
+// ── Welcome tokens: email → { name, role, atsScore, atsTips, createdAt } ──
+const welcomeTokens = new Map();
+// Clean up tokens older than 24 hours every hour
+setInterval(() => {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  for (const [token, data] of welcomeTokens.entries()) {
+    if (data.createdAt < cutoff) welcomeTokens.delete(token);
+  }
+}, 60 * 60 * 1000);
+
+// GET /api/welcome/:token — fetch welcome data for results page (no login needed)
+app.get('/api/welcome/:token', async (req, res) => {
+  const data = welcomeTokens.get(req.params.token);
+  if (!data) return res.status(404).json({ error: 'Welcome data not found or expired' });
+  res.json(data);
+});
+
 // POST /api/onboard — Tally webhook → Claude → Sheets → Email
 // ══════════════════════════════════════════════════════
 app.post('/api/onboard', async (req, res) => {
@@ -1639,6 +1656,60 @@ app.post('/api/onboard', async (req, res) => {
   const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID);
   if (result.success) {
     console.log(`✅ Onboarding complete: ${result.email}`);
+    if (result.welcomeData) {
+      const crypto  = require('crypto');
+      const token   = crypto.randomBytes(20).toString('hex');
+      welcomeTokens.set(token, { ...result.welcomeData, createdAt: Date.now() });
+      const appUrl     = process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app';
+      const welcomeUrl = appUrl + '/welcome?token=' + token;
+      console.log(`🎉 Welcome page for ${result.email}: ${welcomeUrl}`);
+
+      // Send a follow-up "results ready" email with the welcome URL
+      if (process.env.BREVO_API_KEY && result.welcomeData.email) {
+        const wd = result.welcomeData;
+        const firstName = (wd.name || '').split(' ')[0] || 'there';
+        const score     = wd.atsScore || 0;
+        const scoreColor = score >= 75 ? '#00b38a' : score >= 55 ? '#f59e0b' : '#e84040';
+        const emailHtml =
+          '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">' +
+          '<div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">' +
+            '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLECRAFT</div>' +
+            '<div style="font-size:14px;opacity:.85">Your Resume Analysis + 30-Day Plan is Ready</div>' +
+          '</div>' +
+          '<div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">' +
+            '<p style="font-size:18px;font-weight:700;margin-bottom:12px">Hi ' + firstName + '! 🎉</p>' +
+            '<p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your <strong>' + wd.role + '</strong> interview prep plan is ready. Claude AI has analysed your resume and built your personalised 4-week plan.</p>' +
+            '<div style="background:#f8f9ff;border-radius:10px;padding:18px;margin-bottom:20px;text-align:center">' +
+              '<div style="font-size:12px;color:#6b6b8a;letter-spacing:2px;margin-bottom:8px;font-weight:600">YOUR ATS SCORE</div>' +
+              '<div style="font-size:52px;font-weight:900;color:' + scoreColor + ';line-height:1">' + score + '</div>' +
+              '<div style="font-size:12px;color:#6b6b8a;margin-top:4px">out of 100</div>' +
+            '</div>' +
+            '<a href="' + welcomeUrl + '" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">View My Results + 30-Day Plan →</a>' +
+            '<p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Link expires in 24 hours · Your dashboard login was sent separately</p>' +
+          '</div></div>';
+
+        try {
+          const { sendBrevoEmail } = require('./onboarding');
+          // sendBrevoEmail may not be exported — use direct API call
+          const https2 = require('https');
+          const payload2 = JSON.stringify({
+            sender: { name: 'RoleCraft', email: process.env.BREVO_SENDER_EMAIL || 'noreply@rolecraft.ai' },
+            to: [{ email: wd.email, name: wd.name }],
+            subject: firstName + ', your resume scored ' + score + '/100 — see your full plan',
+            htmlContent: emailHtml,
+          });
+          const opts2 = {
+            hostname: 'api.brevo.com', path: '/v3/smtp/email', method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'api-key': process.env.BREVO_API_KEY, 'Content-Length': Buffer.byteLength(payload2) }
+          };
+          const req2 = https2.request(opts2, r2 => { let d=''; r2.on('data',c=>d+=c); r2.on('end',()=>console.log('📧 Results email sent:', r2.statusCode)); });
+          req2.on('error', e => console.error('Results email error:', e.message));
+          req2.write(payload2); req2.end();
+        } catch(emailErr) {
+          console.error('Results email failed:', emailErr.message);
+        }
+      }
+    }
   } else {
     console.error(`❌ Onboarding failed: ${result.error}`);
   }
@@ -1817,9 +1888,11 @@ app.get('/api/me/tier', requireLogin, (req, res) => {
   res.json({ tier: tier || 'free', tierExpiry: tierExpiry || null });
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// ── Page routes ──
+app.get('/',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+app.get('/app',      (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/welcome',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
+app.get('*',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
 // ── Start ──
 app.listen(PORT, () => {

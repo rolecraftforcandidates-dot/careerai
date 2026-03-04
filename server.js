@@ -19,7 +19,7 @@ app.use(helmet({ contentSecurityPolicy: false })); // CSP off so dashboard JS wo
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false })); // index:false prevents auto-serving index.html at /
 
 // ── Trust Railway's proxy (required for secure cookies on HTTPS) ──
 app.set('trust proxy', 1);
@@ -1890,7 +1890,8 @@ app.get('/api/me/tier', requireLogin, (req, res) => {
 
 // ── Page routes ──
 app.get('/',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
-app.get('/app',      (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/index.html',(req, res) => res.redirect('/app')); // old bookmarks
+app.get('/app',      (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
 app.get('/welcome',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
 app.get('*',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 

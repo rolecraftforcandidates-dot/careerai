@@ -1928,6 +1928,65 @@ app.get('/api/me/tier', requireLogin, (req, res) => {
   res.json({ tier: tier || 'free', tierExpiry: tierExpiry || null });
 });
 
+// ── Google OAuth routes ──
+app.get('/auth/google/status', (req, res) => {
+  const enabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  res.json({ enabled });
+});
+
+app.get('/auth/google',
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID) return res.redirect('/app?error=google_not_configured');
+    next();
+  },
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID) return res.redirect('/app?error=google_not_configured');
+    next();
+  },
+  passport.authenticate('google', { failureRedirect: '/app?error=google_auth_failed' }),
+  async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) return res.redirect('/app?error=google_auth_failed');
+
+      // Check week advancement
+      const sheets  = getSheetsClient();
+      const rawData = await readSheet(sheets, SHEET_ID, 'Users!A:AZ');
+      const headers = rawData[0] || [];
+      const userRow = rawData.slice(1).find(r => (r[0]||'').toLowerCase() === user.email.toLowerCase());
+
+      if (userRow) {
+        const obj = Object.fromEntries(headers.map((h,i) => [h.trim(), (userRow[i]||'').trim()]));
+        req.session.user = {
+          email:    user.email,
+          name:     obj.Name  || user.name,
+          role:     obj.Role  || '',
+          week:     parseInt(obj.Week) || 1,
+          tier:     (obj.Tier || 'free').toLowerCase(),
+          needsOnboarding: !obj.Role,
+        };
+      } else {
+        req.session.user = {
+          email: user.email, name: user.name,
+          week: 0, tier: 'free', needsOnboarding: true,
+        };
+      }
+
+      if (req.session.user.needsOnboarding) {
+        return res.redirect('/app?onboarding=1');
+      }
+      res.redirect('/app');
+    } catch(e) {
+      console.error('Google callback error:', e.message);
+      res.redirect('/app?error=google_auth_failed');
+    }
+  }
+);
+
 // ── Page routes ──
 // GET /api/ready?email=... — polling endpoint for processing page
 app.get('/api/ready', (req, res) => {

@@ -125,13 +125,13 @@ RULES FOR TASKS:
 - Make tasks highly specific to ${role} and ${techStack} — not generic filler
 
 RULES FOR QUESTIONS:
-- Generate exactly 40 questions total: 10 questions per week, across 4 weeks
-- Each week breakdown: 4 Technical + 3 Behavioral + 3 System Design questions
+- Generate exactly 12 questions total: 3 questions per week, across 4 weeks
+- Each week: 1 Technical + 1 Behavioral + 1 System Design question
 - Week 1 questions: foundational and conceptual
-- Week 2 questions: intermediate, hands-on technical depth
+- Week 2 questions: intermediate technical depth
 - Week 3 questions: advanced, interview-style
 - Week 4 questions: senior-level, real interview difficulty
-- Q No. format: Q1 through Q10 — RESET each week (Week 2 starts at Q1 again)
+- Q No. format: Q1 through Q3 — RESET each week (Week 2 starts at Q1 again)
 - Make questions very specific to ${role} and ${techStack}
 - Type must be exactly one of: Technical / Behavioral / System Design
 
@@ -152,7 +152,7 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',  // Fast + cheap, perfect for structured generation
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [{
       role: 'user',
       content: buildPrompt(name, email, role, experience, techStack, resumeText),
@@ -169,8 +169,35 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
     parsed = JSON.parse(cleaned);
   } catch (e) {
     console.error('Claude JSON parse failed:', e.message);
-    console.error('Raw output:', rawText.slice(0, 500));
-    throw new Error('Claude returned invalid JSON. Check logs.');
+    console.error('Raw output:', rawText.slice(0, 300));
+
+    // Attempt recovery — retry with a simpler prompt
+    try {
+      console.log('🔄 Retrying with simplified prompt...');
+      const retryMsg = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 8192,
+        messages: [{
+          role: 'user',
+          content: 'Generate interview prep JSON for a ' + role + ' with ' + experience + ' years experience. ' +
+            'Return ONLY raw JSON (no markdown). Exactly this structure:\n' +
+            '{\n  "tasks": [28 objects with Week/Day/Task Title/Type],\n' +
+            '  "questions": [12 objects with Week/Q No./Type/Question],\n' +
+            '  "atsScore": 70,\n' +
+            '  "atsTips": "Tip 1: ...\\nTip 2: ...\\nTip 3: ...\\nTip 4: ...\\nTip 5: ..."\n}\n' +
+            'Tasks: 7 per week x 4 weeks. Type = Theory/Practice/Mock.\n' +
+            'Questions: 3 per week x 4 weeks (1 Technical + 1 Behavioral + 1 System Design). Q No. = Q1/Q2/Q3 per week.\n' +
+            'Make all content specific to ' + role + ' and tech stack: ' + techStack + '. Return ONLY the JSON object.'
+        }],
+      });
+      const retryText = retryMsg.content[0].text.trim()
+        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      parsed = JSON.parse(retryText);
+      console.log('✅ Retry succeeded');
+    } catch (retryErr) {
+      console.error('Retry also failed:', retryErr.message);
+      throw new Error('Claude returned invalid JSON. Check logs.');
+    }
   }
 
   // Validate structure

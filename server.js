@@ -1929,6 +1929,17 @@ app.get('/api/me/tier', requireLogin, (req, res) => {
 });
 
 // ── Page routes ──
+// GET /api/ready?email=... — polling endpoint for processing page
+app.get('/api/ready', (req, res) => {
+  const email = (req.query.email || '').toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'email required' });
+  const token = emailTokenMap.get(email);
+  if (token) return res.json({ ready: true, token });
+  if (processingEmails.has(email)) return res.json({ ready: false, processing: true });
+  // Unknown — webhook may not have arrived yet, keep polling
+  return res.json({ ready: false, processing: false });
+});
+
 app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 app.get('/app',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
 app.get('/welcome',     (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));

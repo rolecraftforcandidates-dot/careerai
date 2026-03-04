@@ -1947,43 +1947,28 @@ app.get('/auth/google/callback',
     if (!process.env.GOOGLE_CLIENT_ID) return res.redirect('/app?error=google_not_configured');
     next();
   },
-  passport.authenticate('google', { failureRedirect: '/app?error=google_auth_failed' }),
-  async (req, res) => {
-    try {
-      const user = req.user;
-      if (!user) return res.redirect('/app?error=google_auth_failed');
-
-      // Check week advancement
-      const sheets  = getSheetsClient();
-      const rawData = await readSheet(sheets, SHEET_ID, 'Users!A:AZ');
-      const headers = rawData[0] || [];
-      const userRow = rawData.slice(1).find(r => (r[0]||'').toLowerCase() === user.email.toLowerCase());
-
-      if (userRow) {
-        const obj = Object.fromEntries(headers.map((h,i) => [h.trim(), (userRow[i]||'').trim()]));
-        req.session.user = {
-          email:    user.email,
-          name:     obj.Name  || user.name,
-          role:     obj.Role  || '',
-          week:     parseInt(obj.Week) || 1,
-          tier:     (obj.Tier || 'free').toLowerCase(),
-          needsOnboarding: !obj.Role,
-        };
-      } else {
-        req.session.user = {
-          email: user.email, name: user.name,
-          week: 0, tier: 'free', needsOnboarding: true,
-        };
+  (req, res, next) => {
+    passport.authenticate('google', (err, user, info) => {
+      if (err) {
+        console.error('Google OAuth error:', err.message);
+        return res.redirect('/app?error=google_auth_failed');
       }
-
-      if (req.session.user.needsOnboarding) {
-        return res.redirect('/app?onboarding=1');
+      if (!user) {
+        console.error('Google OAuth no user:', info);
+        return res.redirect('/app?error=google_auth_failed');
       }
-      res.redirect('/app');
-    } catch(e) {
-      console.error('Google callback error:', e.message);
-      res.redirect('/app?error=google_auth_failed');
-    }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          console.error('Google login session error:', loginErr.message);
+          return res.redirect('/app?error=google_auth_failed');
+        }
+        // Store in session same way as email/password login
+        req.session.user = user;
+        console.log('✅ Google login success:', user.email, '| needsOnboarding:', user.needsOnboarding);
+        if (user.needsOnboarding) return res.redirect('/app?onboarding=1');
+        return res.redirect('/app');
+      });
+    })(req, res, next);
   }
 );
 

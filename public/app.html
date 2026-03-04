@@ -837,7 +837,7 @@ function showDashboard(user) {
   initTier(user.tier || 'free');
 
   if (user.needsOnboarding || !user.role) {
-    showNewGoogleUserPrompt(user.name);
+    showNewGoogleUserPrompt(user.name, user.email);
   } else {
     loadOverview();
   }
@@ -2055,16 +2055,15 @@ function buildJobSkeletons(n) {
 // ══════════════════════════════════════════════════════
 // NEW GOOGLE USER — ONBOARDING PROMPT
 // ══════════════════════════════════════════════════════
-function showNewGoogleUserPrompt(name) {
-  var firstName = (name||'there').split(' ')[0];
-  // Show a welcome overlay directing them to Tally form
-  var overlay = document.getElementById('googleOnboardOverlay');
-  var modal   = document.getElementById('googleOnboardModal');
-  if (overlay && modal) {
-    document.getElementById('googleOnboardName').textContent = firstName;
-    overlay.style.display = 'block';
-    modal.style.display   = 'block';
-  }
+function showNewGoogleUserPrompt(name, email) {
+  // Redirect directly to Tally form with email pre-filled
+  var tallyBase = 'https://tally.so/r/D4NpLX';
+  var params    = new URLSearchParams();
+  if (email) params.set('email', email);
+  if (name)  params.set('name',  name);
+  var tallyUrl  = tallyBase + '?' + params.toString();
+  console.log('New Google user — redirecting to Tally:', tallyUrl);
+  window.location.href = tallyUrl;
 }
 
 function hideGoogleOnboard() {

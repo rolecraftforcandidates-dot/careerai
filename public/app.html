@@ -2192,14 +2192,35 @@ function startPayment(tier) {
 }
 
 function showPaymentSuccess(tier, expiry) {
-  var el = document.getElementById('proGateModal');
+  // Hide upgrade modal first
+  hideUpgradeModal();
+
+  // Show a clean success overlay
+  var overlay = document.getElementById('proGateOverlay');
+  var modal   = document.getElementById('proGateModal');
+  var tierLabel = tier === 'premium' ? 'Premium' : 'Pro';
+  var expiryFmt = expiry ? new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '';
+
   document.getElementById('proGateIcon').textContent  = '🎉';
-  document.getElementById('proGateTitle').textContent = 'Welcome to ' + (tier==='premium'?'Premium':'Pro') + '!';
-  document.getElementById('proGateMsg').textContent   = 'Your account has been upgraded. All Pro features are now unlocked. Enjoy your prep!';
-  document.getElementById('proGateOverlay').style.display = 'block';
-  el.style.display = 'block';
-  // Reload to refresh gated content
-  setTimeout(function(){ window.location.reload(); }, 2000);
+  document.getElementById('proGateTitle').textContent = 'You're now on ' + tierLabel + '!';
+  document.getElementById('proGateMsg').textContent   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Your plan is active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard…';
+
+  // Add a "Go to Dashboard" button
+  var existingBtn = document.getElementById('paySuccessBtn');
+  if (!existingBtn) {
+    var btn = document.createElement('button');
+    btn.id = 'paySuccessBtn';
+    btn.textContent = 'Go to Dashboard →';
+    btn.style.cssText = 'margin-top:16px;padding:12px 28px;background:var(--teal);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%';
+    btn.onclick = function() { window.location.reload(); };
+    modal.appendChild(btn);
+  }
+
+  overlay.style.display = 'block';
+  modal.style.display   = 'block';
+
+  // Auto-reload after 4s so user can read the message
+  setTimeout(function(){ window.location.reload(); }, 4000);
 }
 
 function showProGate(title, message, icon) {

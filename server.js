@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express    = require('express');
-const session    = require('express-session');
+const session     = require('express-session');
+const cookieSession = require('cookie-session');
 const helmet     = require('helmet');
 const cors       = require('cors');
 const path       = require('path');
@@ -25,31 +26,31 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false })); // in
 app.set('trust proxy', 1);
 
 // ── Session ──
-// Detect if running on Railway/production (has APP_URL with https)
+// Detect production environment
 const isProduction = !!(process.env.APP_URL && process.env.APP_URL.startsWith('https'));
-console.log('🌍 Environment:', isProduction ? 'production (secure cookies)' : 'development');
+console.log('🌍 Environment:', isProduction ? 'production' : 'development');
 
-// Use file-based session store to persist sessions across requests
-const FileStore   = require('session-file-store')(session);
-const sessionStore = new FileStore({
-  path:   '/tmp/sessions',
-  ttl:    7 * 24 * 60 * 60,  // 7 days in seconds
-  retries: 1,
-  logFn:  function(){},       // suppress verbose logs
-});
-
-app.use(session({
-  store:  sessionStore,
-  secret: process.env.SESSION_SECRET || 'rolecraft-secret-2026',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure:   isProduction,
-    httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge:   7 * 24 * 60 * 60 * 1000  // 7 days
-  }
+// cookie-session: stores session data directly in signed cookie — no store needed
+app.use(cookieSession({
+  name:   'rolecraft.sess',
+  keys:   [process.env.SESSION_SECRET || 'rolecraft-secret-2026', 'rolecraft-backup-key'],
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  secure:   isProduction,
+  httpOnly: true,
+  sameSite: isProduction ? 'none' : 'lax',
 }));
+
+// Compatibility shim — passport and other middleware expect req.session
+// cookie-session is compatible but needs this for passport
+app.use(function(req, res, next) {
+  if (req.session && !req.session.regenerate) {
+    req.session.regenerate = function(cb) { cb(); };
+  }
+  if (req.session && !req.session.save) {
+    req.session.save = function(cb) { cb(); };
+  }
+  next();
+});
 
 // ── Passport / Google OAuth ──
 app.use(passport.initialize());
@@ -1746,6 +1747,18 @@ app.post('/api/onboard', async (req, res) => {
   } else {
     console.error(`❌ Onboarding failed: ${result.error}`);
   }
+});
+
+// GET /api/session-test — verify session is working
+app.get('/api/session-test', (req, res) => {
+  if (!req.session.testCount) req.session.testCount = 0;
+  req.session.testCount++;
+  res.json({
+    count:      req.session.testCount,
+    hasUser:    !!req.session.user,
+    userEmail:  req.session.user?.email || null,
+    sessionKeys: Object.keys(req.session),
+  });
 });
 
 // GET /api/onboard/ping — test that onboard endpoint is reachable

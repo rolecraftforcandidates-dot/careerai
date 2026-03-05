@@ -1947,6 +1947,81 @@ app.get('/auth/google/callback',
   }
 );
 
+// ── Razorpay Webhook — backup payment confirmation ──
+app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const secret    = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers['x-razorpay-signature'];
+
+    // Verify webhook signature if secret is set
+    if (secret) {
+      const crypto   = require('crypto');
+      const expected = crypto.createHmac('sha256', secret)
+        .update(req.body).digest('hex');
+      if (expected !== signature) {
+        console.error('❌ Razorpay webhook signature mismatch');
+        return res.status(400).json({ error: 'Invalid signature' });
+      }
+    }
+
+    const event = JSON.parse(req.body);
+    console.log('📦 Razorpay webhook:', event.event);
+
+    if (event.event === 'payment.captured') {
+      const payment = event.payload.payment.entity;
+      const email   = (payment.email || payment.notes?.email || '').toLowerCase().trim();
+      const plan    = payment.notes?.plan || 'pro_monthly';
+
+      if (!email) { console.warn('⚠️  Webhook: no email in payment'); return res.json({ ok: true }); }
+
+      const planMeta = {
+        pro_monthly:     { tier: 'pro',     months: 1  },
+        pro_yearly:      { tier: 'pro',     months: 12 },
+        premium_monthly: { tier: 'premium', months: 1  },
+        premium_yearly:  { tier: 'premium', months: 12 },
+      };
+      const meta   = planMeta[plan] || { tier: 'pro', months: 1 };
+      const expiry = new Date();
+      expiry.setMonth(expiry.getMonth() + meta.months);
+      const expiryStr = expiry.toISOString().split('T')[0];
+
+      // Update sheet
+      const sheets = getSheetsClient();
+      const raw    = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:AZ' });
+      const hdrs   = raw.data.values[0];
+      const rows   = raw.data.values.slice(1);
+      const eIdx   = hdrs.findIndex(h => h.trim() === 'Email');
+      const tIdx   = hdrs.findIndex(h => h.trim() === 'Tier');
+      const xIdx   = hdrs.findIndex(h => h.trim() === 'Tier Expiry');
+      const rowIdx = rows.findIndex(r => (r[eIdx]||'').toLowerCase() === email);
+
+      if (rowIdx === -1) { console.warn('⚠️  Webhook: user not found:', email); return res.json({ ok: true }); }
+
+      const sheetRow = rowIdx + 2;
+      const tierCol  = String.fromCharCode(65 + tIdx);
+      const xCol     = String.fromCharCode(65 + xIdx);
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: {
+          valueInputOption: 'RAW',
+          data: [
+            { range: 'Users!' + tierCol + sheetRow, values: [[meta.tier]] },
+            { range: 'Users!' + xCol   + sheetRow, values: [[expiryStr]] },
+          ]
+        }
+      });
+
+      console.log('✅ Webhook: upgraded', email, '→', meta.tier, 'until', expiryStr);
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Page routes ──
 // GET /api/ready?email=... — polling endpoint for processing page
 app.get('/api/ready', (req, res) => {
@@ -1962,8 +2037,12 @@ app.get('/api/ready', (req, res) => {
 app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 app.get('/app',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
 app.get('/welcome',     (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
-app.get('/processing',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html')));
-app.get('/index.html',  (req, res) => res.redirect('/app'));
+app.get('/processing',    (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html')));
+app.get('/privacy',       (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
+app.get('/privacy.html',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
+app.get('/refund',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'refund.html')));
+app.get('/refund.html',   (req, res) => res.sendFile(path.join(__dirname, 'public', 'refund.html')));
+app.get('/index.html',    (req, res) => res.redirect('/app'));
 app.get('*',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
 // ── Start ──

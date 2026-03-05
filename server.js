@@ -41,13 +41,18 @@ app.use(cookieSession({
 }));
 
 // Compatibility shim — passport and other middleware expect req.session
-// cookie-session is compatible but needs this for passport
 app.use(function(req, res, next) {
   if (req.session && !req.session.regenerate) {
     req.session.regenerate = function(cb) { cb(); };
   }
   if (req.session && !req.session.save) {
     req.session.save = function(cb) { cb(); };
+  }
+  if (req.session && !req.session.destroy) {
+    req.session.destroy = function(cb) {
+      req.session = null;
+      if (cb) cb();
+    };
   }
   next();
 });
@@ -408,18 +413,23 @@ app.post('/api/login', async (req, res) => {
     if (!user.Password)
       return res.status(403).json({ error: 'Account setup incomplete. Please check your email.' });
 
-    // bcrypt password comparison (passwords are hashed on creation)
-    const bcrypt  = require('bcryptjs');
+    // Password comparison — handle both bcrypt hashes and plain text (legacy)
+    const bcrypt = require('bcryptjs');
     let passwordOk = false;
-    try {
-      // Try bcrypt first (all new accounts)
-      passwordOk = await bcrypt.compare(password, user.Password);
-    } catch(e) {
-      // Fallback: plain text comparison (legacy accounts)
-      passwordOk = (user.Password === password);
+    const storedPw = user.Password || '';
+    if (storedPw.startsWith('$2a$') || storedPw.startsWith('$2b$')) {
+      // bcrypt hash — use bcrypt.compare
+      try { passwordOk = await bcrypt.compare(password, storedPw); }
+      catch(e) { passwordOk = false; }
+    } else {
+      // Plain text password (older accounts created manually)
+      passwordOk = (storedPw === password);
     }
-    if (!passwordOk)
+    if (!passwordOk) {
+      console.log('❌ Password mismatch for', email, '| isHashed:', storedPw.startsWith('$2'));
       return res.status(401).json({ error: 'Incorrect password' });
+    }
+    console.log('✅ Password verified for', email);
 
     // Store session
     const weekStarted = user['Week Started'] || todayStr();
@@ -445,9 +455,11 @@ app.post('/api/login', async (req, res) => {
       week:        parseInt(user.Week) || 1,
       weekStarted: weekStarted,
       dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7),
-      tier:        activeTier,    // 'free' | 'pro' | 'premium'
+      tier:        activeTier,
       tierExpiry:  tierExpiry,
     };
+    const sessionSize = JSON.stringify(req.session).length;
+    console.log('📦 Session set for', user.Email, '| size:', sessionSize, 'bytes | user set:', !!req.session.user);
 
     // Check if week should advance (all done OR 7 days)
     const { newWeek, weekStarted: newWS, advanced } = await checkAndAdvanceWeek(
@@ -462,6 +474,7 @@ app.post('/api/login', async (req, res) => {
       req.session.user.dayOfWeek   = 1;
     }
 
+    console.log('✅ Email login session set for', req.session.user?.email, '| keys:', Object.keys(req.session));
     res.json({ success: true, user: req.session.user });
   } catch (err) {
     console.error('Login error:', err.message);
@@ -502,7 +515,7 @@ app.get('/api/debug', async (req, res) => {
 
 // POST /api/logout
 app.post('/api/logout', (req, res) => {
-  req.session.destroy();
+  req.session = null; // cookie-session: set to null to clear
   res.json({ success: true });
 });
 
@@ -1975,17 +1988,15 @@ app.get('/auth/google/callback',
         console.error('Google OAuth no user:', info);
         return res.redirect('/app?error=google_auth_failed');
       }
-      req.logIn(user, (loginErr) => {
-        if (loginErr) {
-          console.error('Google login session error:', loginErr.message);
-          return res.redirect('/app?error=google_auth_failed');
-        }
-        // Store in session same way as email/password login
-        req.session.user = user;
-        console.log('✅ Google login success:', user.email, '| needsOnboarding:', user.needsOnboarding);
-        if (user.needsOnboarding) return res.redirect('/app?onboarding=1');
-        return res.redirect('/app');
-      });
+      // Set session directly
+      req.session.user = user;
+      console.log('✅ Google login success:', user.email, '| needsOnboarding:', user.needsOnboarding);
+      const dest = user.needsOnboarding ? '/app?onboarding=1' : '/app';
+      // Use HTML redirect instead of 302 — ensures cookie is committed before navigation
+      return res.send(`<!DOCTYPE html><html><head>
+        <meta http-equiv="refresh" content="0;url=${dest}">
+        <script>window.location.href='${dest}';</script>
+        </head><body>Redirecting...</body></html>`);
     })(req, res, next);
   }
 );

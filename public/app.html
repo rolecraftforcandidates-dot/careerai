@@ -2202,8 +2202,8 @@ function showPaymentSuccess(tier, expiry) {
   var expiryFmt = expiry ? new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '';
 
   document.getElementById('proGateIcon').textContent  = '🎉';
-  document.getElementById('proGateTitle').textContent = 'You're now on ' + tierLabel + '!';
-  document.getElementById('proGateMsg').textContent   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Your plan is active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard…';
+  document.getElementById('proGateTitle').textContent = 'You are now on ' + tierLabel + '!';
+  document.getElementById('proGateMsg').textContent   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard...';
 
   // Add a "Go to Dashboard" button
   var existingBtn = document.getElementById('paySuccessBtn');
@@ -2211,7 +2211,7 @@ function showPaymentSuccess(tier, expiry) {
     var btn = document.createElement('button');
     btn.id = 'paySuccessBtn';
     btn.textContent = 'Go to Dashboard →';
-    btn.style.cssText = 'margin-top:16px;padding:12px 28px;background:var(--teal);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%';
+    btn.style.cssText = 'margin-top:16px;padding:12px 28px;background:var(--teal);color:white;border:none;border-radius:10px;font-family:sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%';
     btn.onclick = function() { window.location.reload(); };
     modal.appendChild(btn);
   }

@@ -29,12 +29,22 @@ app.set('trust proxy', 1);
 const isProduction = !!(process.env.APP_URL && process.env.APP_URL.startsWith('https'));
 console.log('🌍 Environment:', isProduction ? 'production (secure cookies)' : 'development');
 
+// Use file-based session store to persist sessions across requests
+const FileStore   = require('session-file-store')(session);
+const sessionStore = new FileStore({
+  path:   '/tmp/sessions',
+  ttl:    7 * 24 * 60 * 60,  // 7 days in seconds
+  retries: 1,
+  logFn:  function(){},       // suppress verbose logs
+});
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'careerai-dev-secret-change-in-production',
+  store:  sessionStore,
+  secret: process.env.SESSION_SECRET || 'rolecraft-secret-2026',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure:   isProduction,   // true on Railway (HTTPS), false locally
+    secure:   isProduction,
     httpOnly: true,
     sameSite: isProduction ? 'none' : 'lax',
     maxAge:   7 * 24 * 60 * 60 * 1000  // 7 days

@@ -25,15 +25,19 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false })); // in
 app.set('trust proxy', 1);
 
 // ── Session ──
+// Detect if running on Railway/production (has APP_URL with https)
+const isProduction = !!(process.env.APP_URL && process.env.APP_URL.startsWith('https'));
+console.log('🌍 Environment:', isProduction ? 'production (secure cookies)' : 'development');
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'careerai-dev-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure:   isProduction,   // true on Railway (HTTPS), false locally
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000   // 7 days
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge:   7 * 24 * 60 * 60 * 1000  // 7 days
   }
 }));
 
@@ -374,14 +378,19 @@ async function checkAndAdvanceWeek(email, currentWeek, weekStarted, sessionRef) 
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('🔑 Login attempt:', email);
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password required' });
 
     const users = await readSheet('Users');
-    const user  = users.find(u => u.Email.toLowerCase() === email.toLowerCase().trim());
+    console.log('👥 Total users in sheet:', users.length);
+    const user  = users.find(u => (u.Email||'').toLowerCase() === email.toLowerCase().trim());
 
-    if (!user)
+    if (!user) {
+      console.log('❌ User not found:', email);
       return res.status(401).json({ error: 'No account found with this email' });
+    }
+    console.log('✅ User found:', user.Email, '| Password hash starts:', (user.Password||'').slice(0,10));
 
     // Allow login even if plan is still generating (Phase 2 may still be running)
     // Only block if account was never set up at all (no password)

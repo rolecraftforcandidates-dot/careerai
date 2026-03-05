@@ -383,11 +383,22 @@ app.post('/api/login', async (req, res) => {
     if (!user)
       return res.status(401).json({ error: 'No account found with this email' });
 
-    if (user['Plan Active'] !== 'TRUE')
-      return res.status(403).json({ error: 'Your account is not active. Please complete payment first.' });
+    // Allow login even if plan is still generating (Phase 2 may still be running)
+    // Only block if account was never set up at all (no password)
+    if (!user.Password)
+      return res.status(403).json({ error: 'Account setup incomplete. Please check your email.' });
 
-    // Simple password check (plain text — upgrade to bcrypt if desired)
-    if (user.Password !== password)
+    // bcrypt password comparison (passwords are hashed on creation)
+    const bcrypt  = require('bcryptjs');
+    let passwordOk = false;
+    try {
+      // Try bcrypt first (all new accounts)
+      passwordOk = await bcrypt.compare(password, user.Password);
+    } catch(e) {
+      // Fallback: plain text comparison (legacy accounts)
+      passwordOk = (user.Password === password);
+    }
+    if (!passwordOk)
       return res.status(401).json({ error: 'Incorrect password' });
 
     // Store session

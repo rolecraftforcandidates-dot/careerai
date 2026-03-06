@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// onboarding.js — RoleCraft Automation Engine
+// onboarding.js — RoleKraft Automation Engine
 //
 // Flow:
 //   1. POST /api/onboard  ← called by Tally webhook after form submit
@@ -28,7 +28,7 @@ function sendBrevoEmail(to, toName, subject, htmlContent) {
     }
 
     const fromEmail = process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER;
-    const fromName  = 'RoleCraft';
+    const fromName  = 'RoleKraft';
 
     const payload = JSON.stringify({
       sender:   { name: fromName, email: fromEmail },
@@ -70,7 +70,7 @@ function sendBrevoEmail(to, toName, subject, htmlContent) {
 // ── Generate a simple default password ──
 function generatePassword(name) {
   const clean = (name || 'User').split(' ')[0];
-  return `${clean}@RoleCraft1`;
+  return `${clean}@RoleKraft1`;
 }
 
 // ══════════════════════════════════════════════════════
@@ -97,7 +97,7 @@ function buildFastPrompt(name, role, experience, techStack, resumeText) {
 function buildPrompt(name, email, role, experience, techStack, resumeText) {
   return `You are an expert career coach and interview trainer specialising in tech roles in India.
 
-A new user has signed up for RoleCraft — a 30-day personalised interview preparation programme.
+A new user has signed up for RoleKraft — a 30-day personalised interview preparation programme.
 
 USER DETAILS:
 - Name: ${name}
@@ -137,7 +137,7 @@ RULES FOR TASKS:
 - Week 1: Foundation building — theory, core concepts, fundamentals for ${role}
 - Week 2: Technical depth — hands-on practice, ${techStack} specifics, build something
 - Week 3: Interview practice — mock answers, system design, problem solving drills
-- Week 4: Final readiness — full mock interviews, confidence, polish weak areas
+- Week 4: Final readiness — polish weak areas, confidence building, final preparation
 - Spread Types across the week: roughly 3 Theory, 2 Practice, 2 Mock per week
 - Type must be exactly one of: Theory / Practice / Mock
 - Make tasks highly specific to ${role} and ${techStack} — not generic filler
@@ -335,7 +335,7 @@ async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
   }
 
   const firstName = (name || 'there').split(' ')[0];
-  const subject   = `Your RoleCraft dashboard is ready, ${firstName}! 🚀`;
+  const subject   = `Your RoleKraft dashboard is ready, ${firstName}! 🚀`;
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
     <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">
       <div style="font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:6px">ROLECRAFT</div>
@@ -343,7 +343,7 @@ async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
     </div>
     <div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">
       <p style="font-size:18px;font-weight:700;margin-bottom:8px">Hi ${firstName}! 👋</p>
-      <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Claude AI has generated your complete 4-week plan, 12 interview questions, and resume analysis.</p>
+      <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Your complete 4-week plan, 12 interview questions, and resume analysis are all set.</p>
       <div style="background:#e6f7f3;border-radius:10px;padding:18px;margin-bottom:20px;border-left:4px solid #00b38a">
         <div style="font-size:12px;color:#007a5e;font-weight:700;letter-spacing:2px;margin-bottom:10px">YOUR LOGIN DETAILS</div>
         <div style="margin-bottom:6px"><strong>Dashboard:</strong> <a href="${dashboardUrl}" style="color:#5048e5">${dashboardUrl}</a></div>
@@ -360,7 +360,7 @@ async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
       <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  Resume ATS analysis with improvement tips</div>
       <div style="font-size:13px;color:#6b6b8a">✅  AI scoring on your submitted answers</div>
     </div>
-    <div style="text-align:center;margin-top:20px;font-size:12px;color:#9999bb">Questions? Reply to this email. — Team RoleCraft</div>
+    <div style="text-align:center;margin-top:20px;font-size:12px;color:#9999bb">Questions? Reply to this email. — Team RoleKraft</div>
   </div>`;
 
   await sendBrevoEmail(email, firstName, subject, html);

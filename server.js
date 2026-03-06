@@ -183,13 +183,13 @@ async function uploadToDrive(buffer, filename, mimetype, email) {
   const drive = getDriveClient();
   const { Readable } = require('stream');
 
-  // Get or create a 'RoleCraft Resumes' folder
+  // Get or create a 'RoleKraft Resumes' folder
   let folderId = process.env.DRIVE_RESUME_FOLDER_ID || null;
 
   if (!folderId) {
     // Check if folder exists
     const folderSearch = await drive.files.list({
-      q: "name='RoleCraft Resumes' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      q: "name='RoleKraft Resumes' and mimeType='application/vnd.google-apps.folder' and trashed=false",
       fields: 'files(id)',
     });
     if (folderSearch.data.files.length > 0) {
@@ -197,11 +197,11 @@ async function uploadToDrive(buffer, filename, mimetype, email) {
     } else {
       // Create it
       const folder = await drive.files.create({
-        requestBody: { name: 'RoleCraft Resumes', mimeType: 'application/vnd.google-apps.folder' },
+        requestBody: { name: 'RoleKraft Resumes', mimeType: 'application/vnd.google-apps.folder' },
         fields: 'id',
       });
       folderId = folder.data.id;
-      console.log('📁 Created RoleCraft Resumes folder:', folderId);
+      console.log('📁 Created RoleKraft Resumes folder:', folderId);
     }
   }
 
@@ -302,7 +302,7 @@ function requirePro(req, res, next) {
   if (!isPro(req.session.user)) {
     return res.status(403).json({
       error: 'pro_required',
-      message: 'This feature requires RoleCraft Pro. Upgrade to unlock unlimited access.',
+      message: 'This feature requires RoleKraft Pro. Upgrade to unlock unlimited access.',
     });
   }
   next();
@@ -1740,7 +1740,7 @@ app.post('/api/onboard', async (req, res) => {
           // sendBrevoEmail may not be exported — use direct API call
           const https2 = require('https');
           const payload2 = JSON.stringify({
-            sender: { name: 'RoleCraft', email: process.env.BREVO_SENDER_EMAIL || 'noreply@rolecraft.ai' },
+            sender: { name: 'RoleKraft', email: process.env.BREVO_SENDER_EMAIL || 'noreply@rolecraft.ai' },
             to: [{ email: wd.email, name: wd.name }],
             subject: firstName + ', your resume scored ' + score + '/100 — see your full plan',
             htmlContent: emailHtml,

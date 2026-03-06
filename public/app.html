@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<title>RoleCraft — Dashboard</title>
+<title>RoleKraft — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -290,7 +290,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
     <div class="login-orb"></div>
     <div class="login-orb"></div>
     <div class="login-card">
-      <div class="login-logo">Role<span>Craft</span></div>
+      <div class="login-logo" style="display:flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="30" height="30" style="display:inline-block;vertical-align:middle;margin-right:6px"><defs><linearGradient id="rkc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient><linearGradient id="rkp" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#5048e5"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs><path d="M15 17 Q15 11 20 11 L28 11 Q33 11 33 17" fill="none" stroke="url(#rkc)" stroke-width="3.5" stroke-linecap="round"/><rect x="6" y="18" width="36" height="26" rx="6" fill="url(#rkc)"/><rect x="18" y="27" width="12" height="9" rx="3" fill="white" opacity="0.28"/><polygon points="45,3 18,26 26,29" fill="url(#rkp)" opacity="0.92"/><polygon points="45,3 23,43 26,29" fill="white" opacity="0.42"/><polygon points="45,3 26,29 32,22" fill="url(#rkp)" opacity="0.5"/></svg><span style="font-family:'Bebas Neue',cursive;font-size:2rem;letter-spacing:2px;background:linear-gradient(90deg,#00b38a,#5048e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ROLEKRAFT</span></div>
       <div class="login-title">Welcome back</div>
       <div class="login-sub">Sign in to your personalised dashboard</div>
       <div class="login-error" id="loginError"></div>
@@ -326,7 +326,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 <div class="dashboard" id="dashboard">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo"><span class="logo-t">Role</span><span class="logo-d">Craft</span></div>
+    <div class="sidebar-logo" style="display:flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="30" height="30" style="display:inline-block;vertical-align:middle;margin-right:6px"><defs><linearGradient id="rkc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient><linearGradient id="rkp" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#5048e5"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs><path d="M15 17 Q15 11 20 11 L28 11 Q33 11 33 17" fill="none" stroke="url(#rkc)" stroke-width="3.5" stroke-linecap="round"/><rect x="6" y="18" width="36" height="26" rx="6" fill="url(#rkc)"/><rect x="18" y="27" width="12" height="9" rx="3" fill="white" opacity="0.28"/><polygon points="45,3 18,26 26,29" fill="url(#rkp)" opacity="0.92"/><polygon points="45,3 23,43 26,29" fill="white" opacity="0.42"/><polygon points="45,3 26,29 32,22" fill="url(#rkp)" opacity="0.5"/></svg><span style="font-family:'Bebas Neue',cursive;font-size:1.4rem;letter-spacing:2px;background:linear-gradient(90deg,#00b38a,#5048e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ROLEKRAFT</span></div>
     <div class="sidebar-user">
       <div class="user-avatar" id="userAvatar">?</div>
       <div>
@@ -2161,7 +2161,7 @@ function startPayment(tier) {
       key:         d.keyId,
       amount:      d.amount,
       currency:    d.currency,
-      name:        'RoleCraft',
+      name:        'RoleKraft',
       description: d.planLabel,
       order_id:    d.orderId,
       prefill:     { email: d.email, name: d.name },
@@ -2232,7 +2232,7 @@ function showPaymentSuccess(tier, expiry) {
 function showProGate(title, message, icon) {
   document.getElementById('proGateIcon').textContent  = icon  || '⚡';
   document.getElementById('proGateTitle').textContent = title || 'Pro Feature';
-  document.getElementById('proGateMsg').textContent   = message || 'Upgrade to RoleCraft Pro to unlock this feature.';
+  document.getElementById('proGateMsg').textContent   = message || 'Upgrade to RoleKraft Pro to unlock this feature.';
   document.getElementById('proGateOverlay').style.display = 'block';
   document.getElementById('proGateModal').style.display   = 'block';
 }
@@ -2336,7 +2336,7 @@ function changePassword() {
   <!-- Header -->
   <div style="text-align:center;margin-bottom:24px">
     <div style="font-size:2.2rem;margin-bottom:8px">⚡</div>
-    <div style="font-size:1.4rem;font-weight:800;margin-bottom:6px">Upgrade to RoleCraft Pro</div>
+    <div style="font-size:1.4rem;font-weight:800;margin-bottom:6px">Upgrade to RoleKraft Pro</div>
     <div style="font-size:0.88rem;color:var(--muted)">Unlock unlimited AI coaching and land your dream role faster</div>
   </div>
 
@@ -2364,7 +2364,7 @@ function changePassword() {
   <div style="margin-bottom:20px">
     <div style="border:2px solid var(--teal);border-radius:14px;padding:22px;position:relative;text-align:center">
       <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-size:0.65rem;font-weight:700;padding:3px 14px;border-radius:100px;white-space:nowrap">UNLOCK EVERYTHING</div>
-      <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">RoleCraft Pro</div>
+      <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">RoleKraft Pro</div>
       <div id="proPrice" style="font-size:2rem;font-weight:900;color:var(--teal)">₹499<span style="font-size:0.8rem;color:var(--muted);font-weight:400">/mo</span></div>
       <div id="proNote" style="font-size:0.75rem;color:var(--muted);margin-bottom:6px">billed monthly</div>
       <div style="font-size:0.72rem;color:var(--green);margin-bottom:18px" id="proYearlyNote"></div>
@@ -2389,7 +2389,7 @@ function changePassword() {
 <div id="proGateModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;max-width:92vw;background:var(--card);border-radius:18px;z-index:301;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:28px 24px;text-align:center">
   <div style="font-size:2rem;margin-bottom:10px" id="proGateIcon">⚡</div>
   <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px" id="proGateTitle">Pro Feature</div>
-  <div style="font-size:0.86rem;color:var(--muted);line-height:1.6;margin-bottom:20px" id="proGateMsg">Upgrade to RoleCraft Pro to unlock this feature.</div>
+  <div style="font-size:0.86rem;color:var(--muted);line-height:1.6;margin-bottom:20px" id="proGateMsg">Upgrade to RoleKraft Pro to unlock this feature.</div>
   <button onclick="hideProGate();showUpgradeModal()" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:10px">⚡ Upgrade to Pro →</button>
   <button onclick="hideProGate()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Not now</button>
 </div>

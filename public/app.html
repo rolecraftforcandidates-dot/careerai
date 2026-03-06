@@ -1868,16 +1868,6 @@ var _jobsLoading  = false;
 var _jobsScoring  = {}; // track which jobs are being scored
 
 function loadJobs(forceRefresh) {
-  if (_userTier === 'free') {
-    document.getElementById('jobsContainer').innerHTML =
-      '<div style="text-align:center;padding:48px 24px">' +
-      '<div style="font-size:2.5rem;margin-bottom:12px">💼</div>' +
-      '<div style="font-weight:800;font-size:1.1rem;margin-bottom:8px">Jobs For You — Pro Feature</div>' +
-      '<div style="color:var(--muted);font-size:0.88rem;margin-bottom:20px;max-width:320px;margin-left:auto;margin-right:auto">Live job listings matched to your role and profile are available on Pro and Premium plans.</div>' +
-      '<button onclick="showUpgradeModal()" style="padding:12px 28px;border:none;border-radius:10px;background:var(--teal);color:#fff;font-family:sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer">Upgrade to Pro →</button>' +
-      '</div>';
-    return;
-  }
   if (_jobsLoading) return;
   if (_jobsCache && !forceRefresh) { sortAndRenderJobs(); return; }
   _jobsCache = null; // clear on force refresh
@@ -1972,7 +1962,13 @@ function buildJobCardHtml(job, i, sc, scCol, scLbl){
     '<div class="job-match-circle" style="border-color:'+scCol+';background:'+scCol+'12"><div class="job-match-num" style="color:'+scCol+'">'+sc+'</div><div class="job-match-lbl" style="color:'+scCol+'">'+scLbl+'</div></div></div>'+
     '<div class="job-meta"><div class="job-meta-pill">&#128205; '+escHtml(job.location||'India')+'</div><div class="job-meta-pill">&#128176; '+salary+'</div>'+(timeStr?'<div class="job-meta-pill">&#128336; '+timeStr+'</div>':'')+'<div class="job-meta-pill">&#127970; '+escHtml(job.contractType||'Full-time')+'</div></div>'+
     (kwHtml?'<div class="job-keywords">'+kwHtml+'</div>':'')+
-    '<div class="job-actions"><button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button><a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job ↗</a></div>'+
+    '<div class="job-actions">' +
+    (_userTier === 'free'
+      ? '<button class="job-btn-primary" onclick="showProGate(&quot;Analyse Match&quot;,&quot;Upgrade to Pro to run AI match analysis.&quot;,&quot;🎯&quot;)" style="opacity:0.6">🔒 Analyse Match</button>' +
+        '<button class="job-btn-secondary" onclick="showProGate(&quot;View Job&quot;,&quot;Upgrade to Pro to view listings and apply.&quot;,&quot;💼&quot;)" style="opacity:0.6;cursor:pointer;border:none;background:var(--bg);display:flex;align-items:center">🔒 View Job</button>'
+      : '<button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button><a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job ↗</a>'
+    ) +
+    '</div>'+
     '<div class="job-scoring-inline" id="jscoring-'+i+'"></div></div>';
 }
 

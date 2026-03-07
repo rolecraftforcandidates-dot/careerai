@@ -34,32 +34,54 @@ async function extractResumeInfo(resumeText, emailHint) {
 
   try {
     const client = getAnthropicClient();
-    const prompt = `Extract the following from this resume text. Return ONLY raw JSON, no markdown, no explanation.
+    const currentYear = new Date().getFullYear();
+    const prompt = `You are extracting structured data from a resume. Return ONLY raw JSON, no markdown, no explanation.
 
 Resume text:
-${resumeText.slice(0, 3000)}
+${resumeText.slice(0, 4000)}
 
 Return exactly this JSON:
 {
-  "name": "full name from resume top",
-  "techStack": "comma-separated list of technical skills, languages, frameworks, tools (max 10)",
-  "experienceYears": 3
+  "name": "full name",
+  "techStack": "comma-separated tech skills",
+  "experienceYears": 15,
+  "workHistory": [
+    { "company": "Company Name", "from": "Jul 2010", "to": "Present" }
+  ]
 }
 
-Rules:
-- name: The person's full name, usually at the very top of resume. If unclear, return "${(emailHint||'').split('@')[0]}".
-- techStack: Extract only real tech skills (e.g. Python, React, AWS, SQL, Docker). Not soft skills. Not job titles.
-- experienceYears: Calculate total years of professional work experience from employment dates. Return a number only. If fresher/student return 0. If unclear return 2.
+Rules for name:
+- The candidate's full name is almost always the very first line of the resume (before email/phone)
+- Return it exactly as written
+
+Rules for techStack:
+- List only hard technical skills: languages, frameworks, cloud services, databases, tools
+- No soft skills, no job titles, no certifications
+- Maximum 12 items, comma separated
+
+Rules for experienceYears — THIS IS CRITICAL, READ CAREFULLY:
+- List ALL jobs in workHistory with their from/to dates
+- experienceYears = sum of ALL work periods across ALL jobs (not just the most recent)
+- "Present" or "current" = ${currentYear}
+- Calculate months for each role, sum them all, convert to years (round to nearest whole number)
+- Example: if someone worked Jul 2010 to Dec 2010 (6 months), then Jun 2014 to Aug 2015 (15 months), then Sep 2015 to present = sum all of these
+- Do NOT just take the most recent start date and subtract from today
+- Do NOT assume overlapping roles — treat each role separately
+
 Return ONLY the JSON object.`;
 
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
+      max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const raw = (response.content[0]?.text || '').trim().replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(raw);
+
+    // Log workHistory for debugging
+    console.log('📅 Work history extracted:', JSON.stringify(parsed.workHistory || []));
+    console.log('📊 Raw experienceYears from Claude:', parsed.experienceYears);
 
     // Map experienceYears number → band string
     const yrs = parseInt(parsed.experienceYears) || 0;
@@ -70,10 +92,12 @@ Return ONLY the JSON object.`;
     else if (yrs <= 10) expBand = 'Senior';
     else                expBand = 'Lead';
 
+    console.log(`✅ Extracted — Name: ${parsed.name} | Tech: ${parsed.techStack} | Exp: ${yrs} yrs (${expBand})`);
+
     return {
-      name:       (parsed.name || '').trim() || (emailHint||'').split('@')[0],
-      techStack:  (parsed.techStack || '').trim(),
-      experience: expBand,
+      name:            (parsed.name || '').trim() || (emailHint||'').split('@')[0],
+      techStack:       (parsed.techStack || '').trim(),
+      experience:      expBand,
       experienceYears: yrs,
     };
   } catch(e) {
@@ -613,30 +637,23 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       return result;
     }
 
-    // 3. Fetch resume text
+    // ── PHASE 1: Fetch resume text + fast ATS preview only ──
+    // Goal: show welcome page to user as fast as possible
+    // extractResumeInfo is NOT called here — it belongs in Phase 2
     const resumeText = await fetchResumeText(resumeUrl);
 
-    // 3b. Extract name, techStack, experience from resume (runs in parallel with nothing yet)
-    //     Use Tally-provided values as fallback if user's old form still sends them
-    console.log('🔍 Extracting info from resume...');
-    const extracted = await extractResumeInfo(resumeText, email);
-
-    const resolvedName       = name       || extracted.name;
-    const resolvedTechStack  = techStack  || extracted.techStack  || role;
-    const resolvedExperience = experience || extracted.experience || 'Mid';
-    const resolvedExpYears   = extracted.experienceYears ?? 2;
-
-    const displayName = resolvedName || email.split('@')[0];
+    // Use email prefix as temp display name for welcome page
+    // Real name will be extracted from resume in Phase 2 and updated in sheet
+    const tempName    = name || emailPrefix;
+    const displayName = tempName || email.split('@')[0];
     const password    = generatePassword(displayName);
 
-    console.log(`📋 Resolved — Name: ${displayName} | Tech: ${resolvedTechStack} | Exp: ${resolvedExperience} (${resolvedExpYears} yrs)`);
-
-    // ── PHASE 1: Fast ATS preview — Haiku with minimal prompt ──
     const t1 = Date.now();
     let fastPreview = null;
     try {
-      fastPreview = await generateFastPreview(displayName, role, resolvedExperience, resolvedTechStack, resumeText);
-      console.log('⚡ Phase 1 took', Date.now() - t1, 'ms');
+      // Phase 1 prompt only needs role + resume text — no tech/exp needed for ATS score
+      fastPreview = await generateFastPreview(displayName, role, 'Mid', role, resumeText);
+      console.log('⚡ Phase 1 ATS preview took', Date.now() - t1, 'ms');
     } catch(e) {
       console.error('Phase 1 fast preview failed:', e.message);
       fastPreview = {
@@ -647,64 +664,45 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       };
     }
 
-    // Write user row immediately with all resolved info
-    await writeBasicUser(sheets, sheetId, displayName, email, password, role, resolvedExperience, resolvedTechStack, resolvedExpYears, fastPreview);
-    console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms total — welcome page ready');
+    // Write basic user row — tech/exp/name will be updated after Phase 2 extraction
+    await writeBasicUser(sheets, sheetId, displayName, email, password, role, 'Mid', '', null, fastPreview);
+    console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms — welcome page ready');
 
-    // Surface Phase 1 result immediately
+    // Surface Phase 1 result to welcome page immediately
     result.success     = true;
     result.phase1Ready = true;
     result.welcomeData = {
-      name:            displayName,
+      name:     displayName,
       email,
       role,
-      techStack:       resolvedTechStack,
-      experience:      resolvedExperience,
-      experienceYears: resolvedExpYears,
       atsScore:        fastPreview.atsScore,
       atsTips:         fastPreview.atsTips,
       keyStrengths:    fastPreview.keyStrengths    || [],
       missingKeywords: fastPreview.missingKeywords || [],
-      taskCount:       28,
-      qCount:          12,
-      planReady:       false, // plan still generating
+      taskCount: 28,
+      qCount:    12,
+      planReady: false,
     };
 
-    // Send welcome email immediately with credentials
+    // Send welcome email immediately (uses temp name — good enough)
     const dashboardUrl = (process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app') + '/app';
     try {
-      await sendWelcomeEmail(displayName, email, password, role, resolvedTechStack, resolvedExperience, dashboardUrl);
+      await sendWelcomeEmail(displayName, email, password, role, '', 'Mid', dashboardUrl);
     } catch(emailErr) {
       console.error('Welcome email failed:', emailErr.message);
     }
 
-    // ── PHASE 2: Full plan generation (background, ~30s) ──
-    // This runs after we return — dashboard will be ready by the time user logs in
-    // Phase 2 fires immediately but doesn't block Phase 1 return
-    const t2 = Date.now();
-    setImmediate(async () => {
-      try {
-        console.log('🔄 Phase 2 starting for', email);
-        const generated = await generateWithClaude(displayName, email, role, resolvedExperience, resolvedTechStack, resumeText);
-        await writeFullPlan(getSheetsClientFn(), sheetId, email, generated);
-        await updatePlanActive(getSheetsClientFn(), sheetId, email);
-        console.log('✅ Phase 2 complete in', Math.round((Date.now()-t2)/1000), 's for', email);
-      } catch(e) {
-        console.error('Phase 2 failed for', email, ':', e.message);
-        // Retry once
-        setTimeout(async () => {
-          try {
-            console.log('🔁 Phase 2 retry for', email);
-            const gen2 = await generateWithClaude(displayName, email, role, resolvedExperience, resolvedTechStack, resumeText);
-            await writeFullPlan(getSheetsClientFn(), sheetId, email, gen2);
-            await updatePlanActive(getSheetsClientFn(), sheetId, email);
-            console.log('✅ Phase 2 retry succeeded for', email);
-          } catch(e2) { console.error('Phase 2 retry also failed:', e2.message); }
-        }, 10000);
-      }
+    // ── PHASE 2 is now triggered on-demand ──
+    // triggerPhase2() is called by /api/trigger-plan when user clicks "Go to Dashboard"
+    // Store resumeText + context so triggerPhase2 can use it
+    pendingPhase2.set(email.toLowerCase(), {
+      resumeText, role,
+      tallyName: name, tallyTech: techStack, tallyExp: experience,
+      displayName, getSheetsClientFn, sheetId,
+      createdAt: Date.now(),
     });
+    console.log(`⏸️  Phase 2 queued for ${email} — waiting for user to click dashboard button`);
 
-    // Skip the old monolithic flow below — return early
     return result;
 
   } catch (err) {
@@ -742,6 +740,44 @@ async function writeBasicUser(sheets, sheetId, name, email, password, role, expe
     ]]}
   });
   console.log('✅ Basic user row created for', email, '| Tech:', techStack, '| Exp:', experience, experienceYears + 'yrs');
+}
+
+// ── Update user row with extracted resume info after Phase 2 extraction ──
+async function updateUserExtractedInfo(sheets, sheetId, email, name, techStack, experience, experienceYears) {
+  try {
+    // Find the user's row number in the sheet
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'Users!A:A',
+    });
+    const rows = resp.data.values || [];
+    const rowIndex = rows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+    if (rowIndex === -1) {
+      console.warn('⚠️  updateUserExtractedInfo: user row not found for', email);
+      return;
+    }
+    const sheetRow = rowIndex + 1; // 1-indexed
+
+    // Update B (Name), E (Experience), O (Tech Stack), P (Experience Years)
+    const updates = [
+      { range: `Users!B${sheetRow}`, values: [[name]] },
+      { range: `Users!E${sheetRow}`, values: [[experience]] },
+      { range: `Users!O${sheetRow}`, values: [[techStack || '']] },
+      { range: `Users!P${sheetRow}`, values: [[String(experienceYears ?? '')]] },
+    ];
+
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: updates,
+      },
+    });
+    console.log(`✅ User row updated — Name: ${name} | Exp: ${experience} | Tech: ${techStack} | Years: ${experienceYears}`);
+  } catch(e) {
+    console.error('updateUserExtractedInfo failed:', e.message);
+    // Non-critical — plan generation continues even if this fails
+  }
 }
 
 // ── Write full plan tasks + questions (Phase 2) ──
@@ -788,4 +824,70 @@ async function updatePlanActive(sheets, sheetId, email) {
   }
 }
 
-module.exports = { runOnboarding, parseTallyPayload };
+// ══════════════════════════════════════════════════════
+// PENDING PHASE 2 STORE
+// Holds resumeText + context for users who haven't clicked dashboard yet
+// ══════════════════════════════════════════════════════
+const pendingPhase2 = new Map();
+
+// ══════════════════════════════════════════════════════
+// triggerPhase2 — called by /api/trigger-plan when user clicks "Go to Dashboard"
+// ══════════════════════════════════════════════════════
+async function triggerPhase2(email, getSheetsClientFn, sheetId) {
+  const key     = email.toLowerCase();
+  const pending = pendingPhase2.get(key);
+
+  if (!pending) {
+    console.warn(`⚠️  triggerPhase2: no pending data for ${email} — may have already run or expired`);
+    return;
+  }
+
+  // Remove from pending immediately to prevent double-run
+  pendingPhase2.delete(key);
+
+  const { resumeText, role, tallyName, tallyTech, tallyExp, displayName } = pending;
+  const t2 = Date.now();
+
+  const runPhase2 = async () => {
+    console.log('🔄 Phase 2 starting for', email);
+
+    // Step 1: Extract name, tech stack, experience from resume
+    console.log('🔍 Extracting resume info...');
+    const extracted = await extractResumeInfo(resumeText, email);
+
+    const resolvedName       = tallyName || extracted.name       || displayName;
+    const resolvedTechStack  = tallyTech || extracted.techStack  || role;
+    const resolvedExperience = tallyExp  || extracted.experience || 'Mid';
+    const resolvedExpYears   = extracted.experienceYears ?? 2;
+
+    console.log(`📋 Extracted — Name: ${resolvedName} | Tech: ${resolvedTechStack} | Exp: ${resolvedExperience} (${resolvedExpYears} yrs)`);
+
+    // Step 2: Update user row with real name, tech, experience
+    await updateUserExtractedInfo(getSheetsClientFn(), sheetId, email, resolvedName, resolvedTechStack, resolvedExperience, resolvedExpYears);
+
+    // Step 3: Generate full 4-week plan using accurate tech + experience
+    const generated = await generateWithClaude(resolvedName, email, role, resolvedExperience, resolvedTechStack, resumeText);
+    await writeFullPlan(getSheetsClientFn(), sheetId, email, generated);
+    await updatePlanActive(getSheetsClientFn(), sheetId, email);
+
+    console.log('✅ Phase 2 complete in', Math.round((Date.now() - t2) / 1000), 's for', email);
+  };
+
+  try {
+    await runPhase2();
+  } catch(e) {
+    console.error('Phase 2 failed for', email, ':', e.message);
+    // Retry once after 10s
+    setTimeout(async () => {
+      try {
+        console.log('🔁 Phase 2 retry for', email);
+        await runPhase2();
+        console.log('✅ Phase 2 retry succeeded for', email);
+      } catch(e2) {
+        console.error('Phase 2 retry also failed for', email, ':', e2.message);
+      }
+    }, 10000);
+  }
+}
+
+module.exports = { runOnboarding, parseTallyPayload, triggerPhase2 };

@@ -1661,6 +1661,35 @@ app.get('/api/welcome/:token', async (req, res) => {
   res.json(data);
 });
 
+// POST /api/trigger-plan — called when user clicks "Go to Dashboard" on welcome page
+// This is what actually kicks off Phase 2 (plan generation)
+app.post('/api/trigger-plan', async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) return res.status(400).json({ error: 'No token' });
+
+  const welcomeData = welcomeTokens.get(token);
+  if (!welcomeData) return res.status(404).json({ error: 'Token not found or expired' });
+
+  const { email } = welcomeData;
+  if (!email) return res.status(400).json({ error: 'No email in token' });
+
+  // Prevent double-triggering
+  if (welcomeData.planTriggered) {
+    console.log(`ℹ️  Plan already triggered for ${email} — skipping`);
+    return res.json({ ok: true, alreadyTriggered: true });
+  }
+  welcomeData.planTriggered = true;
+
+  console.log(`🚀 Plan generation triggered by user click for ${email}`);
+  res.json({ ok: true });
+
+  // Run Phase 2 in background
+  const { triggerPhase2 } = require('./onboarding');
+  triggerPhase2(email, getSheetsClient, SHEET_ID)
+    .then(() => console.log(`✅ Phase 2 complete for ${email}`))
+    .catch(e => console.error(`❌ Phase 2 failed for ${email}:`, e.message));
+});
+
 // POST /api/onboard — Tally webhook → Claude → Sheets → Email
 // ══════════════════════════════════════════════════════
 app.post('/api/onboard', async (req, res) => {

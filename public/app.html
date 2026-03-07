@@ -1455,36 +1455,56 @@ function loadQuestions() {
       var freeAiUsed  = scoredCount; // how many AI scores already consumed
       var freeAiLimit = 3;
       var freeAiLeft  = Math.max(0, freeAiLimit - freeAiUsed);
+      var isFree      = _userTier === 'free';
 
       document.getElementById('questionsContent').innerHTML=
-        // Show free tier banner if not pro
-        (_userTier==='free' ? '<div style="background:linear-gradient(135deg,rgba(80,72,229,0.12),rgba(0,179,138,0.08));border:1px solid rgba(80,72,229,0.2);border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">'+
-          '<div><div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">&#128274; AI Analysis — Free Plan</div>'+
-          '<div style="font-size:0.78rem;color:var(--muted)">'+freeAiLeft+' of '+freeAiLimit+' free AI scores remaining · <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade for all 28</a></div></div>'+
-          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Upgrade &#8599;</button>'+
-          '</div>' : '') +
+        // Free tier info banner — shown above all questions
+        (isFree ? '<div style="background:linear-gradient(135deg,rgba(80,72,229,0.10),rgba(0,179,138,0.06));border:1px solid rgba(80,72,229,0.18);border-radius:12px;padding:13px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">'+
+          '<div>'+
+            '<div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">&#129302; AI Scoring — Free Plan</div>'+
+            '<div style="font-size:0.78rem;color:var(--muted)">'+
+              (freeAiLeft > 0
+                ? freeAiLeft+' of '+freeAiLimit+' free AI scores remaining — all questions visible'
+                : 'Free AI scores used up — answer boxes locked')+
+              ' &nbsp;·&nbsp; <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade for unlimited &#8599;</a>'+
+            '</div>'+
+          '</div>'+
+          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Upgrade</button>'+
+        '</div>' : '') +
         qs.map(function(q,i){
-          var sub=q.Submitted==='TRUE';
-          var alreadyScored = sub && q.Score && q.Score!=='';
-          var tc=q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
-          var sc=q.Score?' - Score: '+q.Score+'/100':'';
-          // For free users: questions beyond the 3 free limit are locked (if not already submitted)
-          var isLocked = _userTier==='free' && !sub && freeAiUsed >= freeAiLimit;
-          return '<div class="question-card" id="qcard-'+i+'" style="'+(isLocked?'opacity:0.7;':'')+'">'+ 
-            '<div class="q-meta"><span class="badge '+tc+'">'+(q.Type||'')+'</span><span class="q-num">Week '+wk+' - '+(q['Q No.']||'')+'</span>'+
-            (sub?'<span class="submitted-badge">&#10003; Submitted'+sc+'</span>':'')+(isLocked?'<span style="font-size:0.72rem;background:rgba(80,72,229,0.15);color:var(--purple);padding:3px 8px;border-radius:6px;font-weight:600">&#128274; Pro</span>':'')+
-            '</div><div class="q-text">'+(q.Question||'')+'</div>'+
-            (sub&&q['AI Feedback']?'<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>':'')+
-            (!sub && !isLocked?'<div class="q-hint">&#128161; Use STAR format - Situation, Task, Action, Result. Aim for 150-250 words.</div>'+
-              '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."></textarea>'+
-              '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>':
-              isLocked?'<div style="background:rgba(80,72,229,0.08);border-radius:10px;padding:14px 16px;margin-top:10px;text-align:center">'+
-                '<div style="font-size:1.3rem;margin-bottom:6px">&#128274;</div>'+
-                '<div style="font-size:0.82rem;font-weight:600;color:var(--purple);margin-bottom:4px">Pro Feature</div>'+
-                '<div style="font-size:0.76rem;color:var(--muted);margin-bottom:10px">You\'ve used your 3 free AI scores. Upgrade to unlock all 28.</div>'+
-                '<button onclick="showUpgradeModal()" style="padding:7px 16px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Unlock All Questions &#8599;</button>'+
-                '</div>':'')+
-            '</div>';
+          var sub        = q.Submitted === 'TRUE';
+          var hasScore   = sub && q.Score && q.Score !== '';
+          var tc         = q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
+          var sc         = q.Score ? ' — Score: '+q.Score+'/100' : '';
+          // AI submit locked only when: free user, not yet submitted, and used up 3 free scores
+          var aiLocked   = isFree && !sub && freeAiUsed >= freeAiLimit;
+
+          return '<div class="question-card" id="qcard-'+i+'">' +
+            // Header row: type badge, Q number, submitted badge
+            '<div class="q-meta">'+
+              '<span class="badge '+tc+'">'+(q.Type||'')+'</span>'+
+              '<span class="q-num">Week '+wk+' — '+(q['Q No.']||'')+'</span>'+
+              (sub ? '<span class="submitted-badge">&#10003; Submitted'+sc+'</span>' : '')+
+              (aiLocked ? '<span style="font-size:0.72rem;background:rgba(80,72,229,0.13);color:var(--purple);padding:3px 9px;border-radius:6px;font-weight:600;margin-left:6px">&#128274; Pro</span>' : '')+
+            '</div>'+
+            // Question text — always visible
+            '<div class="q-text">'+(q.Question||'')+'</div>'+
+            // AI feedback if already scored
+            (hasScore && q['AI Feedback'] ? '<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>' : '')+
+            // Answer area — always show textarea, but lock submit button if free limit hit
+            (!sub ?
+              '<div class="q-hint">&#128161; Use STAR format — Situation, Task, Action, Result. Aim for 150–250 words.</div>'+
+              '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."'+(aiLocked?' disabled style="opacity:0.45;cursor:not-allowed"':'')+'>'+
+              '</textarea>'+
+              (aiLocked ?
+                '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">'+
+                  '<div style="font-size:0.78rem;color:var(--purple)"><strong>&#128274; AI Scoring locked</strong> — you\'ve used your 3 free scores</div>'+
+                  '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade &#8599;</button>'+
+                '</div>' :
+                '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>'
+              ) : ''
+            )+
+          '</div>';
         }).join('');
     }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
 }

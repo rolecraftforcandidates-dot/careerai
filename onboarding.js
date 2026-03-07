@@ -621,11 +621,46 @@ async function fetchResumeText(resumeUrl) {
     const http    = require('http');
     const { URL } = require('url');
 
-    // We just send the URL to Claude — Claude can read text from it
-    // For now return the URL so Claude knows a resume exists
-    return `[Resume uploaded — URL: ${resumeUrl}]`;
+    // Download the file buffer from the Tally-hosted URL
+    const buffer = await new Promise((resolve, reject) => {
+      const parsed = new URL(resumeUrl);
+      const client = parsed.protocol === 'https:' ? https : http;
+      const chunks = [];
+      const req = client.get(resumeUrl, { timeout: 15000 }, (res) => {
+        if (res.statusCode !== 200) {
+          reject(new Error('HTTP ' + res.statusCode));
+          return;
+        }
+        res.on('data', c => chunks.push(c));
+        res.on('end',  () => resolve(Buffer.concat(chunks)));
+        res.on('error', reject);
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    });
+
+    // Detect file type from URL or content
+    const urlLower = resumeUrl.toLowerCase().split('?')[0];
+    let mimetype = 'application/pdf'; // default
+    if (urlLower.endsWith('.docx')) mimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    else if (urlLower.endsWith('.doc')) mimetype = 'application/msword';
+
+    // Parse text from buffer
+    let text = '';
+    if (mimetype === 'application/pdf') {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(buffer);
+      text = (data.text || '').trim();
+    } else {
+      const mammoth = require('mammoth');
+      const result  = await mammoth.extractRawText({ buffer });
+      text = (result.value || '').trim();
+    }
+
+    console.log(`📄 Resume parsed: ${text.length} chars`);
+    return text;
   } catch (e) {
-    console.warn('Could not fetch resume:', e.message);
+    console.warn('Could not fetch/parse resume:', e.message);
     return '';
   }
 }

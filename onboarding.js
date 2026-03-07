@@ -22,6 +22,53 @@ function getAnthropicClient() {
 // EXTRACT INFO FROM RESUME TEXT USING CLAUDE
 // Extracts: name, techStack, experience (years)
 // ══════════════════════════════════════════════════════
+// ── Extract ONLY name from resume — fast, used in Phase 1 ──
+// Much lighter than full extractResumeInfo (no work history calc needed)
+async function extractNameFromResume(resumeText, emailHint, tallyName, emailPrefix) {
+  // If Tally provided name, use it directly
+  if (tallyName && tallyName.trim().length > 1) return tallyName.trim();
+
+  // If no resume text, fall back to email prefix
+  if (!resumeText || resumeText.trim().length < 30) {
+    return emailPrefix || (emailHint||'').split('@')[0];
+  }
+
+  // Try a simple heuristic first — first non-empty line of resume is usually the name
+  const firstLines = resumeText.trim().split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3);
+  for (const line of firstLines) {
+    // A name line: 2-4 words, no @, no digits, not too long
+    const words = line.split(/\s+/);
+    if (words.length >= 2 && words.length <= 5 && !line.includes('@') && !/\d/.test(line) && line.length < 50) {
+      // Title case it
+      const titled = words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      console.log(`👤 Name from resume first line: "${titled}"`);
+      return titled;
+    }
+  }
+
+  // Heuristic failed — ask Claude Haiku (very small call, < 1s)
+  try {
+    const client = getAnthropicClient();
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 30,
+      messages: [{ role: 'user', content:
+        'What is the full name of the person in this resume? Reply with ONLY the name, nothing else.\n\n' +
+        resumeText.slice(0, 500)
+      }],
+    });
+    const extracted = (response.content[0]?.text || '').trim().replace(/["'.]/g, '');
+    if (extracted && extracted.length > 1 && extracted.length < 60 && !extracted.includes('\n')) {
+      console.log(`👤 Name from Claude: "${extracted}"`);
+      return extracted;
+    }
+  } catch(e) {
+    console.warn('Name extraction fallback failed:', e.message);
+  }
+
+  return emailPrefix || (emailHint||'').split('@')[0];
+}
+
 async function extractResumeInfo(resumeText, emailHint) {
   if (!resumeText || resumeText.trim().length < 50) {
     // No usable resume text — derive name from email
@@ -423,7 +470,7 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
 // ══════════════════════════════════════════════════════
 // SEND WELCOME EMAIL
 // ══════════════════════════════════════════════════════
-async function sendWelcomeEmail(name, email, password, role, techStack, experience, dashboardUrl) {
+async function sendWelcomeEmail(name, email, password, role, techStack, experience, experienceYears, dashboardUrl) {
   if (!process.env.BREVO_API_KEY) {
     console.warn('⚠️  BREVO_API_KEY not set — skipping welcome email');
     return;
@@ -441,7 +488,7 @@ async function sendWelcomeEmail(name, email, password, role, techStack, experien
       <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Your complete 4-week plan, 12 interview questions, and resume analysis are all set.</p>
       <div style="background:#f0f0ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#5048e5;border-left:4px solid #5048e5">
         <strong>📋 Your Profile (extracted from your resume)</strong><br>
-        <span style="color:#444">Experience Level:</span> <strong>${experience}</strong> &nbsp;·&nbsp;
+        <span style="color:#444">Experience:</span> <strong>${experienceYears ? experienceYears + " years" : experience}</strong> &nbsp;·&nbsp;
         <span style="color:#444">Tech Stack:</span> <strong>${techStack || role}</strong>
       </div>
       <div style="background:#e6f7f3;border-radius:10px;padding:18px;margin-bottom:20px;border-left:4px solid #00b38a">
@@ -637,21 +684,20 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       return result;
     }
 
-    // ── PHASE 1: Fetch resume text + fast ATS preview only ──
-    // Goal: show welcome page to user as fast as possible
-    // extractResumeInfo is NOT called here — it belongs in Phase 2
+    // ── PHASE 1: Fetch resume + extract name + fast ATS preview ──
+    // Name extracted here so welcome page + dashboard show correct name
+    // Tech stack + experience extracted in Phase 2 (after user clicks dashboard)
     const resumeText = await fetchResumeText(resumeUrl);
 
-    // Use email prefix as temp display name for welcome page
-    // Real name will be extracted from resume in Phase 2 and updated in sheet
-    const tempName    = name || emailPrefix;
-    const displayName = tempName || email.split('@')[0];
+    // Extract name from resume (fast — only asks for name, not full extraction)
+    const realName    = await extractNameFromResume(resumeText, email, name, emailPrefix);
+    const displayName = realName;
     const password    = generatePassword(displayName);
+    console.log(`👤 Name resolved: "${displayName}"`);
 
     const t1 = Date.now();
     let fastPreview = null;
     try {
-      // Phase 1 prompt only needs role + resume text — no tech/exp needed for ATS score
       fastPreview = await generateFastPreview(displayName, role, 'Mid', role, resumeText);
       console.log('⚡ Phase 1 ATS preview took', Date.now() - t1, 'ms');
     } catch(e) {
@@ -664,15 +710,15 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       };
     }
 
-    // Write basic user row — tech/exp/name will be updated after Phase 2 extraction
-    await writeBasicUser(sheets, sheetId, displayName, email, password, role, 'Mid', '', null, fastPreview);
+    // Write basic user row with real name — tech/exp updated after Phase 2
+    await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview);
     console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms — welcome page ready');
 
-    // Surface Phase 1 result to welcome page immediately
+    // Surface Phase 1 result to welcome page
     result.success     = true;
     result.phase1Ready = true;
     result.welcomeData = {
-      name:     displayName,
+      name:            displayName,
       email,
       role,
       atsScore:        fastPreview.atsScore,
@@ -684,13 +730,8 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       planReady: false,
     };
 
-    // Send welcome email immediately (uses temp name — good enough)
-    const dashboardUrl = (process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app') + '/app';
-    try {
-      await sendWelcomeEmail(displayName, email, password, role, '', 'Mid', dashboardUrl);
-    } catch(emailErr) {
-      console.error('Welcome email failed:', emailErr.message);
-    }
+    // ── Welcome email is sent in triggerPhase2 (when user clicks Go to Dashboard) ──
+    // By that point we have real name + tech stack + experience to include
 
     // ── PHASE 2 is now triggered on-demand ──
     // triggerPhase2() is called by /api/trigger-plan when user clicks "Go to Dashboard"
@@ -833,6 +874,19 @@ const pendingPhase2 = new Map();
 // ══════════════════════════════════════════════════════
 // triggerPhase2 — called by /api/trigger-plan when user clicks "Go to Dashboard"
 // ══════════════════════════════════════════════════════
+// ── Get stored password for a user (needed for welcome email in Phase 2) ──
+async function getUserPassword(sheets, sheetId, email) {
+  try {
+    const resp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Users!A:C' });
+    const rows = resp.data.values || [];
+    const row  = rows.find(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+    return row ? (row[2] || '') : '';
+  } catch(e) {
+    console.error('getUserPassword failed:', e.message);
+    return '';
+  }
+}
+
 async function triggerPhase2(email, getSheetsClientFn, sheetId) {
   const key     = email.toLowerCase();
   const pending = pendingPhase2.get(key);
@@ -864,6 +918,17 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
 
     // Step 2: Update user row with real name, tech, experience
     await updateUserExtractedInfo(getSheetsClientFn(), sheetId, email, resolvedName, resolvedTechStack, resolvedExperience, resolvedExpYears);
+
+    // Step 2b: Send welcome email with real name + tech stack + experience
+    try {
+      const dashUrl = (process.env.APP_URL || 'https://www.rolekraft.com') + '/app';
+      const pwRow = await getUserPassword(getSheetsClientFn(), sheetId, email);
+      await sendWelcomeEmail(resolvedName, email, pwRow, pending.role, resolvedTechStack, resolvedExperience, resolvedExpYears, dashUrl);
+      console.log('📧 Welcome email sent to', email);
+    } catch(emailErr) {
+      console.error('Welcome email failed:', emailErr.message);
+    }
+
 
     // Step 3: Generate full 4-week plan using accurate tech + experience
     const generated = await generateWithClaude(resolvedName, email, role, resolvedExperience, resolvedTechStack, resumeText);

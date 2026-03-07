@@ -448,11 +448,13 @@ app.post('/api/login', async (req, res) => {
     }
 
     req.session.user = {
-      email:       user.Email,
-      name:        user.Name,
-      role:        user.Role,
-      experience:  user.Experience,
-      week:        parseInt(user.Week) || 1,
+      email:           user.Email,
+      name:            user.Name,
+      role:            user.Role,
+      experience:      user.Experience,       // band: Fresher/Junior/Mid/Senior/Lead
+      experienceYears: parseInt(user['Experience Years'] || user['P'] || '') || null,
+      techStack:       user['Tech Stack'] || '',
+      week:            parseInt(user.Week) || 1,
       weekStarted: weekStarted,
       dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7),
       tier:        activeTier,

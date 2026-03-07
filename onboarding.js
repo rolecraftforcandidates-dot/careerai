@@ -217,43 +217,43 @@ function generatePassword(name) {
 // ══════════════════════════════════════════════════════
 // ── PHASE 1: Fast prompt — ATS score + tips only (~3s) ──
 function buildFastPrompt(name, role, experience, techStack, resumeText) {
-  const hasResume = resumeText && resumeText.length > 100;
-  const resumeSnippet = hasResume
-    ? resumeText.slice(0, 2500).replace(/`/g, "'").replace(/\\/g, ' ')
-    : 'Not provided';
-
-  const lines = [
-    'You are a senior technical recruiter and ATS expert for Indian tech companies (Flipkart, Swiggy, Razorpay, TCS, Infosys).',
-    '',
-    'Analyse this resume for a ' + role + ' role. Return ONLY a raw JSON object - no markdown, no explanation, no code fences.',
-    '',
-    'CANDIDATE: ' + name,
-    'TARGET ROLE: ' + role,
-    'RESUME TEXT:',
-    resumeSnippet,
-    '',
-    'Return exactly this JSON structure:',
-    '{"atsScore":72,"atsTips":"Tip 1: ...\nTip 2: ...\nTip 3: ...\nTip 4: ...\nTip 5: ...","keyStrengths":["strength1","strength2","strength3"],"missingKeywords":["kw1","kw2","kw3","kw4"]}',
-    '',
-    'SCORING:',
-    '- 80-95: strong resume, quantified achievements, good keywords',
-    '- 65-79: decent but missing metrics, weak summary, or keyword gaps',
-    '- 50-64: significant gaps, no summary, vague descriptions',
-    '- No resume: score 62',
-    '',
-    'TIP RULES (important):',
-    '- Reference SPECIFIC content from THIS resume in each tip',
-    '- Bad example: "Add quantified achievements" (too generic)',
-    '- Good example: "Your role at [Company] lacks numbers - add metrics like reduced latency by 30%"',
-    '- Each tip: one sentence, actionable, under 25 words',
-    '- Cover: metrics, keywords, formatting, summary, role-specific gaps',
-    '',
-    'keyStrengths: 3 specific things already good in this resume (mention actual companies/skills)',
-    'missingKeywords: 4 technical skills expected for ' + role + ' that are absent from this resume',
-    '',
-    'Return ONLY the JSON object, nothing else.'
-  ];
-  return lines.join('\n');
+  var hasResume = resumeText && resumeText.length > 100;
+  var resumeSnippet = hasResume ? resumeText.slice(0, 3000).replace(/`/g, "'") : 'Not provided';
+  var p = [];
+  p.push('You are a senior technical recruiter and ATS expert for Indian tech companies.');
+  p.push('Analyse this resume for a ' + role + ' role.');
+  p.push('Return ONLY a raw JSON object - no markdown, no code fences, nothing else.');
+  p.push('');
+  p.push('CANDIDATE: ' + name);
+  p.push('TARGET ROLE: ' + role);
+  p.push('RESUME:');
+  p.push(resumeSnippet);
+  p.push('');
+  p.push('Return this exact JSON shape:');
+  p.push('{');
+  p.push('  "atsScore": <number 50-95>,');
+  p.push('  "atsTips": "<tip1> | <tip2> | <tip3> | <tip4> | <tip5>",');
+  p.push('  "keyStrengths": ["<strength1>", "<strength2>", "<strength3>"],');
+  p.push('  "missingKeywords": ["<keyword1>", "<keyword2>", "<keyword3>", "<keyword4>"]');
+  p.push('}');
+  p.push('');
+  p.push('SCORING:');
+  p.push('- 80-95: strong resume with metrics/numbers, good ' + role + ' keywords');
+  p.push('- 65-79: decent but missing impact numbers, weak summary, keyword gaps');
+  p.push('- 50-64: no summary, vague descriptions, missing core ' + role + ' skills');
+  p.push('');
+  p.push('TIP RULES - write 5 tips separated by | character:');
+  p.push('- MUST reference specific content from this resume (company names, tools, roles)');
+  p.push('- Include concrete numbers/examples where possible');
+  p.push('- Good: "Led data migration at [Company] lacks scale - add PB moved and latency improvement"');
+  p.push('- Bad: "Add quantified achievements" (too generic - not allowed)');
+  p.push('- Each tip max 30 words. No newlines inside atsTips string.');
+  p.push('');
+  p.push('keyStrengths: 3 specific strengths seen in this resume (name actual tools/companies)');
+  p.push('missingKeywords: 4 technical keywords for ' + role + ' jobs NOT present in this resume');
+  p.push('');
+  p.push('CRITICAL: atsTips value must be a single string with exactly 5 tips separated by | only.');
+  return p.join('\n');
 }
 
 function buildPrompt(name, email, role, experience, techStack, resumeText) {
@@ -332,7 +332,7 @@ async function generateFastPreview(name, role, experience, techStack, resumeText
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 800,  // Enough for 5 detailed tips + strengths + keywords
+    max_tokens: 1000, // Enough for 5 detailed specific tips + strengths + keywords
     system: 'You are a resume scoring API. Return ONLY a JSON object. No explanation. No markdown.',
     messages: [{ role: 'user', content: buildFastPrompt(name, role, experience, techStack, resumeText) }],
   });

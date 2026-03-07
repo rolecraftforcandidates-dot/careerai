@@ -371,13 +371,28 @@
       </div>
 
       <div class="cta-block">
-        <div>
-          <a id="dashboardBtn" href="/" class="btn-primary">Open My Dashboard →</a>
+
+        <!-- Credential reminder — visible before button -->
+        <div style="background:rgba(0,179,138,0.08);border:1px solid rgba(0,179,138,0.25);border-radius:14px;padding:18px 22px;margin-bottom:24px;text-align:left">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span style="font-size:1.2rem">📧</span>
+            <span style="font-family:var(--mono);font-size:0.72rem;letter-spacing:2px;color:var(--accent);font-weight:600">// CHECK YOUR EMAIL BEFORE CLICKING</span>
+          </div>
+          <p style="font-size:0.88rem;color:rgba(255,255,255,0.75);line-height:1.6;margin:0">
+            Your <strong style="color:white">login email &amp; password</strong> were sent to <strong id="credEmail" style="color:var(--accent)">your inbox</strong>.
+            Find that email first — you'll need it to sign in to your dashboard.
+          </p>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,179,138,0.15);font-size:0.78rem;color:rgba(255,255,255,0.4);font-family:var(--mono)">
+            Can't find it? Check your spam folder · Subject: <em>Welcome to RoleKraft</em>
+          </div>
         </div>
+
         <div>
+          <a id="dashboardBtn" href="/" class="btn-primary" onclick="goToDashboard(); return false;">Open My Dashboard →</a>
+        </div>
+        <div style="margin-top:12px">
           <a href="/" class="btn-secondary">Back to home</a>
         </div>
-        <div class="cta-note">// Your login credentials were sent to your email</div>
       </div>
     </div>
   </section>
@@ -497,13 +512,19 @@ function renderPage(data) {
   if (data.qCount)    document.getElementById('qCount').textContent    = data.qCount;
 
   // Dashboard button — triggers Phase 2 then redirects
-  var dashUrl = window.location.origin + '/app';
+  var dashUrl = window.location.origin + '/app?from=welcome';
   document.getElementById('dashboardBtn').removeAttribute('href');
   document.getElementById('dashboardBtn').style.cursor = 'pointer';
   document.getElementById('dashboardBtn').onclick = function(e) {
     e.preventDefault();
     goToDashboard();
   };
+
+  // Show user's actual email in the credential reminder
+  if (data.email) {
+    var credEl = document.getElementById('credEmail');
+    if (credEl) credEl.textContent = data.email;
+  }
 
   // Show floating CTA after scrolling past the hero section
   var heroSection = document.querySelector('.hero');

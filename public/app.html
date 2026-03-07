@@ -308,6 +308,17 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         </div>
       </div>
 
+      <!-- Welcome hint banner — shown when arriving from welcome page -->
+      <div id="welcomeHint" style="display:none;background:#f0fdf9;border:1px solid #bbf7e0;border-radius:10px;padding:13px 16px;margin-bottom:18px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:1.1rem;flex-shrink:0">📬</span>
+          <div>
+            <div style="font-size:0.82rem;font-weight:700;color:#065f46;margin-bottom:3px">Check your email for login details</div>
+            <div style="font-size:0.78rem;color:#047857;line-height:1.5">We sent your email &amp; password to your inbox. Subject: <em>Welcome to RoleKraft</em></div>
+          </div>
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="form-label">Email address</label>
         <input type="email" class="form-input" id="emailInput" placeholder="you@email.com" autocomplete="email">
@@ -800,7 +811,13 @@ function showLoginPage() {
       : 'Login error. Please try again.';
     errEl.textContent = errMsg;
     errEl.style.display = 'block';
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', '/app');
+  }
+  // Show email hint banner if arriving from welcome page
+  if (params.get('from') === 'welcome') {
+    var hintEl = document.getElementById('welcomeHint');
+    if (hintEl) hintEl.style.display = 'block';
+    window.history.replaceState({}, '', '/app'); // clean URL
   }
   document.getElementById('dashboard').classList.remove('active');
 }

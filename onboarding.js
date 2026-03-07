@@ -257,70 +257,67 @@ function buildFastPrompt(name, role, experience, techStack, resumeText) {
 }
 
 function buildPrompt(name, email, role, experience, techStack, resumeText) {
-  return `You are an expert career coach and interview trainer specialising in tech roles in India.
-
-A new user has signed up for RoleKraft — a 30-day personalised interview preparation programme.
-
-USER DETAILS:
-- Name: ${name}
-- Target Role: ${role}
-- Tech Stack: ${techStack}
-- Experience Level: ${experience} years (e.g. 0-5 means junior/fresher, 5-10 means mid-senior)
-- Resume Text: ${resumeText ? resumeText.slice(0, 3000) : 'Not provided'}
-
-Your job is to generate their complete personalised programme. Return ONLY valid JSON — no explanation, no markdown, no code fences. Just raw JSON.
-
-The JSON must follow this exact structure:
-
-{
-  "tasks": [
-    {
-      "Week": "1",
-      "Day": "1",
-      "Task Title": "task description here",
-      "Type": "Theory"
-    }
-  ],
-  "questions": [
-    {
-      "Week": "1",
-      "Q No.": "Q1",
-      "Type": "Technical",
-      "Question": "full question text here"
-    }
-  ],
-  "atsScore": 72,
-  "atsTips": "Tip 1: Add TypeScript to skills section\nTip 2: Quantify your impact with metrics\nTip 3: Add a 3-line professional summary at top\nTip 4: Replace vague verbs with action verbs\nTip 5: Remove irrelevant skills to improve signal"
+  // Use array join — safe from backticks/em-dashes/special chars in resume text
+  var resume = resumeText ? resumeText.slice(0, 3000).replace(/`/g, "'") : 'Not provided';
+  var p = [];
+  p.push('You are an expert career coach and interview trainer specialising in tech roles in India.');
+  p.push('');
+  p.push('A new user has signed up for RoleKraft, a 30-day personalised interview preparation programme.');
+  p.push('');
+  p.push('USER DETAILS:');
+  p.push('- Name: ' + name);
+  p.push('- Email: ' + email);
+  p.push('- Target Role: ' + role);
+  p.push('- Tech Stack: ' + (techStack || role));
+  p.push('- Experience Level: ' + experience);
+  p.push('- Resume Text: ' + resume);
+  p.push('');
+  p.push('Generate their complete personalised programme. Return ONLY valid JSON - no explanation, no markdown, no code fences. Raw JSON only.');
+  p.push('');
+  p.push('The JSON must follow this EXACT structure:');
+  p.push('{');
+  p.push('  "tasks": [');
+  p.push('    { "Week": "1", "Day": "1", "Task Title": "task description here", "Type": "Theory" }');
+  p.push('  ],');
+  p.push('  "questions": [');
+  p.push('    { "Week": "1", "Q No.": "Q1", "Type": "Technical", "Question": "full question text here" }');
+  p.push('  ],');
+  p.push('  "atsScore": 72,');
+  p.push('  "atsTips": "Tip 1: specific tip here | Tip 2: specific tip | Tip 3: specific tip | Tip 4: specific tip | Tip 5: specific tip"');
+  p.push('}');
+  p.push('');
+  p.push('RULES FOR TASKS:');
+  p.push('- Generate exactly 28 tasks total: 7 tasks per week, across 4 weeks');
+  p.push('- Use Day values 1 through 7 within each week (one task per day)');
+  p.push('- Week 1: Foundation building - theory, core concepts, fundamentals for ' + role);
+  p.push('- Week 2: Technical depth - hands-on practice, ' + (techStack || role) + ' specifics, build something');
+  p.push('- Week 3: Interview practice - mock answers, system design, problem solving drills');
+  p.push('- Week 4: Final readiness - polish weak areas, confidence building, final preparation');
+  p.push('- Spread Types across the week: roughly 3 Theory, 2 Practice, 2 Mock per week');
+  p.push('- Type must be exactly one of: Theory / Practice / Mock');
+  p.push('- Make tasks highly specific to ' + role + ' and ' + (techStack || role) + ' - not generic filler');
+  p.push('');
+  p.push('RULES FOR QUESTIONS:');
+  p.push('- Generate exactly 28 questions total: 7 questions per week, across 4 weeks');
+  p.push('- Each week distribute types: 3 Technical + 2 Behavioral + 2 System Design');
+  p.push('- Week 1 questions: foundational and conceptual - test core knowledge');
+  p.push('- Week 2 questions: intermediate technical depth - test hands-on skills');
+  p.push('- Week 3 questions: advanced, real interview-style - test problem solving');
+  p.push('- Week 4 questions: senior-level, full interview difficulty - test readiness');
+  p.push('- Q No. format: Q1 through Q7, RESET each week (Week 2 starts at Q1 again)');
+  p.push('- Make questions very specific to ' + role + ' and ' + (techStack || role) + ' - no generic questions');
+  p.push('- Type must be exactly one of: Technical / Behavioral / System Design');
+  p.push('');
+  p.push('RULES FOR ATS ANALYSIS:');
+  p.push('- If resume text is provided, analyse it and give a realistic score 50-95');
+  p.push('- If no resume, give score of 65 and generic tips for ' + role);
+  p.push('- atsTips: exactly 5 tips separated by | character (no newlines inside the string)');
+  p.push('- Tips must be specific and actionable for ' + role + ' in the Indian job market');
+  p.push('');
+  p.push('CRITICAL: Return ONLY the JSON object. No text before or after. No markdown fences.');
+  return p.join('\n');
 }
 
-RULES FOR TASKS:
-- Generate exactly 28 tasks total: 7 tasks per week, across 4 weeks
-- Use Day values 1 through 7 within each week (one task per day)
-- Week 1: Foundation building — theory, core concepts, fundamentals for ${role}
-- Week 2: Technical depth — hands-on practice, ${techStack} specifics, build something
-- Week 3: Interview practice — mock answers, system design, problem solving drills
-- Week 4: Final readiness — polish weak areas, confidence building, final preparation
-- Spread Types across the week: roughly 3 Theory, 2 Practice, 2 Mock per week
-- Type must be exactly one of: Theory / Practice / Mock
-- Make tasks highly specific to ${role} and ${techStack} — not generic filler
-
-RULES FOR QUESTIONS:
-- Generate exactly 28 questions total: 7 questions per week, across 4 weeks
-- Each week distribute types: 3 Technical + 2 Behavioral + 2 System Design
-- Week 1 questions: foundational and conceptual — test core knowledge
-- Week 2 questions: intermediate technical depth — test hands-on skills
-- Week 3 questions: advanced, real interview-style — test problem solving
-- Week 4 questions: senior-level, full interview difficulty — test readiness
-- Q No. format: Q1 through Q7 — RESET each week (Week 2 starts at Q1 again)
-- Make questions very specific to ${role} and ${techStack} — no generic questions
-- Type must be exactly one of: Technical / Behavioral / System Design
-
-RULES FOR ATS ANALYSIS:
-- If resume text is provided, analyse it and give a realistic score 50-95
-- If no resume, give score of 65 and generic tips for ${role}
-- atsTips must be exactly 5 tips, each on a new line starting with "Tip N:"
-- Tips must be specific and actionable for ${role} in Indian job market`;
-}
 
 // ══════════════════════════════════════════════════════
 // CALL CLAUDE API

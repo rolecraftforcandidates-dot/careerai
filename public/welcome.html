@@ -204,6 +204,59 @@
     .score-circle { margin: 0 auto; }
     .score-right { text-align: center; }
   }
+
+  /* ── FLOATING CTA BAR ── */
+  .float-cta {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 200;
+    background: rgba(15,15,26,0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.3);
+  }
+  .float-cta.visible { transform: translateY(0); }
+  .float-cta-text {
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.4;
+  }
+  .float-cta-text strong {
+    color: white;
+    display: block;
+    font-size: 0.95rem;
+  }
+  .float-cta-btn {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #00b38a, #5048e5);
+    color: white;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity 0.2s, transform 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .float-cta-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .float-cta-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  @media(max-width:480px) {
+    .float-cta { flex-direction: column; text-align: center; padding: 16px; }
+    .float-cta-btn { width: 100%; justify-content: center; }
+  }
 </style>
 </head>
 <body>
@@ -444,9 +497,31 @@ function renderPage(data) {
   if (data.taskCount) document.getElementById('taskCount').textContent = data.taskCount;
   if (data.qCount)    document.getElementById('qCount').textContent    = data.qCount;
 
-  // Dashboard button — link to dashboard directly
+  // Dashboard button — triggers Phase 2 then redirects
   var dashUrl = window.location.origin + '/app';
-  document.getElementById('dashboardBtn').href = dashUrl;
+  document.getElementById('dashboardBtn').removeAttribute('href');
+  document.getElementById('dashboardBtn').style.cursor = 'pointer';
+  document.getElementById('dashboardBtn').onclick = function(e) {
+    e.preventDefault();
+    goToDashboard();
+  };
+
+  // Show floating CTA after scrolling past the hero section
+  var heroSection = document.querySelector('.hero');
+  if (heroSection) {
+    var floatObs = new IntersectionObserver(function(entries) {
+      var floatCta = document.getElementById('floatCta');
+      if (!floatCta) return;
+      entries.forEach(function(e) {
+        if (!e.isIntersecting) {
+          floatCta.classList.add('visible');
+        } else {
+          floatCta.classList.remove('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+    floatObs.observe(heroSection);
+  }
 
   // Animate unlock cards when scrolled into view
   var cardObs = new IntersectionObserver(function(entries) {
@@ -455,6 +530,32 @@ function renderPage(data) {
     });
   }, { threshold: 0.15 });
   document.querySelectorAll('.unlock-card').forEach(function(c) { cardObs.observe(c); });
+}
+
+// ── Trigger Phase 2 + redirect to dashboard ──
+function goToDashboard() {
+  var btns = [document.getElementById('dashboardBtn'), document.getElementById('floatBtn')];
+  btns.forEach(function(b) { if (b) { b.disabled = true; b.textContent = 'Loading your plan...'; } });
+
+  if (!token) {
+    window.location.href = window.location.origin + '/app';
+    return;
+  }
+
+  // Tell server to start Phase 2 (plan generation)
+  fetch('/api/trigger-plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: token }),
+  })
+  .then(function() {
+    // Redirect regardless of response — plan generates in background
+    window.location.href = window.location.origin + '/app';
+  })
+  .catch(function() {
+    // Still redirect even if trigger fails
+    window.location.href = window.location.origin + '/app';
+  });
 }
 
 function parseTips(atsTips) {
@@ -474,5 +575,17 @@ function formatTip(tip) {
   return tip;
 }
 </script>
+
+<!-- FLOATING CTA BAR -->
+<div class="float-cta" id="floatCta">
+  <div class="float-cta-text">
+    <strong>Your 30-day prep plan is ready 🚀</strong>
+    28 tasks · 12 questions · AI scoring
+  </div>
+  <button class="float-cta-btn" id="floatBtn" onclick="goToDashboard()">
+    Go to Dashboard →
+  </button>
+</div>
+
 </body>
 </html>

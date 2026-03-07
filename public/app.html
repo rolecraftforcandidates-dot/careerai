@@ -836,11 +836,14 @@ function showDashboard(user) {
   setUserInfo(user);
   initTier(user.tier || 'free');
 
-  if (user.needsOnboarding || !user.role) {
-    showNewGoogleUserPrompt(user.name, user.email);
-  } else {
-    loadOverview();
+  // Server now redirects unregistered Google users to Tally before they reach here
+  // This is a safety net only — should never fire in normal flow
+  if (!user.role) {
+    console.warn('No role on session — redirecting to login');
+    window.location.href = '/app';
+    return;
   }
+  loadOverview();
 }
 
 function setUserInfo(u) {

@@ -849,14 +849,16 @@ function setUserInfo(u) {
   var daysLeft = 7 - day + 1;
   document.getElementById('userAvatar').textContent = ini;
   document.getElementById('userName').textContent   = u.name||'';
-  document.getElementById('userRole').textContent   = (u.role||'') + (u.experience?' — '+u.experience+' yrs':'');
+  var expDisplay = u.experienceYears ? u.experienceYears + ' yrs' : (u.experience && u.experience !== 'Mid' ? u.experience : '');
+  document.getElementById('userRole').textContent   = (u.role||'') + (expDisplay ? ' — ' + expDisplay : '');
   document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
   document.getElementById('dayPill').textContent    = 'DAY '+day+' OF 7';
   document.getElementById('dayPill').style.background = day >= 6 ? 'var(--orange-light)' : '#f0f0f8';
   document.getElementById('dayPill').style.color      = day >= 6 ? 'var(--orange)' : 'var(--muted)';
   document.getElementById('welcomeName').textContent = 'HI, '+((u.name||'').split(' ')[0]).toUpperCase()+'!';
   document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan. Day '+day+' of 7'+(daysLeft<=2?' — <span style="color:#f59e0b;font-weight:600">'+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>':'')+ '.';
-  document.getElementById('planRoleTag').textContent = (u.role||'') + ' · ' + (u.experience||'') + ' yrs · Week '+(u.week||1)+' of 4 · Day '+day+' of 7';
+  var expTag = u.experienceYears ? u.experienceYears + ' yrs exp' : (u.experience || '');
+  document.getElementById('planRoleTag').textContent = (u.role||'') + (expTag ? ' · ' + expTag : '') + ' · Week '+(u.week||1)+' of 4 · Day '+day+' of 7';
   document.getElementById('statWeek').textContent   = 'W'+(u.week||1)+'D'+day;
 }
 
@@ -2262,7 +2264,8 @@ function loadSettings() {
   if (!currentUser) return;
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
   document.getElementById('settingsEmail').textContent = currentUser.email || '-';
-  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (currentUser.experience ? ' — ' + currentUser.experience + ' yrs' : '');
+  var settingsExp = currentUser.experienceYears ? currentUser.experienceYears + ' yrs' : (currentUser.experience || '');
+  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (settingsExp ? ' — ' + settingsExp : '');
   var sw = currentUser.week||1, sd = currentUser.dayOfWeek||1;
   document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 — Day ' + sd + ' of 7';
   // Reset form

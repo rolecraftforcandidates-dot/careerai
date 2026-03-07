@@ -4,7 +4,7 @@
 // Flow:
 //   1. POST /api/onboard  ← called by Tally webhook after form submit
 //   2. Parse user details from Tally payload
-//   3. Call Claude API → generate full 4-week plan + 12 questions + ATS analysis
+//   3. Call Claude API → generate full 4-week plan + 28 questions + ATS analysis
 //   4. Write everything to Google Sheets (Users, Plans, Questions tabs)
 //   5. Send welcome email via Gmail with login credentials
 // ═══════════════════════════════════════════════════════════════
@@ -305,14 +305,14 @@ RULES FOR TASKS:
 - Make tasks highly specific to ${role} and ${techStack} — not generic filler
 
 RULES FOR QUESTIONS:
-- Generate exactly 12 questions total: 3 questions per week, across 4 weeks
-- Each week: 1 Technical + 1 Behavioral + 1 System Design question
-- Week 1 questions: foundational and conceptual
-- Week 2 questions: intermediate technical depth
-- Week 3 questions: advanced, interview-style
-- Week 4 questions: senior-level, real interview difficulty
-- Q No. format: Q1 through Q3 — RESET each week (Week 2 starts at Q1 again)
-- Make questions very specific to ${role} and ${techStack}
+- Generate exactly 28 questions total: 7 questions per week, across 4 weeks
+- Each week distribute types: 3 Technical + 2 Behavioral + 2 System Design
+- Week 1 questions: foundational and conceptual — test core knowledge
+- Week 2 questions: intermediate technical depth — test hands-on skills
+- Week 3 questions: advanced, real interview-style — test problem solving
+- Week 4 questions: senior-level, full interview difficulty — test readiness
+- Q No. format: Q1 through Q7 — RESET each week (Week 2 starts at Q1 again)
+- Make questions very specific to ${role} and ${techStack} — no generic questions
 - Type must be exactly one of: Technical / Behavioral / System Design
 
 RULES FOR ATS ANALYSIS:
@@ -351,8 +351,8 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
   console.log(`🤖 Calling Claude for ${name} (${role}, ${experience})`);
 
   const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',  // Fast + cheap, perfect for structured generation
-    max_tokens: 8192,
+    model: 'claude-sonnet-4-5-20251001', // Sonnet for richer, more specific plan content
+    max_tokens: 16000,
     messages: [{
       role: 'user',
       content: buildPrompt(name, email, role, experience, techStack, resumeText),
@@ -375,18 +375,18 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
     try {
       console.log('🔄 Retrying with simplified prompt...');
       const retryMsg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
+        model: 'claude-sonnet-4-5-20251001',
+        max_tokens: 16000,
         messages: [{
           role: 'user',
           content: 'Generate interview prep JSON for a ' + role + ' with ' + experience + ' years experience. ' +
             'Return ONLY raw JSON (no markdown). Exactly this structure:\n' +
             '{\n  "tasks": [28 objects with Week/Day/Task Title/Type],\n' +
-            '  "questions": [12 objects with Week/Q No./Type/Question],\n' +
+            '  "questions": [28 objects with Week/Q No./Type/Question],\n' +
             '  "atsScore": 70,\n' +
             '  "atsTips": "Tip 1: ...\\nTip 2: ...\\nTip 3: ...\\nTip 4: ...\\nTip 5: ..."\n}\n' +
             'Tasks: 7 per week x 4 weeks. Type = Theory/Practice/Mock.\n' +
-            'Questions: 3 per week x 4 weeks (1 Technical + 1 Behavioral + 1 System Design). Q No. = Q1/Q2/Q3 per week.\n' +
+            'Questions: 7 per week x 4 weeks (3 Technical + 2 Behavioral + 2 System Design). Q No. = Q1-Q7 per week.\n' +
             'Make all content specific to ' + role + ' and tech stack: ' + techStack + '. Return ONLY the JSON object.'
         }],
       });
@@ -509,7 +509,7 @@ async function sendWelcomeEmail(name, email, password, role, techStack, experien
     </div>
     <div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">
       <p style="font-size:18px;font-weight:700;margin-bottom:8px">Hi ${firstName}! 👋</p>
-      <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Your complete 4-week plan, 12 interview questions, and resume analysis are all set.</p>
+      <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Your complete 4-week plan, 28 interview questions, and resume analysis are all set.</p>
       <div style="background:#f0f0ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#5048e5;border-left:4px solid #5048e5">
         <strong>📋 Your Profile (extracted from your resume)</strong><br>
         <span style="color:#444">Experience:</span> <strong>${experienceYears ? experienceYears + " years" : experience}</strong> &nbsp;·&nbsp;
@@ -527,7 +527,7 @@ async function sendWelcomeEmail(name, email, password, role, techStack, experien
     <div style="background:white;border-radius:14px;padding:20px;border:1px solid rgba(0,0,0,.07)">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px">What is waiting for you:</div>
       <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  28 personalised daily tasks across 4 weeks</div>
-      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  12 interview questions (Technical + Behavioral + System Design)</div>
+      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  28 interview questions (Technical + Behavioral + System Design)</div>
       <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  Resume ATS analysis with improvement tips</div>
       <div style="font-size:13px;color:#6b6b8a">✅  AI scoring on your submitted answers</div>
     </div>
@@ -736,7 +736,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
         keyStrengths:    [],
         missingKeywords: [],
         taskCount:       28,
-        qCount:          12,
+        qCount:          28,
         planReady:       userObj['Plan Active'] === 'TRUE',
         returning:       true,
       };
@@ -786,7 +786,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       keyStrengths:    fastPreview.keyStrengths    || [],
       missingKeywords: fastPreview.missingKeywords || [],
       taskCount: 28,
-      qCount:    12,
+      qCount:    28,
       planReady: false,
     };
 

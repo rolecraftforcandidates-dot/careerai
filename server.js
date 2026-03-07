@@ -527,15 +527,24 @@ app.post('/api/logout', (req, res) => {
 });
 
 // GET /api/me — check session
-app.get('/api/me', requireLogin, (req, res) => {
+app.get('/api/me', requireLogin, async (req, res) => {
   const u = req.session.user;
   // Safety guard — if somehow a needsOnboarding session slipped through, reject it
   if (u.needsOnboarding || !u.role) {
-    req.session = null; // clear the bad session
+    req.session = null;
     return res.status(401).json({ error: 'Incomplete registration — please complete onboarding' });
   }
   if (!u.tier) u.tier = 'free';
-  res.json({ user: u });
+  // For free users, include jmUsage so UI can show/hide the job match lock
+  let jmUsage = 0;
+  if (!isPro(u)) {
+    try {
+      const users = await readSheet('Users');
+      const user  = users.find(uu => uu.Email.toLowerCase() === u.email.toLowerCase());
+      jmUsage = parseInt(user && user['JM Usage'] || '0');
+    } catch(e) { /* non-critical */ }
+  }
+  res.json({ user: u, jmUsage });
 });
 
 // ════════════════════════════════════════
@@ -578,6 +587,28 @@ app.post('/api/questions/submit', requireLogin, async (req, res) => {
     const { questionNo, answer, weekOverride } = req.body;
     const { email, role, experience } = req.session.user;
     const week = weekOverride ? parseInt(weekOverride) : req.session.user.week;
+
+    // Free tier: only 3 AI-scored question submissions total (not per month)
+    if (!isPro(req.session.user)) {
+      const allQRaw = await getSheetsClient().spreadsheets.values.get({
+        spreadsheetId: SHEET_ID, range: 'Questions!A:Z'
+      });
+      const [qHdrs, ...qDataRows] = allQRaw.data.values || [];
+      const qEmailIdx = qHdrs.indexOf('Email');
+      const qSubIdx   = qHdrs.indexOf('Submitted');
+      const qScoreIdx = qHdrs.indexOf('Score');
+      const scoredCount = qDataRows.filter(r =>
+        (r[qEmailIdx]||'').toLowerCase() === email.toLowerCase() &&
+        (r[qSubIdx]||'').toUpperCase() === 'TRUE' &&
+        r[qScoreIdx] && r[qScoreIdx] !== ''
+      ).length;
+      if (scoredCount >= 3) {
+        return res.status(403).json({
+          error: 'pro_required',
+          message: 'Free plan includes 3 AI-scored answers. Upgrade to Pro for unlimited AI analysis on all 28 questions.',
+        });
+      }
+    }
     console.log(`📝 Submit received: qno="${questionNo}" type=${typeof questionNo} weekOverride=${weekOverride} week=${week} bodyKeys=${Object.keys(req.body).join(',')}`);
     if (!answer || answer.trim().length < 20)
       return res.status(400).json({ error: 'Answer is too short' });
@@ -678,8 +709,8 @@ Scoring guide:
 Be honest. Reference specific things the candidate wrote.`;
 
       const msg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        model: 'claude-sonnet-4-5-20251001', // Sonnet for richer answer feedback
+        max_tokens: 800,
         messages: [{ role: 'user', content: scorePrompt }],
       });
 
@@ -1076,14 +1107,11 @@ app.post('/api/jobmatch', requireLogin, async (req, res) => {
     if (!isPro(req.session.user)) {
       const users   = await readSheet('Users');
       const user    = users.find(u => u.Email.toLowerCase() === email.toLowerCase());
-      const usageRaw = parseInt(user && user['JM Usage'] || '0');
-      const usageMonth = user && user['JM Month'] || '';
-      const thisMonth  = new Date().toISOString().slice(0, 7); // YYYY-MM
-      const monthUsage = usageMonth === thisMonth ? usageRaw : 0;
-      if (monthUsage >= 2) {
+      const totalUsage = parseInt(user && user['JM Usage'] || '0');
+      if (totalUsage >= 1) {
         return res.status(403).json({
           error: 'pro_required',
-          message: 'Free plan includes 2 Job Match analyses per month. Upgrade to Pro for unlimited.',
+          message: 'Free plan includes 1 Job Match analysis. Upgrade to Pro for unlimited job matching.',
         });
       }
       // Increment usage counter
@@ -1101,8 +1129,7 @@ app.post('/api/jobmatch', requireLogin, async (req, res) => {
           if (jmmIdx === -1) { jmmIdx = hdrs.length + (jmIdx === hdrs.length ? 1 : 0); await getSheetsClient().spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: 'Users!' + String.fromCharCode(65+jmmIdx) + '1', valueInputOption: 'RAW', requestBody: { values: [['JM Month']] } }); }
           const sheetRow = rowIdx + 2;
           await getSheetsClient().spreadsheets.values.batchUpdate({ spreadsheetId: SHEET_ID, requestBody: { valueInputOption: 'RAW', data: [
-            { range: 'Users!' + String.fromCharCode(65+jmIdx) + sheetRow, values: [[String(monthUsage + 1)]] },
-            { range: 'Users!' + String.fromCharCode(65+jmmIdx) + sheetRow, values: [[thisMonth]] },
+            { range: 'Users!' + String.fromCharCode(65+jmIdx) + sheetRow, values: [[String(totalUsage + 1)]] },
           ]}});
         }
       } catch(e) { console.error('Usage track failed:', e.message); }
@@ -1174,8 +1201,8 @@ Rules:
 - Be honest — don't inflate scores`;
 
     const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1000,
+      model: 'claude-sonnet-4-5-20251001', // Sonnet for deeper job match analysis
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     });
 

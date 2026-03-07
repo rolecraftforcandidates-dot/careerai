@@ -1589,7 +1589,7 @@ function loadResume() {
       if (d.error){showErr(document.getElementById('resumeError'),d.error);return;}
       if (!d.atsScore){document.getElementById('resumeContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#128196;</div><div class="empty-text">Your resume analysis is being prepared. Check back soon!</div></div>';return;}
       var sc=parseInt(d.atsScore),pct=Math.min(sc,100);
-      var tips=(d.atsTips||'').split('\n').filter(function(l){return l.trim();});
+      var raw=(d.atsTips||''); var tips=(raw.indexOf('|')>-1?raw.split('|'):raw.split('\n')).map(function(l){return l.replace(/^Tip\s*\d+:\s*/i,'').trim();}).filter(function(l){return l.length>5;});
       var tt=['warn','warn','success','info','success'],ti=['&#9888;&#65039;','&#128207;','&#10003;&#65039;','&#128161;','&#10003;&#65039;'];
       document.getElementById('resumeContent').innerHTML=
         '<div style="font-size:0.7rem;font-family:\'DM Mono\',monospace;color:var(--muted);letter-spacing:2px;margin-bottom:14px">RESUME ANALYSIS RESULT</div>'+

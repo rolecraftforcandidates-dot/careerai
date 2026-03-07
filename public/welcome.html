@@ -558,11 +558,15 @@ function goToDashboard() {
 }
 
 function parseTips(atsTips) {
-  // Tips are stored as "Tip 1: text\nTip 2: text..."
-  var lines = atsTips.split('\n').filter(function(l) { return l.trim(); });
-  return lines.map(function(l) {
-    return l.replace(/^Tip\s*\d+:\s*/i, '').trim();
-  }).filter(function(l) { return l.length > 5; }).slice(0, 5);
+  if (!atsTips) return [];
+  // Support both pipe-separated (new format) and newline-separated (old format)
+  var raw = atsTips.indexOf('|') > -1
+    ? atsTips.split('|')
+    : atsTips.split('\n');
+  return raw
+    .map(function(l) { return l.replace(/^Tip\s*\d+:\s*/i, '').trim(); })
+    .filter(function(l) { return l.length > 5; })
+    .slice(0, 5);
 }
 
 function formatTip(tip) {

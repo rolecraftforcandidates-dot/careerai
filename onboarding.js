@@ -831,9 +831,9 @@ async function writeBasicUser(sheets, sheetId, name, email, password, role, expe
       'FALSE',                            // G: Plan Active — FALSE until Phase 2 completes
       String(fastPreview.atsScore || 65), // H: ATS Score
       fastPreview.atsTips || '',          // I: ATS Tips
-      '',                                 // J: Resume URL
+      '',                                 // J: Resume URL (Tally CDN URL — not saved long term)
       today,                              // K: Week Started
-      '',                                 // L: Resume Text (populated separately if needed)
+      (resumeText || '').slice(0, 45000), // L: Resume Text — saved for Job Match
       'free',                             // M: Tier
       '',                                 // N: Tier Expiry
       techStack || '',                    // O: Tech Stack  ← new column (add header in sheet)
@@ -844,7 +844,7 @@ async function writeBasicUser(sheets, sheetId, name, email, password, role, expe
 }
 
 // ── Update user row with extracted resume info after Phase 2 extraction ──
-async function updateUserExtractedInfo(sheets, sheetId, email, name, techStack, experience, experienceYears) {
+async function updateUserExtractedInfo(sheets, sheetId, email, name, techStack, experience, experienceYears, resumeText) {
   try {
     // Find the user's row number in the sheet
     const resp = await sheets.spreadsheets.values.get({
@@ -859,10 +859,11 @@ async function updateUserExtractedInfo(sheets, sheetId, email, name, techStack, 
     }
     const sheetRow = rowIndex + 1; // 1-indexed
 
-    // Update B (Name), E (Experience), O (Tech Stack), P (Experience Years)
+    // Update B (Name), E (Experience), L (Resume Text), O (Tech Stack), P (Experience Years)
     const updates = [
       { range: `Users!B${sheetRow}`, values: [[name]] },
       { range: `Users!E${sheetRow}`, values: [[experience]] },
+      { range: `Users!L${sheetRow}`, values: [[(resumeText || '').slice(0, 45000)]] },
       { range: `Users!O${sheetRow}`, values: [[techStack || '']] },
       { range: `Users!P${sheetRow}`, values: [[String(experienceYears ?? '')]] },
     ];
@@ -981,7 +982,7 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
     console.log(`📋 Extracted — Name: ${resolvedName} | Tech: ${resolvedTechStack} | Exp: ${resolvedExperience} (${resolvedExpYears} yrs)`);
 
     // Step 2: Update user row with real name, tech, experience
-    await updateUserExtractedInfo(getSheetsClientFn(), sheetId, email, resolvedName, resolvedTechStack, resolvedExperience, resolvedExpYears);
+    await updateUserExtractedInfo(getSheetsClientFn(), sheetId, email, resolvedName, resolvedTechStack, resolvedExperience, resolvedExpYears, resumeText);
 
     // Step 2b: Send welcome email with real name + tech stack + experience
     try {

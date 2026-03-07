@@ -563,6 +563,16 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <div class="panel-title">JOB MATCH</div>
         <div class="panel-sub">Paste a job description — AI analyses how well your profile matches and what to fix</div>
         <div class="error-bar" id="jobmatchError"></div>
+        <!-- Free tier used-up banner — shown dynamically by showJobMatchPanel() -->
+        <div id="jmProBanner" style="display:none;background:linear-gradient(135deg,rgba(80,72,229,0.12),rgba(0,179,138,0.08));border:1px solid rgba(80,72,229,0.25);border-radius:14px;padding:18px 20px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div>
+              <div style="font-size:0.85rem;font-weight:700;color:var(--purple);margin-bottom:4px">&#128274; Pro Feature — 1 Free Analysis Used</div>
+              <div style="font-size:0.80rem;color:var(--muted);line-height:1.5">You've used your free Job Match analysis. Upgrade to Pro for <strong>unlimited</strong> job matching against your resume.</div>
+            </div>
+            <button onclick="showUpgradeModal()" style="flex-shrink:0;padding:9px 18px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer">Upgrade &#8599;</button>
+          </div>
+        </div>
 
         <!-- JD Input Card -->
         <div class="card" style="margin-bottom:18px">
@@ -779,6 +789,18 @@ var currentUser = null;
 var panelLoaded = {};
 var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', jobs:'Jobs For You', settings:'Settings' };
 
+function refreshJobMatchLock() {
+  var banner  = document.getElementById('jmProBanner');
+  var analyseBtn = document.getElementById('jmAnalyseBtn');
+  if (!banner || !analyseBtn) return;
+  var locked = _userTier === 'free' && _jmUsage >= 1;
+  banner.style.display   = locked ? 'block' : 'none';
+  analyseBtn.disabled    = locked;
+  analyseBtn.style.opacity = locked ? '0.4' : '1';
+  analyseBtn.style.cursor  = locked ? 'not-allowed' : 'pointer';
+  analyseBtn.title         = locked ? 'Upgrade to Pro to run more job match analyses' : '';
+}
+
 // INIT
 window.addEventListener('DOMContentLoaded', function() {
   fetch('/api/me', { credentials:'include' })
@@ -939,6 +961,7 @@ function showPanel(id, btn) {
   btn.classList.add('active');
   document.getElementById('topbarTitle').textContent = panelTitles[id];
   closeSidebar();
+  if (id === 'jobmatch') refreshJobMatchLock();
   // Always reload questions + scores (data changes server-side — AI scoring)
   // Plan reloads only if not already loaded (tasks are live via toggleTask)
   // Overview always live via updateOverviewStats
@@ -1427,20 +1450,42 @@ function loadQuestions() {
       document.getElementById('questionsSub').textContent='Week '+wk+' questions - submit answers for AI scoring';
       document.getElementById('questionsDeadline').style.display='inline-block';
       if (!qs.length){document.getElementById('questionsContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#10067;</div><div class="empty-text">No questions for this week yet. Check back Monday!</div></div>';return;}
-      document.getElementById('questionsContent').innerHTML=qs.map(function(q,i){
-        var sub=q.Submitted==='TRUE';
-        var tc=q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
-        var sc=q.Score?' - Score: '+q.Score+'/100':'';
-        return '<div class="question-card" id="qcard-'+i+'">'+
-          '<div class="q-meta"><span class="badge '+tc+'">'+(q.Type||'')+'</span><span class="q-num">Week '+wk+' - '+(q['Q No.']||'')+'</span>'+
-          (sub?'<span class="submitted-badge">&#10003; Submitted'+sc+'</span>':'')+
-          '</div><div class="q-text">'+(q.Question||'')+'</div>'+
-          (sub&&q['AI Feedback']?'<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>':'')+
-          (!sub?'<div class="q-hint">&#128161; Use STAR format - Situation, Task, Action, Result. Aim for 150-250 words.</div>'+
-            '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."></textarea>'+
-            '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>':'')+
-          '</div>';
-      }).join('');
+      // Count already AI-scored answers for free tier gate
+      var scoredCount = qs.filter(function(q){ return q.Submitted==='TRUE' && q.Score && q.Score!==''; }).length;
+      var freeAiUsed  = scoredCount; // how many AI scores already consumed
+      var freeAiLimit = 3;
+      var freeAiLeft  = Math.max(0, freeAiLimit - freeAiUsed);
+
+      document.getElementById('questionsContent').innerHTML=
+        // Show free tier banner if not pro
+        (_userTier==='free' ? '<div style="background:linear-gradient(135deg,rgba(80,72,229,0.12),rgba(0,179,138,0.08));border:1px solid rgba(80,72,229,0.2);border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">'+
+          '<div><div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">&#128274; AI Analysis — Free Plan</div>'+
+          '<div style="font-size:0.78rem;color:var(--muted)">'+freeAiLeft+' of '+freeAiLimit+' free AI scores remaining · <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade for all 28</a></div></div>'+
+          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Upgrade &#8599;</button>'+
+          '</div>' : '') +
+        qs.map(function(q,i){
+          var sub=q.Submitted==='TRUE';
+          var alreadyScored = sub && q.Score && q.Score!=='';
+          var tc=q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
+          var sc=q.Score?' - Score: '+q.Score+'/100':'';
+          // For free users: questions beyond the 3 free limit are locked (if not already submitted)
+          var isLocked = _userTier==='free' && !sub && freeAiUsed >= freeAiLimit;
+          return '<div class="question-card" id="qcard-'+i+'" style="'+(isLocked?'opacity:0.7;':'')+'">'+ 
+            '<div class="q-meta"><span class="badge '+tc+'">'+(q.Type||'')+'</span><span class="q-num">Week '+wk+' - '+(q['Q No.']||'')+'</span>'+
+            (sub?'<span class="submitted-badge">&#10003; Submitted'+sc+'</span>':'')+(isLocked?'<span style="font-size:0.72rem;background:rgba(80,72,229,0.15);color:var(--purple);padding:3px 8px;border-radius:6px;font-weight:600">&#128274; Pro</span>':'')+
+            '</div><div class="q-text">'+(q.Question||'')+'</div>'+
+            (sub&&q['AI Feedback']?'<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>':'')+
+            (!sub && !isLocked?'<div class="q-hint">&#128161; Use STAR format - Situation, Task, Action, Result. Aim for 150-250 words.</div>'+
+              '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."></textarea>'+
+              '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>':
+              isLocked?'<div style="background:rgba(80,72,229,0.08);border-radius:10px;padding:14px 16px;margin-top:10px;text-align:center">'+
+                '<div style="font-size:1.3rem;margin-bottom:6px">&#128274;</div>'+
+                '<div style="font-size:0.82rem;font-weight:600;color:var(--purple);margin-bottom:4px">Pro Feature</div>'+
+                '<div style="font-size:0.76rem;color:var(--muted);margin-bottom:10px">You\'ve used your 3 free AI scores. Upgrade to unlock all 28.</div>'+
+                '<button onclick="showUpgradeModal()" style="padding:7px 16px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Unlock All Questions &#8599;</button>'+
+                '</div>':'')+
+            '</div>';
+        }).join('');
     }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
 }
 
@@ -1780,6 +1825,8 @@ function analyseJobMatch() {
 
     document.getElementById('jmResults').style.display = 'block';
     document.getElementById('jmResults').scrollIntoView({behavior:'smooth',block:'start'});
+    // Increment local counter so lock activates immediately for free users
+    if (_userTier === 'free') { _jmUsage += 1; refreshJobMatchLock(); }
   })
   .catch(function(){
     btn.disabled=false; btn.innerHTML='&#129302; Analyse Job Match';
@@ -2104,6 +2151,7 @@ function hideGoogleOnboard() {
 // TIER + PAYWALL SYSTEM
 // ══════════════════════════════════════════════════════
 var _userTier    = 'free';
+var _jmUsage     = 0; // how many job match analyses free user has done
 var _billingMode = 'monthly';
 
 var PRICES = {

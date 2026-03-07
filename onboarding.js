@@ -218,40 +218,42 @@ function generatePassword(name) {
 // ── PHASE 1: Fast prompt — ATS score + tips only (~3s) ──
 function buildFastPrompt(name, role, experience, techStack, resumeText) {
   const hasResume = resumeText && resumeText.length > 100;
-  const resumeSnippet = hasResume ? resumeText.slice(0, 2500) : 'Not provided';
-  return `You are a senior technical recruiter and ATS expert for Indian tech companies (Flipkart, Swiggy, Razorpay, TCS, Infosys, etc).
+  const resumeSnippet = hasResume
+    ? resumeText.slice(0, 2500).replace(/`/g, "'").replace(/\\/g, ' ')
+    : 'Not provided';
 
-Analyse this resume for a ${role} role and return ONLY raw JSON — no markdown, no explanation.
-
-CANDIDATE: ${name}
-TARGET ROLE: ${role}
-RESUME TEXT:
-${resumeSnippet}
-
-Return exactly this JSON (nothing else):
-{
-  "atsScore": 72,
-  "atsTips": "Tip 1: [specific issue found in THIS resume and how to fix it]\nTip 2: [specific issue]\nTip 3: [specific issue]\nTip 4: [specific issue]\nTip 5: [specific issue]",
-  "keyStrengths": ["specific strength from this resume", "specific strength", "specific strength"],
-  "missingKeywords": ["keyword missing for ${role}", "keyword2", "keyword3", "keyword4"]
-}
-
-Scoring rules:
-- Score 80-95: strong resume with quantified achievements, good formatting, role-relevant keywords
-- Score 65-79: decent resume with some gaps — missing metrics, weak summary, or keyword gaps
-- Score 50-64: significant issues — no summary, vague descriptions, missing key ${role} skills
-- If no resume provided: score 62, give generic ${role} tips
-
-Tip rules — CRITICAL:
-- Each tip must reference something SPECIFIC from this resume (e.g. "Your experience at Company X lacks metrics — add numbers like '40% reduction in latency'")
-- Do NOT write generic tips like "Add quantified achievements" without context
-- Each tip must be one sentence, actionable, under 20 words
-- Tips should cover: metrics/impact, keywords, formatting, summary, and role-specific gaps
-
-keyStrengths: 3 specific things this resume already does well (mention actual content)
-missingKeywords: 4 technical skills/keywords expected for ${role} that are absent from this resume
-
-Return ONLY the JSON object.`;
+  const lines = [
+    'You are a senior technical recruiter and ATS expert for Indian tech companies (Flipkart, Swiggy, Razorpay, TCS, Infosys).',
+    '',
+    'Analyse this resume for a ' + role + ' role. Return ONLY a raw JSON object - no markdown, no explanation, no code fences.',
+    '',
+    'CANDIDATE: ' + name,
+    'TARGET ROLE: ' + role,
+    'RESUME TEXT:',
+    resumeSnippet,
+    '',
+    'Return exactly this JSON structure:',
+    '{"atsScore":72,"atsTips":"Tip 1: ...\nTip 2: ...\nTip 3: ...\nTip 4: ...\nTip 5: ...","keyStrengths":["strength1","strength2","strength3"],"missingKeywords":["kw1","kw2","kw3","kw4"]}',
+    '',
+    'SCORING:',
+    '- 80-95: strong resume, quantified achievements, good keywords',
+    '- 65-79: decent but missing metrics, weak summary, or keyword gaps',
+    '- 50-64: significant gaps, no summary, vague descriptions',
+    '- No resume: score 62',
+    '',
+    'TIP RULES (important):',
+    '- Reference SPECIFIC content from THIS resume in each tip',
+    '- Bad example: "Add quantified achievements" (too generic)',
+    '- Good example: "Your role at [Company] lacks numbers - add metrics like reduced latency by 30%"',
+    '- Each tip: one sentence, actionable, under 25 words',
+    '- Cover: metrics, keywords, formatting, summary, role-specific gaps',
+    '',
+    'keyStrengths: 3 specific things already good in this resume (mention actual companies/skills)',
+    'missingKeywords: 4 technical skills expected for ' + role + ' that are absent from this resume',
+    '',
+    'Return ONLY the JSON object, nothing else.'
+  ];
+  return lines.join('\n');
 }
 
 function buildPrompt(name, email, role, experience, techStack, resumeText) {
@@ -337,6 +339,7 @@ async function generateFastPreview(name, role, experience, techStack, resumeText
 
   const raw     = message.content[0].text.trim();
   const cleaned = raw.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+  console.log('📝 Phase 1 raw response (first 200 chars):', cleaned.slice(0, 200));
   const parsed  = JSON.parse(cleaned);
   console.log('✅ Phase 1 done — ATS score:', parsed.atsScore);
   return parsed;
@@ -757,12 +760,13 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       fastPreview = await generateFastPreview(displayName, role, 'Mid', role, resumeText);
       console.log('⚡ Phase 1 ATS preview took', Date.now() - t1, 'ms');
     } catch(e) {
-      console.error('Phase 1 fast preview failed:', e.message);
+      console.error('Phase 1 fast preview failed:', e.message, e.stack);
+      // Generate basic tips using role name at minimum — never show hardcoded generics
       fastPreview = {
         atsScore: 65,
-        atsTips: 'Tip 1: Add quantified achievements\nTip 2: Include role-specific keywords\nTip 3: Add professional summary\nTip 4: List relevant certifications\nTip 5: Tailor skills section to job description',
-        keyStrengths: ['Relevant work experience', 'Technical background', 'Domain knowledge'],
-        missingKeywords: ['Leadership', 'Agile', 'Cloud', 'CI/CD']
+        atsTips: 'Tip 1: Add quantified achievements with metrics relevant to ' + role + '\nTip 2: Include ' + role + '-specific keywords in your skills section\nTip 3: Add a 3-line professional summary targeting ' + role + ' roles\nTip 4: Use strong action verbs (built, designed, optimised, led) for each role\nTip 5: Tailor your skills section to match ' + role + ' job descriptions',
+        keyStrengths: ['Work experience in relevant domain', 'Technical background', 'Problem-solving skills'],
+        missingKeywords: [role + ' certifications', 'System design', 'Cloud platforms', 'Agile/Scrum']
       };
     }
 

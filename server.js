@@ -290,6 +290,11 @@ async function appendRow(tabName, values) {
 // ── Auth middleware ──
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.status(401).json({ error: 'Not logged in' });
+  // Block users who signed in with Google but never completed Tally onboarding
+  if (req.session.user.needsOnboarding || !req.session.user.role) {
+    req.session = null; // wipe the incomplete session
+    return res.status(401).json({ error: 'Not logged in' });
+  }
   next();
 }
 
@@ -523,8 +528,12 @@ app.post('/api/logout', (req, res) => {
 
 // GET /api/me — check session
 app.get('/api/me', requireLogin, (req, res) => {
-  // Ensure tier is always present in response
   const u = req.session.user;
+  // Safety guard — if somehow a needsOnboarding session slipped through, reject it
+  if (u.needsOnboarding || !u.role) {
+    req.session = null; // clear the bad session
+    return res.status(401).json({ error: 'Incomplete registration — please complete onboarding' });
+  }
   if (!u.tier) u.tier = 'free';
   res.json({ user: u });
 });
@@ -2062,14 +2071,22 @@ app.get('/auth/google/callback',
         console.error('Google OAuth no user:', info);
         return res.redirect('/app?error=google_auth_failed');
       }
-      // Set session directly
-      req.session.user = user;
       console.log('✅ Google login success:', user.email, '| needsOnboarding:', user.needsOnboarding);
-      const dest = user.needsOnboarding ? '/app?onboarding=1' : '/app';
-      // Use HTML redirect instead of 302 — ensures cookie is committed before navigation
+
+      if (user.needsOnboarding) {
+        // New Google user — NOT in sheet yet — send directly to Tally, no session set
+        // This prevents any flash of dashboard before redirect
+        const tallyBase = process.env.TALLY_FORM_URL || 'https://tally.so/r/D4NpLX';
+        const tallyUrl  = tallyBase + '?email=' + encodeURIComponent(user.email) + '&name=' + encodeURIComponent(user.name || '');
+        console.log('⏩ New Google user — redirecting to Tally (no session):', user.email);
+        return res.redirect(tallyUrl);
+      }
+
+      // Existing user — set session and go to dashboard
+      req.session.user = user;
       return res.send(`<!DOCTYPE html><html><head>
-        <meta http-equiv="refresh" content="0;url=${dest}">
-        <script>window.location.href='${dest}';</script>
+        <meta http-equiv="refresh" content="0;url=/app">
+        <script>window.location.href='/app';</script>
         </head><body>Redirecting...</body></html>`);
     })(req, res, next);
   }

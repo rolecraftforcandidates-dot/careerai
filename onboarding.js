@@ -944,7 +944,11 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
     console.log('🔍 Extracting resume info...');
     const extracted = await extractResumeInfo(resumeText, email);
 
-    const resolvedName       = tallyName || extracted.name       || displayName;
+    // displayName was already extracted correctly in Phase 1 via extractNameFromResume
+    // Prefer it over extractResumeInfo's name (which can fall back to email prefix)
+    // Only use extracted.name if displayName looks like an email prefix (no spaces = likely prefix)
+    const phase1NameIsReal = displayName && displayName.includes(' ');
+    const resolvedName       = phase1NameIsReal ? displayName : (extracted.name || displayName);
     const resolvedTechStack  = tallyTech || extracted.techStack  || role;
     const resolvedExperience = tallyExp  || extracted.experience || 'Mid';
     const resolvedExpYears   = extracted.experienceYears ?? 2;

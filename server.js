@@ -1188,36 +1188,29 @@ Rules:
   }
 });
 
-// POST /api/resources — generate cheatsheet + curated links (cached in Resources sheet)
-app.post('/api/resources', requirePro, async (req, res) => {
+// ══════════════════════════════════════════════════════
+// generateAndCacheResource — shared logic used by both
+// /api/resources (on-demand) and preloadWeek1Resources (post-payment)
+// ══════════════════════════════════════════════════════
+async function generateAndCacheResource(email, role, experience, week, day, taskTitle, taskType) {
+  const cacheKey = `${email}|W${week}D${day}`;
+
+  // Check cache first — don't regenerate if already exists
   try {
-    const { week, day, taskTitle, taskType } = req.body;
-    const { email, role, experience } = req.session.user;
-
-    if (!taskTitle) return res.status(400).json({ error: 'Task title required' });
-
-    // ── Check cache first ──
-    const cacheKey = `${email}|W${week}D${day}`;
-    try {
-      const cached = await readSheet('Resources');
-      const hit = cached.find(r =>
-        (r.CacheKey || '').trim() === cacheKey.trim()
-      );
-      if (hit && hit.Data) {
-        console.log(`📦 Cache hit for ${cacheKey}`);
-        return res.json(JSON.parse(hit.Data));
-      }
-    } catch (cacheErr) {
-      console.log('Cache read skipped:', cacheErr.message);
+    const cached = await readSheet('Resources');
+    const hit = cached.find(r => (r.CacheKey || '').trim() === cacheKey.trim());
+    if (hit && hit.Data) {
+      console.log(`📦 Cache hit — skipping: ${cacheKey}`);
+      return JSON.parse(hit.Data);
     }
+  } catch(e) { /* non-fatal */ }
 
-    console.log(`🔨 Generating resources for ${cacheKey}: "${taskTitle}"`);
-    const Anthropic = require('@anthropic-ai/sdk');
-    const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const prompt = `You are an expert career coach and technical trainer for ${role} roles in India.
+  const prompt = `You are an expert career coach and technical trainer for ${role} roles in India.
 
-A candidate (${experience} years experience, targeting ${role}) is working on this task:
+A candidate (${experience} experience, targeting ${role}) is working on this task:
 TASK: "${taskTitle}"
 TYPE: ${taskType} (Theory = learn concepts | Practice = hands-on | Mock = interview simulation)
 WEEK: ${week} of 4 (Week 1=foundations, Week 2=technical depth, Week 3=interview practice, Week 4=final readiness)
@@ -1239,70 +1232,109 @@ Generate a personalised study resource for this task. Return ONLY valid JSON:
     "<specific action to do today>"
   ],
   "resources": [
-    {
-      "title": "<resource title>",
-      "url": "<real working URL — YouTube video, official docs, or well-known article>",
-      "source": "<YouTube | Official Docs | GeeksforGeeks | Medium | etc>",
-      "type": "<video | docs | article>"
-    },
-    {
-      "title": "<resource title>",
-      "url": "<real working URL>",
-      "source": "<source name>",
-      "type": "<video | docs | article>"
-    },
-    {
-      "title": "<resource title>",
-      "url": "<real working URL>",
-      "source": "<source name>",
-      "type": "<video | docs | article>"
-    }
+    { "title": "<resource title>", "url": "<real working URL>", "source": "<YouTube | Official Docs | GeeksforGeeks | Medium | etc>", "type": "<video | docs | article>" },
+    { "title": "<resource title>", "url": "<real working URL>", "source": "<source name>", "type": "<video | docs | article>" },
+    { "title": "<resource title>", "url": "<real working URL>", "source": "<source name>", "type": "<video | docs | article>" }
   ],
   "interviewTip": "<one highly specific tip: what interviewers at top Indian tech companies actually ask about this topic, and the #1 mistake candidates make>"
 }
 
 Rules:
 - cheatsheet: exactly 6 points, each under 20 words, fact-dense and interview-ready
-- practice: exactly 3 concrete actions for TODAY (not vague like "study X" — specific like "implement X function", "write 3 SQL queries for Y")
-- resources: ONLY use real, well-known URLs that actually exist (YouTube search URLs are fine: https://www.youtube.com/results?search_query=...)
-- interviewTip: be very specific to ${role} and this exact task — not generic advice
-- All content must be specific to ${role} with ${experience} years experience level`;
+- practice: exactly 3 concrete actions for TODAY
+- resources: ONLY real, well-known URLs (YouTube search URLs fine: https://www.youtube.com/results?search_query=...)
+- interviewTip: specific to ${role} and this exact task — not generic advice`;
 
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1200,
-      messages: [{ role: 'user', content: prompt }],
+  const msg = await client.messages.create({
+    model:      'claude-haiku-4-5-20251001',
+    max_tokens: 1200,
+    messages:   [{ role: 'user', content: prompt }],
+  });
+
+  const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
+  const result = JSON.parse(raw);
+
+  const payload = {
+    summary:      result.summary      || '',
+    cheatsheet:   result.cheatsheet   || [],
+    practice:     result.practice     || [],
+    resources:    result.resources    || [],
+    interviewTip: result.interviewTip || '',
+  };
+
+  // Save to Resources sheet
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    await getSheetsClient().spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range:         'Resources!A:A',
+      valueInputOption:  'RAW',
+      insertDataOption:  'INSERT_ROWS',
+      requestBody: { values: [[
+        cacheKey, email, String(week), String(day), taskTitle, taskType, today,
+        JSON.stringify(payload)
+      ]]}
     });
+    console.log(`✅ Cached: ${cacheKey}`);
+  } catch(e) {
+    console.error('Cache write failed (non-fatal):', e.message);
+  }
 
-    const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
-    const result = JSON.parse(raw);
+  return payload;
+}
 
-    const payload = {
-      summary:      result.summary      || '',
-      cheatsheet:   result.cheatsheet   || [],
-      practice:     result.practice     || [],
-      resources:    result.resources    || [],
-      interviewTip: result.interviewTip || '',
-    };
+// ── Pre-generate all 7 Week 1 study materials for a user (runs in background after payment) ──
+async function preloadWeek1Resources(email, role, experience) {
+  console.log(`🚀 Preloading Week 1 resources for ${email} (${role} — ${experience})`);
 
-    // ── Save to Resources sheet (cache) ──
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      await getSheetsClient().spreadsheets.values.append({
-        spreadsheetId: SHEET_ID,
-        range: 'Resources!A:A',
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[
-          cacheKey, email, String(week), String(day), taskTitle, taskType, today,
-          JSON.stringify(payload)
-        ]]}
-      });
-      console.log(`✅ Cached resources for ${cacheKey}`);
-    } catch (cacheWriteErr) {
-      console.error('Cache write failed (non-fatal):', cacheWriteErr.message);
-    }
+  // Fetch this user's Week 1 plan tasks from the Plans sheet
+  let week1Tasks = [];
+  try {
+    const allPlans = await readSheet('Plans');
+    week1Tasks = allPlans.filter(r =>
+      (r.Email || '').toLowerCase() === email.toLowerCase() &&
+      String(r.Week) === '1'
+    );
+  } catch(e) {
+    console.error('preloadWeek1: could not read Plans:', e.message);
+    return;
+  }
 
+  if (week1Tasks.length === 0) {
+    console.warn(`⚠️  preloadWeek1: no Week 1 tasks found for ${email} — plan may still be generating`);
+    return;
+  }
+
+  console.log(`📋 Found ${week1Tasks.length} Week 1 tasks — generating resources in parallel`);
+
+  // Run all 7 in parallel (Haiku is fast, parallel is safe at this scale)
+  const results = await Promise.allSettled(
+    week1Tasks.map(task =>
+      generateAndCacheResource(
+        email, role, experience,
+        1,                          // week
+        parseInt(task.Day) || 1,    // day
+        task.Task || task.Title || task.TaskTitle || '',
+        task.Type || task.TaskType || 'Theory'
+      )
+    )
+  );
+
+  const succeeded = results.filter(r => r.status === 'fulfilled').length;
+  const failed    = results.filter(r => r.status === 'rejected').length;
+  console.log(`✅ Week 1 preload done for ${email}: ${succeeded} succeeded, ${failed} failed`);
+}
+
+// POST /api/resources — generate cheatsheet + curated links (uses shared generateAndCacheResource)
+app.post('/api/resources', requirePro, async (req, res) => {
+  try {
+    const { week, day, taskTitle, taskType } = req.body;
+    const { email, role, experience } = req.session.user;
+
+    if (!taskTitle) return res.status(400).json({ error: 'Task title required' });
+
+    console.log(`🔨 Resource request: ${email} W${week}D${day} "${taskTitle}"`);
+    const payload = await generateAndCacheResource(email, role, experience, week, day, taskTitle, taskType);
     res.json(payload);
   } catch (err) {
     console.error('Resources error:', err.message);
@@ -1978,6 +2010,17 @@ app.post('/api/payment/verify', requireLogin, async (req, res) => {
     console.log(`✅ Payment verified: ${email} → ${meta.tier} until ${expiryStr}`);
     res.json({ success: true, tier: meta.tier, expiryStr });
 
+    // ── Fire Week 1 resource preload in background (non-blocking) ──
+    // User gets instant response above; this runs while they see the success modal
+    const { role, experience } = req.session.user;
+    setImmediate(async () => {
+      try {
+        await preloadWeek1Resources(email, role, experience);
+      } catch(e) {
+        console.error('Week 1 preload failed (non-fatal):', e.message);
+      }
+    });
+
   } catch (err) {
     console.error('Verify payment error:', err.message);
     res.status(500).json({ error: 'Verification failed: ' + err.message });
@@ -2098,6 +2141,19 @@ app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), asyn
       });
 
       console.log('✅ Webhook: upgraded', email, '→', meta.tier, 'until', expiryStr);
+
+      // Preload Week 1 resources in background (same as payment/verify route)
+      setImmediate(async () => {
+        try {
+          const userRows  = await readSheet('Users');
+          const userRow   = userRows.find(r => (r.Email||'').toLowerCase() === email);
+          const userRole  = userRow?.Role || '';
+          const userExp   = userRow?.Experience || 'Mid';
+          if (userRole) await preloadWeek1Resources(email, userRole, userExp);
+        } catch(e) {
+          console.error('Webhook Week 1 preload failed (non-fatal):', e.message);
+        }
+      });
     }
 
     res.json({ ok: true });

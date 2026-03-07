@@ -432,9 +432,9 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
         'TRUE',                    // G: Plan Active
         String(generated.atsScore),// H: ATS Score
         generated.atsTips || '',   // I: ATS Tips
-        '',                        // J: Resume URL
+        '',                        // J: Resume URL (Drive URL populated separately if uploaded)
         today,                     // K: Week Started
-        '',                        // L: Resume Text
+        (resumeText || '').slice(0, 50000), // L: Resume Text (saved for Job Match)
         'free',                    // M: Tier (free|pro|premium)
         '',                        // N: Tier Expiry
         techStack || '',           // O: Tech Stack
@@ -771,7 +771,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     }
 
     // Write basic user row with real name — tech/exp updated after Phase 2
-    await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview);
+    await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview, resumeText);
     console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms — welcome page ready');
 
     // Surface Phase 1 result to welcome page
@@ -814,7 +814,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
 }
 
 // ── Write just the user row (Phase 1) ──
-async function writeBasicUser(sheets, sheetId, name, email, password, role, experience, techStack, experienceYears, fastPreview) {
+async function writeBasicUser(sheets, sheetId, name, email, password, role, experience, techStack, experienceYears, fastPreview, resumeText) {
   const today = new Date().toISOString().split('T')[0];
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,

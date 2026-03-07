@@ -348,7 +348,7 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
   console.log(`🤖 Calling Claude for ${name} (${role}, ${experience})`);
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-5-20251001', // Sonnet for richer, more specific plan content
+    model: 'claude-sonnet-4-5', // Sonnet for richer, more specific plan content
     max_tokens: 16000,
     messages: [{
       role: 'user',
@@ -372,7 +372,7 @@ async function generateWithClaude(name, email, role, experience, techStack, resu
     try {
       console.log('🔄 Retrying with simplified prompt...');
       const retryMsg = await client.messages.create({
-        model: 'claude-sonnet-4-5-20251001',
+        model: 'claude-sonnet-4-5',
         max_tokens: 16000,
         messages: [{
           role: 'user',

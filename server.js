@@ -709,7 +709,7 @@ Scoring guide:
 Be honest. Reference specific things the candidate wrote.`;
 
       const msg = await client.messages.create({
-        model: 'claude-sonnet-4-5-20251001', // Sonnet for richer answer feedback
+        model: 'claude-sonnet-4-5', // Sonnet for richer answer feedback
         max_tokens: 800,
         messages: [{ role: 'user', content: scorePrompt }],
       });
@@ -1201,7 +1201,7 @@ Rules:
 - Be honest — don't inflate scores`;
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-5-20251001', // Sonnet for deeper job match analysis
+      model: 'claude-sonnet-4-5', // Sonnet for deeper job match analysis
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     });

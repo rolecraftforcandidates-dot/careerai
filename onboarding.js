@@ -18,6 +18,74 @@ function getAnthropicClient() {
   return new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
+// ══════════════════════════════════════════════════════
+// EXTRACT INFO FROM RESUME TEXT USING CLAUDE
+// Extracts: name, techStack, experience (years)
+// ══════════════════════════════════════════════════════
+async function extractResumeInfo(resumeText, emailHint) {
+  if (!resumeText || resumeText.trim().length < 50) {
+    // No usable resume text — derive name from email
+    const nameFromEmail = (emailHint || '').split('@')[0]
+      .replace(/[._\-0-9]+/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim();
+    return { name: nameFromEmail || 'User', techStack: '', experience: 'Mid' };
+  }
+
+  try {
+    const client = getAnthropicClient();
+    const prompt = `Extract the following from this resume text. Return ONLY raw JSON, no markdown, no explanation.
+
+Resume text:
+${resumeText.slice(0, 3000)}
+
+Return exactly this JSON:
+{
+  "name": "full name from resume top",
+  "techStack": "comma-separated list of technical skills, languages, frameworks, tools (max 10)",
+  "experienceYears": 3
+}
+
+Rules:
+- name: The person's full name, usually at the very top of resume. If unclear, return "${(emailHint||'').split('@')[0]}".
+- techStack: Extract only real tech skills (e.g. Python, React, AWS, SQL, Docker). Not soft skills. Not job titles.
+- experienceYears: Calculate total years of professional work experience from employment dates. Return a number only. If fresher/student return 0. If unclear return 2.
+Return ONLY the JSON object.`;
+
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw = (response.content[0]?.text || '').trim().replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(raw);
+
+    // Map experienceYears number → band string
+    const yrs = parseInt(parsed.experienceYears) || 0;
+    let expBand = 'Mid';
+    if (yrs <= 1)       expBand = 'Fresher';
+    else if (yrs <= 3)  expBand = 'Junior';
+    else if (yrs <= 6)  expBand = 'Mid';
+    else if (yrs <= 10) expBand = 'Senior';
+    else                expBand = 'Lead';
+
+    return {
+      name:       (parsed.name || '').trim() || (emailHint||'').split('@')[0],
+      techStack:  (parsed.techStack || '').trim(),
+      experience: expBand,
+      experienceYears: yrs,
+    };
+  } catch(e) {
+    console.error('Resume info extraction failed:', e.message);
+    const nameFromEmail = (emailHint || '').split('@')[0]
+      .replace(/[._\-0-9]+/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim();
+    return { name: nameFromEmail || 'User', techStack: '', experience: 'Mid', experienceYears: 2 };
+  }
+}
+
 // ── Send email via Brevo HTTP API (no SMTP, no nodemailer needed) ──
 function sendBrevoEmail(to, toName, subject, htmlContent) {
   return new Promise((resolve, reject) => {
@@ -271,8 +339,11 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
         generated.atsTips || '',   // I: ATS Tips
         '',                        // J: Resume URL
         today,                     // K: Week Started
-        'free',                    // L: Tier (free|pro|premium)
-        '',                        // M: Tier Expiry
+        '',                        // L: Resume Text
+        'free',                    // M: Tier (free|pro|premium)
+        '',                        // N: Tier Expiry
+        techStack || '',           // O: Tech Stack
+        '',                        // P: Experience Years
       ]]
     }
   });
@@ -328,7 +399,7 @@ async function writeToSheets(sheets, sheetId, name, email, password, role, exper
 // ══════════════════════════════════════════════════════
 // SEND WELCOME EMAIL
 // ══════════════════════════════════════════════════════
-async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
+async function sendWelcomeEmail(name, email, password, role, techStack, experience, dashboardUrl) {
   if (!process.env.BREVO_API_KEY) {
     console.warn('⚠️  BREVO_API_KEY not set — skipping welcome email');
     return;
@@ -344,6 +415,11 @@ async function sendWelcomeEmail(name, email, password, role, dashboardUrl) {
     <div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">
       <p style="font-size:18px;font-weight:700;margin-bottom:8px">Hi ${firstName}! 👋</p>
       <p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your personalised <strong>${role}</strong> interview preparation programme is ready. Your complete 4-week plan, 12 interview questions, and resume analysis are all set.</p>
+      <div style="background:#f0f0ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#5048e5;border-left:4px solid #5048e5">
+        <strong>📋 Your Profile (extracted from your resume)</strong><br>
+        <span style="color:#444">Experience Level:</span> <strong>${experience}</strong> &nbsp;·&nbsp;
+        <span style="color:#444">Tech Stack:</span> <strong>${techStack || role}</strong>
+      </div>
       <div style="background:#e6f7f3;border-radius:10px;padding:18px;margin-bottom:20px;border-left:4px solid #00b38a">
         <div style="font-size:12px;color:#007a5e;font-weight:700;letter-spacing:2px;margin-bottom:10px">YOUR LOGIN DETAILS</div>
         <div style="margin-bottom:6px"><strong>Dashboard:</strong> <a href="${dashboardUrl}" style="color:#5048e5">${dashboardUrl}</a></div>
@@ -453,11 +529,13 @@ function parseTallyPayload(body) {
   console.log('Role resolution → raw: "' + rawRole + '" | other field: "' + otherRole + '" | final: "' + resolvedRole + '"');
 
   return {
-    name:       getField('name') || getField('full name'),
+    // name, techStack, experience are now extracted from resume by extractResumeInfo()
+    // We still read them as graceful fallback for old form submissions
+    name:       getField('name') || getField('full name') || '',
     email:      getField('email'),
     role:       resolvedRole,
-    techStack:  getField('tech stack') || getField('tech'),
-    experience: getField('experience') || getField('years') || getField('exp'),
+    techStack:  getField('tech stack') || getField('tech') || '',
+    experience: getField('experience') || getField('years') || getField('exp') || '',
     resumeUrl:  getFileUrl('resume'),
   };
 }
@@ -491,9 +569,11 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
   try {
     // 1. Parse Tally payload
     const { name, email, role, techStack, experience, resumeUrl } = parseTallyPayload(rawBody);
-    const displayName = name || email.split('@')[0];
+    // displayName is a temporary placeholder — real name extracted from resume below
+    const emailPrefix = (email || '').split('@')[0].replace(/[._\-0-9]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
 
-    console.log(`\n🚀 New onboarding: ${displayName} | ${email} | Role: ${role} | Exp: ${experience} yrs | Tech: ${techStack}`);
+    console.log(`\n🚀 New onboarding: ${name || emailPrefix} | ${email} | Role: ${role}`);
+    console.log(`   (Tally fallback values — Tech: "${techStack || 'none'}" | Exp: "${experience || 'none'}" — will extract from resume)`);
 
     if (!email) throw new Error('No email found in Tally payload');
     if (!role)  throw new Error('No role found in Tally payload');
@@ -515,10 +595,12 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       result.success     = true;
       result.phase1Ready = true;
       result.welcomeData = {
-        name:            userObj.Name || displayName,
+        name:            userObj.Name || name || emailPrefix,
         email,
         role:            userObj.Role || role,
+        techStack:       userObj['Tech Stack'] || techStack || '',
         experience:      userObj.Experience || experience || 'Mid',
+        experienceYears: parseInt(userObj['Experience Years']) || 0,
         atsScore:        parseInt(userObj['ATS Score']) || 65,
         atsTips:         userObj['ATS Tips'] || '',
         keyStrengths:    [],
@@ -531,15 +613,29 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       return result;
     }
 
-    // 3. Fetch resume text + generate password (parallel, instant)
+    // 3. Fetch resume text
     const resumeText = await fetchResumeText(resumeUrl);
-    const password   = generatePassword(displayName);
+
+    // 3b. Extract name, techStack, experience from resume (runs in parallel with nothing yet)
+    //     Use Tally-provided values as fallback if user's old form still sends them
+    console.log('🔍 Extracting info from resume...');
+    const extracted = await extractResumeInfo(resumeText, email);
+
+    const resolvedName       = name       || extracted.name;
+    const resolvedTechStack  = techStack  || extracted.techStack  || role;
+    const resolvedExperience = experience || extracted.experience || 'Mid';
+    const resolvedExpYears   = extracted.experienceYears ?? 2;
+
+    const displayName = resolvedName || email.split('@')[0];
+    const password    = generatePassword(displayName);
+
+    console.log(`📋 Resolved — Name: ${displayName} | Tech: ${resolvedTechStack} | Exp: ${resolvedExperience} (${resolvedExpYears} yrs)`);
 
     // ── PHASE 1: Fast ATS preview — Haiku with minimal prompt ──
     const t1 = Date.now();
     let fastPreview = null;
     try {
-      fastPreview = await generateFastPreview(displayName, role, experience || 'Mid', techStack || role, resumeText);
+      fastPreview = await generateFastPreview(displayName, role, resolvedExperience, resolvedTechStack, resumeText);
       console.log('⚡ Phase 1 took', Date.now() - t1, 'ms');
     } catch(e) {
       console.error('Phase 1 fast preview failed:', e.message);
@@ -551,8 +647,8 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       };
     }
 
-    // Write user row immediately (non-blocking is fine here, await to ensure it's ready before token)
-    await writeBasicUser(sheets, sheetId, displayName, email, password, role, experience || 'Mid', fastPreview);
+    // Write user row immediately with all resolved info
+    await writeBasicUser(sheets, sheetId, displayName, email, password, role, resolvedExperience, resolvedTechStack, resolvedExpYears, fastPreview);
     console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms total — welcome page ready');
 
     // Surface Phase 1 result immediately
@@ -562,7 +658,9 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       name:            displayName,
       email,
       role,
-      experience:      experience || 'Mid',
+      techStack:       resolvedTechStack,
+      experience:      resolvedExperience,
+      experienceYears: resolvedExpYears,
       atsScore:        fastPreview.atsScore,
       atsTips:         fastPreview.atsTips,
       keyStrengths:    fastPreview.keyStrengths    || [],
@@ -575,7 +673,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     // Send welcome email immediately with credentials
     const dashboardUrl = (process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app') + '/app';
     try {
-      await sendWelcomeEmail(displayName, email, password, role, dashboardUrl);
+      await sendWelcomeEmail(displayName, email, password, role, resolvedTechStack, resolvedExperience, dashboardUrl);
     } catch(emailErr) {
       console.error('Welcome email failed:', emailErr.message);
     }
@@ -587,7 +685,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     setImmediate(async () => {
       try {
         console.log('🔄 Phase 2 starting for', email);
-        const generated = await generateWithClaude(displayName, email, role, experience || 'Mid', techStack || role, resumeText);
+        const generated = await generateWithClaude(displayName, email, role, resolvedExperience, resolvedTechStack, resumeText);
         await writeFullPlan(getSheetsClientFn(), sheetId, email, generated);
         await updatePlanActive(getSheetsClientFn(), sheetId, email);
         console.log('✅ Phase 2 complete in', Math.round((Date.now()-t2)/1000), 's for', email);
@@ -597,7 +695,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
         setTimeout(async () => {
           try {
             console.log('🔁 Phase 2 retry for', email);
-            const gen2 = await generateWithClaude(displayName, email, role, experience || 'Mid', techStack || role, resumeText);
+            const gen2 = await generateWithClaude(displayName, email, role, resolvedExperience, resolvedTechStack, resumeText);
             await writeFullPlan(getSheetsClientFn(), sheetId, email, gen2);
             await updatePlanActive(getSheetsClientFn(), sheetId, email);
             console.log('✅ Phase 2 retry succeeded for', email);
@@ -617,7 +715,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
 }
 
 // ── Write just the user row (Phase 1) ──
-async function writeBasicUser(sheets, sheetId, name, email, password, role, experience, fastPreview) {
+async function writeBasicUser(sheets, sheetId, name, email, password, role, experience, techStack, experienceYears, fastPreview) {
   const today = new Date().toISOString().split('T')[0];
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
@@ -625,18 +723,25 @@ async function writeBasicUser(sheets, sheetId, name, email, password, role, expe
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [[
-      email, name, password, role, experience,
-      '1',        // Week
-      'FALSE',    // Plan Active — FALSE until Phase 2 completes
-      String(fastPreview.atsScore || 65),
-      fastPreview.atsTips || '',
-      '',         // Resume URL
-      today,      // Week Started
-      'free',     // Tier
-      '',         // Tier Expiry
+      email,                              // A: Email
+      name,                               // B: Name
+      password,                           // C: Password
+      role,                               // D: Role
+      experience,                         // E: Experience (band)
+      '1',                                // F: Week
+      'FALSE',                            // G: Plan Active — FALSE until Phase 2 completes
+      String(fastPreview.atsScore || 65), // H: ATS Score
+      fastPreview.atsTips || '',          // I: ATS Tips
+      '',                                 // J: Resume URL
+      today,                              // K: Week Started
+      '',                                 // L: Resume Text (populated separately if needed)
+      'free',                             // M: Tier
+      '',                                 // N: Tier Expiry
+      techStack || '',                    // O: Tech Stack  ← new column (add header in sheet)
+      String(experienceYears ?? ''),      // P: Experience Years ← new column (add header in sheet)
     ]]}
   });
-  console.log('✅ Basic user row created for', email);
+  console.log('✅ Basic user row created for', email, '| Tech:', techStack, '| Exp:', experience, experienceYears + 'yrs');
 }
 
 // ── Write full plan tasks + questions (Phase 2) ──

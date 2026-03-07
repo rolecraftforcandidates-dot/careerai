@@ -217,20 +217,41 @@ function generatePassword(name) {
 // ══════════════════════════════════════════════════════
 // ── PHASE 1: Fast prompt — ATS score + tips only (~3s) ──
 function buildFastPrompt(name, role, experience, techStack, resumeText) {
-  return 'You are a resume expert for Indian tech hiring. Return ONLY raw JSON, no markdown.' +
-    '\n\nUser: ' + name + ' | Role: ' + role + ' | Experience: ' + experience + ' yrs | Tech: ' + techStack +
-    '\nResume: ' + (resumeText ? resumeText.slice(0, 2000) : 'Not provided') +
-    '\n\nReturn exactly this JSON structure (nothing else):\n' +
-    '{\n' +
-    '  "atsScore": 72,\n' +
-    '  "atsTips": "Tip 1: specific tip\\nTip 2: specific tip\\nTip 3: specific tip\\nTip 4: specific tip\\nTip 5: specific tip",\n' +
-    '  "keyStrengths": ["strength 1", "strength 2", "strength 3"],\n' +
-    '  "missingKeywords": ["keyword1", "keyword2", "keyword3", "keyword4"]\n' +
-    '}\n\n' +
-    'Rules: atsScore = realistic 50-95 based on resume (65 if no resume). ' +
-    'atsTips = exactly 5 lines starting with Tip 1: through Tip 5:, specific to ' + role + ' in Indian job market. ' +
-    'keyStrengths = 3 things already good in resume. missingKeywords = 4 skills/keywords missing for ' + role + '. ' +
-    'Return ONLY the JSON object.';
+  const hasResume = resumeText && resumeText.length > 100;
+  const resumeSnippet = hasResume ? resumeText.slice(0, 2500) : 'Not provided';
+  return `You are a senior technical recruiter and ATS expert for Indian tech companies (Flipkart, Swiggy, Razorpay, TCS, Infosys, etc).
+
+Analyse this resume for a ${role} role and return ONLY raw JSON — no markdown, no explanation.
+
+CANDIDATE: ${name}
+TARGET ROLE: ${role}
+RESUME TEXT:
+${resumeSnippet}
+
+Return exactly this JSON (nothing else):
+{
+  "atsScore": 72,
+  "atsTips": "Tip 1: [specific issue found in THIS resume and how to fix it]\nTip 2: [specific issue]\nTip 3: [specific issue]\nTip 4: [specific issue]\nTip 5: [specific issue]",
+  "keyStrengths": ["specific strength from this resume", "specific strength", "specific strength"],
+  "missingKeywords": ["keyword missing for ${role}", "keyword2", "keyword3", "keyword4"]
+}
+
+Scoring rules:
+- Score 80-95: strong resume with quantified achievements, good formatting, role-relevant keywords
+- Score 65-79: decent resume with some gaps — missing metrics, weak summary, or keyword gaps
+- Score 50-64: significant issues — no summary, vague descriptions, missing key ${role} skills
+- If no resume provided: score 62, give generic ${role} tips
+
+Tip rules — CRITICAL:
+- Each tip must reference something SPECIFIC from this resume (e.g. "Your experience at Company X lacks metrics — add numbers like '40% reduction in latency'")
+- Do NOT write generic tips like "Add quantified achievements" without context
+- Each tip must be one sentence, actionable, under 20 words
+- Tips should cover: metrics/impact, keywords, formatting, summary, and role-specific gaps
+
+keyStrengths: 3 specific things this resume already does well (mention actual content)
+missingKeywords: 4 technical skills/keywords expected for ${role} that are absent from this resume
+
+Return ONLY the JSON object.`;
 }
 
 function buildPrompt(name, email, role, experience, techStack, resumeText) {
@@ -309,7 +330,7 @@ async function generateFastPreview(name, role, experience, techStack, resumeText
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 400,  // Even smaller — we only need 4 fields
+    max_tokens: 800,  // Enough for 5 detailed tips + strengths + keywords
     system: 'You are a resume scoring API. Return ONLY a JSON object. No explanation. No markdown.',
     messages: [{ role: 'user', content: buildFastPrompt(name, role, experience, techStack, resumeText) }],
   });

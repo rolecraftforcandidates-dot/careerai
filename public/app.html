@@ -39,6 +39,9 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .login-btn:disabled{opacity:0.65;cursor:not-allowed;transform:none}
 .login-hint{text-align:center;font-size:0.79rem;color:var(--muted);margin-top:18px}
 .login-hint a{color:var(--teal);text-decoration:none;font-weight:500}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulseDot 1.2s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{opacity:0.2;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
@@ -789,6 +792,52 @@ var currentUser = null;
 var panelLoaded = {};
 var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', jobs:'Jobs For You', settings:'Settings' };
 
+// ── Plan polling — auto-refresh until plan is ready ──
+var _planPollTimer   = null;
+var _planPollCount   = 0;
+var _planPollMaxSecs = 300; // stop after 5 minutes
+var _planPollInterval= 8000; // every 8 seconds
+
+function startPlanPolling() {
+  if (_planPollTimer) return; // already polling
+  console.log('🔄 Starting plan polling...');
+  _planPollTimer = setInterval(function() {
+    _planPollCount++;
+    var elapsed = _planPollCount * (_planPollInterval / 1000);
+    var statusEl = document.getElementById('planPollStatus');
+    if (statusEl) statusEl.textContent = '// checked ' + _planPollCount + ' time' + (_planPollCount>1?'s':'') + ' (' + elapsed + 's elapsed)';
+
+    if (elapsed > _planPollMaxSecs) {
+      stopPlanPolling();
+      var pc = document.getElementById('planContent');
+      if (pc) pc.innerHTML = '<div class="empty-state"><div class="empty-icon">⏱️</div><div class="empty-text">Taking longer than expected. Please refresh the page.</div></div>';
+      return;
+    }
+
+    fetch('/api/plan', { credentials: 'include' })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.plan && d.plan.length > 0) {
+          console.log('✅ Plan ready! Reloading panel...');
+          stopPlanPolling();
+          panelLoaded['plan'] = false; // force reload
+          loadPlan(); // re-render the plan
+          // Also refresh overview stats
+          if (typeof updateOverviewStats === 'function') updateOverviewStats();
+        }
+      })
+      .catch(function() { /* ignore — will retry */ });
+  }, _planPollInterval);
+}
+
+function stopPlanPolling() {
+  if (_planPollTimer) {
+    clearInterval(_planPollTimer);
+    _planPollTimer = null;
+    _planPollCount = 0;
+  }
+}
+
 function refreshJobMatchLock() {
   var banner  = document.getElementById('jmProBanner');
   var analyseBtn = document.getElementById('jmAnalyseBtn');
@@ -1024,11 +1073,11 @@ function updateOverviewStats() {
   var s = _taskState;
 
   // Tasks done counter
-  document.getElementById('statTasks').textContent = s.done+'/'+s.total;
+  document.getElementById('statTasks').textContent = s.total ? s.done+'/'+s.total : '...';
 
   // Progress bar
   var pct = s.total ? Math.round(s.done/s.total*100) : 0;
-  document.getElementById('progressPct').textContent  = pct+'%';
+  document.getElementById('progressPct').textContent  = s.total ? pct+'%' : 'Generating...';
   document.getElementById('progressFill').style.width = pct+'%';
 
   // Status badge
@@ -1037,7 +1086,12 @@ function updateOverviewStats() {
   var lbl  = document.getElementById('statTasksLbl');
   var cwPct = s.curWeekTotal ? Math.round(s.curWeekDone/s.curWeekTotal*100) : 100;
 
-  if (s.overdue > 0) {
+  if (s.total === 0) {
+    // Plan still generating
+    card.style.borderColor = 'var(--teal)';
+    icon.textContent = '⚙️';
+    lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--teal);font-family:DM Mono,monospace;margin-top:2px">GENERATING...</span>';
+  } else if (s.overdue > 0) {
     card.style.borderColor = 'var(--red)';
     icon.textContent = '🔴';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+s.overdue+' OVERDUE</span>';
@@ -1348,9 +1402,21 @@ function loadPlan() {
       plan.forEach(function(t){var w=String(t.Week||'1');if(!bw[w])bw[w]=[];bw[w].push(t);});
       var wt={'1':'Build Foundations','2':'Strengthen Technical Depth','3':'Real Interview Practice','4':'Final Readiness'};
       if (!plan.length){
-        document.getElementById('planContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#128506;&#65039;</div><div class="empty-text">Your plan is being prepared. Check back soon!</div></div>';
+        // Plan not ready yet — show animated state and start polling
+        document.getElementById('planContent').innerHTML=
+          '<div style="text-align:center;padding:48px 20px">' +
+            '<div style="font-size:2.8rem;margin-bottom:16px;animation:spin 2s linear infinite;display:inline-block">⚙️</div>' +
+            '<div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Building your personalised plan...</div>' +
+            '<div style="font-size:0.83rem;color:var(--muted);margin-bottom:24px;line-height:1.6">Claude AI is generating your 28 tasks and 28 questions.<br>This takes about 30–60 seconds. Hang tight!</div>' +
+            '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:28px">' +
+              '<div class="pulse-dot"></div><div class="pulse-dot" style="animation-delay:0.2s"></div><div class="pulse-dot" style="animation-delay:0.4s"></div>' +
+            '</div>' +
+            '<div id="planPollStatus" style="font-size:0.75rem;color:var(--muted);font-family:var(--mono)">// checking every 8 seconds</div>' +
+          '</div>';
+        startPlanPolling();
         return;
       }
+      stopPlanPolling();
       document.getElementById('planContent').innerHTML=[1,2,3,4].map(function(w){
         var tasks=bw[w]||[];
         var done=tasks.filter(function(t){return t.Status==='Done';}).length;

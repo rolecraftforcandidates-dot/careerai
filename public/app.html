@@ -889,6 +889,16 @@ function refreshJobMatchLock() {
 }
 
 // INIT
+// Back-button guard: if browser restores page from cache after logout, re-check session
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+    // Page was restored from bfcache (back button) — re-verify session
+    fetch('/api/me', { credentials:'include', cache:'no-store' })
+      .then(function(r) { if (!r.ok) { currentUser=null; showLoginPage(); } })
+      .catch(function() { currentUser=null; showLoginPage(); });
+  }
+});
+
 window.addEventListener('DOMContentLoaded', function() {
   fetch('/api/me', { credentials:'include' })
     .then(function(r) {

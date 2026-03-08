@@ -2264,10 +2264,14 @@ app.get('/api/ready', async (req, res) => {
 });
 
 app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
-const NO_CACHE = { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' } };
-app.get('/app',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html'), NO_CACHE));
-app.get('/welcome',    (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html'), NO_CACHE));
-app.get('/processing', (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html'), NO_CACHE));
+function noCache(req, res, next) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  next();
+}
+app.get('/app',        noCache, (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
+app.get('/welcome',    noCache, (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
+app.get('/processing', noCache, (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html')));
 app.get('/privacy',       (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 app.get('/privacy.html',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 app.get('/refund',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'refund.html')));

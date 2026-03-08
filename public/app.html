@@ -76,7 +76,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .topbar-left{display:flex;align-items:center;gap:12px}
 .topbar-title{font-size:0.93rem;font-weight:600}
 .week-pill{background:var(--teal-light);color:var(--teal-dark);font-size:0.72rem;font-family:'DM Mono',monospace;padding:5px 12px;border-radius:100px;letter-spacing:1px}
-.hamburger{display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text)}
+.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);width:44px;height:44px;border-radius:10px;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:10px;transition:background 0.15s;flex-shrink:0}.hamburger:hover,.hamburger:active{background:rgba(0,179,138,0.12)}.ham-line{display:block;width:22px;height:2.5px;background:var(--text);border-radius:3px;transition:all 0.2s}
 .content{padding:26px 28px;flex:1}
 
 /* PANELS */
@@ -216,10 +216,10 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   .week-hdr{flex-wrap:wrap;gap:6px}
   .week-hdr-title{font-size:0.88rem}
   /* Today's Focus tasks on Overview */
-  .today-task{flex-wrap:wrap;align-items:flex-start;gap:6px}
-  .today-task-num{min-width:auto}
-  .today-task-text{width:calc(100% - 60px)}
-  .today-task-badge{margin-left:44px;margin-top:2px}
+  .today-task{flex-wrap:wrap;align-items:flex-start;gap:6px;padding:12px 14px}
+  .today-task-num{min-width:44px;padding-top:2px}
+  .today-task-text{flex:1;min-width:0}
+  .today-task-badge{margin-left:44px;margin-top:4px;flex-basis:auto}
 }
 .drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -296,7 +296,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
-  .sidebar-overlay.open{display:block}.main{margin-left:0}.hamburger{display:block}
+  .sidebar-overlay.open{display:block}.main{margin-left:0}.hamburger{display:flex}
   .grid-2,.score-summary-grid{grid-template-columns:1fr}
 }
 @media(max-width:480px){
@@ -408,7 +408,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   <div class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <button class="hamburger" onclick="openSidebar()">&#9776;</button>
+        <button class="hamburger" onclick="openSidebar()" aria-label="Open menu"><span class="ham-line"></span><span class="ham-line"></span><span class="ham-line"></span></button>
         <div class="topbar-title" id="topbarTitle">Overview</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">

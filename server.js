@@ -1559,7 +1559,7 @@ app.get('/api/overview', requireLogin, async (req, res) => {
 
     const myPlan      = planRows.filter(r => r.Email.toLowerCase() === email.toLowerCase());
     const myScores    = scoreRows.filter(r => r.Email.toLowerCase() === email.toLowerCase());
-    const myQuestions = questionRows.filter(r => r.Email.toLowerCase() === email.toLowerCase() && parseInt(r.Week) === week);
+    const myQuestions = questionRows.filter(r => r.Email.toLowerCase() === email.toLowerCase() && parseInt(r.Week) <= week);
 
     const tasksDone   = myPlan.filter(r => r.Status === 'Done').length;
     const totalTasks  = myPlan.length;

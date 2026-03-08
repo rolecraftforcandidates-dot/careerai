@@ -103,16 +103,17 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
       const sessionUser = {
         email:       user.Email,
-        name:        user.Name,
-        role:        user.Role        || '',
+        name:        user.Name        || user['Full Name'] || '',
+        role:        user.Role        || user['Target Role'] || '',
         experience:  user.Experience  || '',
+        techStack:   user['Tech Stack'] || user['O'] || '',
         week:        parseInt(user.Week) || 0,
         weekStarted: user['Week Started'] || today,
         dayOfWeek:   1,
         tier:        activeTier,
         tierExpiry:  tierExpiry,
         authProvider: 'google',
-        needsOnboarding: !user.Role || user.Week === '0',
+        needsOnboarding: !(user.Role || user['Target Role']) || user.Week === '0',
       };
 
       done(null, sessionUser);
@@ -291,10 +292,11 @@ async function appendRow(tabName, values) {
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.status(401).json({ error: 'Not logged in' });
   // Block users who signed in with Google but never completed Tally onboarding
-  if (req.session.user.needsOnboarding || !req.session.user.role) {
-    req.session = null; // wipe the incomplete session
+  if (req.session.user.needsOnboarding) {
+    req.session = null; // wipe incomplete Google OAuth session
     return res.status(401).json({ error: 'Not logged in' });
   }
+  // If role missing but session exists, allow through — role may be blank for old users
   next();
 }
 
@@ -454,11 +456,11 @@ app.post('/api/login', async (req, res) => {
 
     req.session.user = {
       email:           user.Email,
-      name:            user.Name,
-      role:            user.Role,
-      experience:      user.Experience,       // band: Fresher/Junior/Mid/Senior/Lead
+      name:            user.Name  || user['Full Name'] || '',
+      role:            user.Role  || user['Target Role'] || user['Role'] || '',
+      experience:      user.Experience || user['Experience'] || '',
       experienceYears: parseInt(user['Experience Years'] || user['P'] || '') || null,
-      techStack:       user['Tech Stack'] || '',
+      techStack:       user['Tech Stack'] || user['O'] || '',
       week:            parseInt(user.Week) || 1,
       weekStarted: weekStarted,
       dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7),
@@ -529,8 +531,9 @@ app.post('/api/logout', (req, res) => {
 // GET /api/me — check session
 app.get('/api/me', requireLogin, async (req, res) => {
   const u = req.session.user;
-  // Safety guard — if somehow a needsOnboarding session slipped through, reject it
-  if (u.needsOnboarding || !u.role) {
+  // Only block incomplete Google OAuth sessions (needsOnboarding flag)
+  // Do NOT wipe session based on missing role — role column may be named differently
+  if (u.needsOnboarding) {
     req.session = null;
     return res.status(401).json({ error: 'Incomplete registration — please complete onboarding' });
   }

@@ -942,7 +942,7 @@ function setUserInfo(u) {
   document.getElementById('userAvatar').textContent = ini;
   document.getElementById('userName').textContent   = u.name||'';
   var expDisplay = u.experience || '';
-  document.getElementById('userRole').textContent   = (u.role||'') + (expDisplay ? ' &mdash; ' + expDisplay : '');
+  document.getElementById('userRole').textContent   = (u.role||'') + (expDisplay ? ' &#8212; ' + expDisplay : '');
   document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
   document.getElementById('dayPill').textContent    = 'DAY '+day+' OF 7';
   document.getElementById('dayPill').style.background = day >= 6 ? 'var(--orange-light)' : '#f0f0f8';
@@ -1090,19 +1090,19 @@ function updateOverviewStats() {
   if (s.total === 0) {
     // Plan still generating
     card.style.borderColor = 'var(--teal)';
-    icon.textContent = '&#x2699;';
+    icon.innerHTML = '&#x2699;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--teal);font-family:DM Mono,monospace;margin-top:2px">GENERATING...</span>';
   } else if (s.overdue > 0) {
     card.style.borderColor = 'var(--red)';
-    icon.textContent = '&#x1F534;';
+    icon.innerHTML = '&#x1F534;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+s.overdue+' OVERDUE</span>';
   } else if (cwPct < 50 && s.curWeekTotal > 0 && s.curWeekDone < s.curWeekTotal) {
     card.style.borderColor = 'var(--orange)';
-    icon.textContent = '&#x26A0;';
+    icon.innerHTML = '&#x26A0;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
   } else {
     card.style.borderColor = '';
-    icon.textContent = '&#x2705;';
+    icon.innerHTML = '&#x2705;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
   }
 
@@ -1162,11 +1162,11 @@ function refreshPlanHeaders() {
     var circle = block.querySelector('.week-circle');
     if (isPast && !allDone) {
       block.classList.add('overdue');
-      if (pill)   { pill.textContent = '&#x26A0; OVERDUE';   pill.className = 'ws-pill ws-overdue'; }
+      if (pill)   { pill.innerHTML = '&#x26A0; OVERDUE';   pill.className = 'ws-pill ws-overdue'; }
       if (circle) { circle.className = 'week-circle wc-overdue'; }
     } else if (isPast && allDone) {
       block.classList.remove('overdue');
-      if (pill)   { pill.textContent = '&#x2713; COMPLETE';  pill.className = 'ws-pill ws-done'; }
+      if (pill)   { pill.innerHTML = '&#x2713; COMPLETE';  pill.className = 'ws-pill ws-done'; }
       if (circle) { circle.className = 'week-circle wc-done'; }
     }
     // Current week pill doesn't change on toggle
@@ -1259,13 +1259,13 @@ function loadOverview() {
       var icon = document.getElementById('statTasksIcon');
       var lbl  = document.getElementById('statTasksLbl');
       if (d.overdueCount && d.overdueCount > 0) {
-        card.style.borderColor='var(--red)'; icon.textContent='&#x1F534;';
+        card.style.borderColor='var(--red)'; icon.innerHTML='&#x1F534;';
         lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+d.overdueCount+' OVERDUE</span>';
       } else if (d.currentWeekProgress < 50 && d.pendingQuestions > 0) {
-        card.style.borderColor='var(--orange)'; icon.textContent='&#x26A0;';
+        card.style.borderColor='var(--orange)'; icon.innerHTML='&#x26A0;';
         lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
       } else {
-        card.style.borderColor=''; icon.textContent='&#x2705;';
+        card.style.borderColor=''; icon.innerHTML='&#x2705;';
         lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
       }
 
@@ -1514,7 +1514,7 @@ function loadQuestions() {
     .then(function(d){
       if (d.error){showErr(document.getElementById('questionsError'),d.error);return;}
       var allQs = d.questions||[], curWk = d.week||1;
-      document.getElementById('questionsSub').textContent = 'Week '+curWk+' questions &mdash; submit answers for AI scoring';
+      document.getElementById('questionsSub').textContent = 'Week '+curWk+' questions &#8212; submit answers for AI scoring';
       document.getElementById('questionsDeadline').style.display = 'inline-block';
 
       if (!allQs.length){
@@ -2470,7 +2470,7 @@ function showPaymentSuccess(tier, expiry) {
   var tierLabel = tier === 'premium' ? 'Premium' : 'Pro';
   var expiryFmt = expiry ? new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '';
 
-  document.getElementById('proGateIcon').textContent  = '&#x1F389;';
+  document.getElementById('proGateIcon').innerHTML  = '&#x1F389;';
   document.getElementById('proGateTitle').textContent = 'You are now on ' + tierLabel + '!';
   document.getElementById('proGateMsg').textContent   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard...';
 
@@ -2479,7 +2479,7 @@ function showPaymentSuccess(tier, expiry) {
   if (!existingBtn) {
     var btn = document.createElement('button');
     btn.id = 'paySuccessBtn';
-    btn.textContent = 'Go to Dashboard &#x2192;';
+    btn.innerHTML = 'Go to Dashboard &#x2192;';
     btn.style.cssText = 'margin-top:16px;padding:12px 28px;background:var(--teal);color:white;border:none;border-radius:10px;font-family:sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%';
     btn.onclick = function() { window.location.reload(); };
     modal.appendChild(btn);
@@ -2493,7 +2493,7 @@ function showPaymentSuccess(tier, expiry) {
 }
 
 function showProGate(title, message, icon) {
-  document.getElementById('proGateIcon').textContent  = icon  || '&#x26A1;';
+  document.getElementById('proGateIcon').innerHTML  = icon  || '&#x26A1;';
   document.getElementById('proGateTitle').textContent = title || 'Pro Feature';
   document.getElementById('proGateMsg').textContent   = message || 'Upgrade to RoleKraft Pro to unlock this feature.';
   document.getElementById('proGateOverlay').style.display = 'block';
@@ -2526,9 +2526,9 @@ function loadSettings() {
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
   document.getElementById('settingsEmail').textContent = currentUser.email || '-';
   var settingsExp = currentUser.experience || '';
-  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (settingsExp ? ' &mdash; ' + settingsExp : '');
+  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (settingsExp ? ' &#8212; ' + settingsExp : '');
   var sw = currentUser.week||1, sd = currentUser.dayOfWeek||1;
-  document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 &mdash; Day ' + sd + ' of 7';
+  document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 &#8212; Day ' + sd + ' of 7';
   // Reset form
   document.getElementById('currentPw').value = '';
   document.getElementById('newPw').value      = '';

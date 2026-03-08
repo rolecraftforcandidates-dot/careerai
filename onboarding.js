@@ -343,68 +343,122 @@ async function generateFastPreview(name, role, experience, techStack, resumeText
 }
 
 async function generateWithClaude(name, email, role, experience, techStack, resumeText) {
-  const client = getAnthropicClient();
+  const client  = getAnthropicClient();
+  const resume  = resumeText ? resumeText.slice(0, 1500).replace(/`/g, "'") : 'Not provided';
+  const tech    = techStack || role;
 
-  console.log(`🤖 Calling Claude for ${name} (${role}, ${experience})`);
+  console.log('🤖 Phase 2: 4 parallel Haiku calls (one per week) for', name);
+  const t0 = Date.now();
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5', // Sonnet for richer, more specific plan content
-    max_tokens: 16000,
-    messages: [{
-      role: 'user',
-      content: buildPrompt(name, email, role, experience, techStack, resumeText),
-    }],
-  });
+  // Week themes — gives each call a focused brief
+  const weekThemes = [
+    { week: 1, theme: 'Foundation building — theory, core concepts, fundamentals' },
+    { week: 2, theme: 'Technical depth — hands-on practice, ' + tech + ' specifics, build something' },
+    { week: 3, theme: 'Interview practice — mock answers, system design, problem solving drills' },
+    { week: 4, theme: 'Final readiness — polish weak areas, confidence building, full interview simulation' },
+  ];
 
-  const rawText = message.content[0].text.trim();
-
-  // Strip any accidental markdown fences
-  const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-
-  let parsed;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch (e) {
-    console.error('Claude JSON parse failed:', e.message);
-    console.error('Raw output:', rawText.slice(0, 300));
-
-    // Attempt recovery — retry with a simpler prompt
-    try {
-      console.log('🔄 Retrying with simplified prompt...');
-      const retryMsg = await client.messages.create({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 16000,
-        messages: [{
-          role: 'user',
-          content: 'Generate interview prep JSON for a ' + role + ' with ' + experience + ' years experience. ' +
-            'Return ONLY raw JSON (no markdown). Exactly this structure:\n' +
-            '{\n  "tasks": [28 objects with Week/Day/Task Title/Type],\n' +
-            '  "questions": [28 objects with Week/Q No./Type/Question],\n' +
-            '  "atsScore": 70,\n' +
-            '  "atsTips": "Tip 1: ...\\nTip 2: ...\\nTip 3: ...\\nTip 4: ...\\nTip 5: ..."\n}\n' +
-            'Tasks: 7 per week x 4 weeks. Type = Theory/Practice/Mock.\n' +
-            'Questions: 7 per week x 4 weeks (3 Technical + 2 Behavioral + 2 System Design). Q No. = Q1-Q7 per week.\n' +
-            'Make all content specific to ' + role + ' and tech stack: ' + techStack + '. Return ONLY the JSON object.'
-        }],
-      });
-      const retryText = retryMsg.content[0].text.trim()
-        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-      parsed = JSON.parse(retryText);
-      console.log('✅ Retry succeeded');
-    } catch (retryErr) {
-      console.error('Retry also failed:', retryErr.message);
-      throw new Error('Claude returned invalid JSON. Check logs.');
-    }
+  // Build per-week prompt — small, focused, fast for Haiku
+  function buildWeekPrompt(wk, theme) {
+    var p = [];
+    p.push('You are an expert interview coach for Indian tech companies.');
+    p.push('Generate Week ' + wk + ' content for a ' + role + ' interview preparation plan.');
+    p.push('');
+    p.push('CANDIDATE: ' + name);
+    p.push('ROLE: ' + role);
+    p.push('TECH STACK: ' + tech);
+    p.push('EXPERIENCE: ' + experience);
+    p.push('RESUME SUMMARY: ' + resume);
+    p.push('');
+    p.push('WEEK ' + wk + ' THEME: ' + theme);
+    p.push('');
+    p.push('Return ONLY raw JSON - no markdown, no explanation:');
+    p.push('{');
+    p.push('  "tasks": [');
+    p.push('    {"Week":"' + wk + '","Day":"1","Task Title":"specific task","Type":"Theory"},');
+    p.push('    {"Week":"' + wk + '","Day":"2","Task Title":"specific task","Type":"Practice"},');
+    p.push('    {"Week":"' + wk + '","Day":"3","Task Title":"specific task","Type":"Theory"},');
+    p.push('    {"Week":"' + wk + '","Day":"4","Task Title":"specific task","Type":"Mock"},');
+    p.push('    {"Week":"' + wk + '","Day":"5","Task Title":"specific task","Type":"Practice"},');
+    p.push('    {"Week":"' + wk + '","Day":"6","Task Title":"specific task","Type":"Theory"},');
+    p.push('    {"Week":"' + wk + '","Day":"7","Task Title":"specific task","Type":"Mock"}');
+    p.push('  ],');
+    p.push('  "questions": [');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q1","Type":"Technical","Question":"specific question"},');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q2","Type":"Technical","Question":"specific question"},');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q3","Type":"Technical","Question":"specific question"},');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q4","Type":"Behavioral","Question":"specific question"},');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q5","Type":"Behavioral","Question":"specific question"},');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q6","Type":"System Design","Question":"specific question"},');
+    p.push('    {"Week":"' + wk + '","Q No.":"Q7","Type":"System Design","Question":"specific question"}');
+    p.push('  ]');
+    p.push('}');
+    p.push('');
+    p.push('RULES:');
+    p.push('- Exactly 7 tasks (Days 1-7) and exactly 7 questions (Q1-Q7)');
+    p.push('- All content must be specific to ' + role + ' and ' + tech + ' - no generic filler');
+    p.push('- Tasks: Type must be exactly Theory / Practice / Mock');
+    p.push('- Questions: Type must be exactly Technical / Behavioral / System Design');
+    p.push('- Week ' + wk + ' difficulty: ' + (wk===1?'foundational':wk===2?'intermediate':wk===3?'advanced':'senior-level interview difficulty'));
+    p.push('- Task titles should be actionable (e.g. "Study Spark partitioning strategies" not "Learn Spark")');
+    p.push('- Questions must be full interview questions, not topics');
+    p.push('- Return ONLY the JSON object, nothing else');
+    return p.join('\n');
   }
 
-  // Validate structure
-  if (!parsed.tasks || !Array.isArray(parsed.tasks)) throw new Error('Missing tasks array in Claude response');
-  if (!parsed.questions || !Array.isArray(parsed.questions)) throw new Error('Missing questions array in Claude response');
-  if (!parsed.atsScore) throw new Error('Missing atsScore in Claude response');
+  // Run all 4 weeks in parallel
+  const weekResults = await Promise.all(
+    weekThemes.map(async function(wk) {
+      var attempts = 0;
+      while (attempts < 2) {
+        attempts++;
+        try {
+          var msg = await client.messages.create({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 3000,
+            messages: [{ role: 'user', content: buildWeekPrompt(wk.week, wk.theme) }],
+          });
+          var raw     = msg.content[0].text.trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+          var parsed  = JSON.parse(raw);
+          if (!parsed.tasks || parsed.tasks.length < 7) throw new Error('Week ' + wk.week + ': only got ' + (parsed.tasks||[]).length + ' tasks');
+          if (!parsed.questions || parsed.questions.length < 7) throw new Error('Week ' + wk.week + ': only got ' + (parsed.questions||[]).length + ' questions');
+          console.log('✅ Week ' + wk.week + ' done — ' + parsed.tasks.length + ' tasks, ' + parsed.questions.length + ' questions');
+          return parsed;
+        } catch(e) {
+          console.error('Week ' + wk.week + ' attempt ' + attempts + ' failed:', e.message);
+          if (attempts >= 2) {
+            // Return minimal fallback so other weeks still write
+            console.warn('⚠️  Week ' + wk.week + ' fallback used');
+            return { tasks: [], questions: [] };
+          }
+          // Small delay before retry
+          await new Promise(function(r){ setTimeout(r, 2000); });
+        }
+      }
+    })
+  );
 
-  console.log(`✅ Claude generated: ${parsed.tasks.length} tasks, ${parsed.questions.length} questions, ATS: ${parsed.atsScore}`);
-  return parsed;
+  // Merge all weeks into single arrays
+  var allTasks     = [];
+  var allQuestions = [];
+  weekResults.forEach(function(w) {
+    if (w) {
+      allTasks     = allTasks.concat(w.tasks     || []);
+      allQuestions = allQuestions.concat(w.questions || []);
+    }
+  });
+
+  console.log('⚡ All 4 weeks done in ' + Math.round((Date.now()-t0)/1000) + 's — ' + allTasks.length + ' tasks, ' + allQuestions.length + ' questions');
+
+  // ATS score and tips come from Phase 1 already — return dummies here (not used)
+  return {
+    tasks:     allTasks,
+    questions: allQuestions,
+    atsScore:  70,
+    atsTips:   '',
+  };
 }
+
 
 // ══════════════════════════════════════════════════════
 // WRITE TO GOOGLE SHEETS

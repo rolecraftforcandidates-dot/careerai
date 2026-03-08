@@ -841,20 +841,32 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       planReady: false,
     };
 
-    // ── Welcome email is sent in triggerPhase2 (when user clicks Go to Dashboard) ──
-    // By that point we have real name + tech stack + experience to include
-
-    // ── PHASE 2 is now triggered on-demand ──
-    // triggerPhase2() is called by /api/trigger-plan when user clicks "Go to Dashboard"
-    // Store resumeText + context so triggerPhase2 can use it
+    // ── PHASE 2 starts immediately in background after Phase 1 ──
+    // User reads welcome page (~30-60s) while plan generates — ready by the time they click
+    // Also store in pendingPhase2 so /api/trigger-plan doesn't double-run
     pendingPhase2.set(email.toLowerCase(), {
       resumeText, role,
       tallyName: name, tallyTech: techStack, tallyExp: experience,
       displayName, getSheetsClientFn, sheetId,
       createdAt: Date.now(),
+      autoTriggered: true,  // flag: already running, trigger-plan should skip
     });
-    console.log(`⏸️  Phase 2 queued for ${email} — waiting for user to click dashboard button`);
 
+    // Fire Phase 2 immediately — don't await (returns to welcome page instantly)
+    // Mark manualTrigger=false so /api/trigger-plan knows it's already running
+    setImmediate(async () => {
+      try {
+        console.log('🚀 Phase 2 auto-starting for', email);
+        // Set manualTrigger flag so the guard above knows this IS the auto run
+        const p = pendingPhase2.get(email.toLowerCase());
+        if (p) p.manualTrigger = true; // allow this run through
+        await triggerPhase2(email, getSheetsClientFn, sheetId);
+      } catch(e) {
+        console.error('Phase 2 auto-start failed for', email, ':', e.message);
+      }
+    });
+
+    console.log('⚡ Phase 1 done — Phase 2 running in background for', email);
     return result;
 
   } catch (err) {
@@ -1004,7 +1016,13 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
   const pending = pendingPhase2.get(key);
 
   if (!pending) {
-    console.warn(`⚠️  triggerPhase2: no pending data for ${email} — may have already run or expired`);
+    console.log(`ℹ️  triggerPhase2: no pending data for ${email} — already completed or expired`);
+    return;
+  }
+
+  // If auto-triggered from Phase 1, it's already running — skip
+  if (pending.autoTriggered && !pending.manualTrigger) {
+    console.log(`ℹ️  triggerPhase2: already running for ${email} (auto-started) — skipping duplicate`);
     return;
   }
 

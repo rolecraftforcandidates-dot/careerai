@@ -205,6 +205,22 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .task-item{display:flex;align-items:center;gap:0;padding:9px 12px;background:var(--bg);border-radius:9px;font-size:0.85rem;margin-bottom:7px;transition:background 0.15s}
 .task-item>div:first-child{flex:1;display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0}
 .task-item>div:first-child:hover{opacity:0.85}
+.task-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px}
+@media(max-width:600px){
+  /* 4-Week Plan task items */
+  .task-item{flex-wrap:wrap;align-items:flex-start;padding:12px}
+  .task-item>div:first-child{width:100%;flex:none}
+  .task-actions{width:100%;margin-left:30px;margin-top:8px;gap:8px}
+  .task-actions .badge{font-size:0.72rem;padding:3px 10px}
+  .task-actions .study-btn{font-size:0.78rem;padding:5px 12px}
+  .week-hdr{flex-wrap:wrap;gap:6px}
+  .week-hdr-title{font-size:0.88rem}
+  /* Today's Focus tasks on Overview */
+  .today-task{flex-wrap:wrap;align-items:flex-start;gap:6px}
+  .today-task-num{min-width:auto}
+  .today-task-text{width:calc(100% - 60px)}
+  .today-task-badge{margin-left:44px;margin-top:2px}
+}
 .drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
 @keyframes spin{to{transform:rotate(360deg)}}
 .study-btn{background:var(--teal-light);border:1px solid rgba(0,179,138,0.2);border-radius:7px;padding:5px 11px;font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s;color:var(--teal-dark);white-space:nowrap}
@@ -283,7 +299,29 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   .sidebar-overlay.open{display:block}.main{margin-left:0}.hamburger{display:block}
   .grid-2,.score-summary-grid{grid-template-columns:1fr}
 }
-@media(max-width:480px){.stats-grid{grid-template-columns:1fr 1fr;gap:10px}.content{padding:16px}.topbar{padding:13px 16px}}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .content{padding:14px 12px}
+  .topbar{padding:13px 16px}
+  /* Plan page header */
+  .plan-role-tag{font-size:0.72rem;padding:5px 10px;white-space:normal;line-height:1.4}
+  /* Week block header */
+  .week-block{padding:0}
+  .week-hdr{padding:12px 14px;gap:6px}
+  .week-hdr-left{flex:1;min-width:0}
+  .week-hdr-title{font-size:0.9rem}
+  .week-sub{font-size:0.75rem}
+  /* Today focus tasks */
+  .today-task{flex-wrap:wrap;gap:8px;padding:12px}
+  .today-task-num{min-width:auto}
+  .today-task>span.badge,.today-task>button{margin-top:4px}
+  /* Topbar pills */
+  #weekPill,#dayPill{font-size:0.68rem;padding:4px 10px}
+  /* Panel title */
+  .panel-title{font-size:1.6rem}
+  /* Score cards */
+  .score-big{font-size:3rem}
+}
 </style>
 </head>
 <body>
@@ -1366,7 +1404,7 @@ function loadTodayFocus() {
         var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
         return '<div class="today-task"><div class="today-task-num">W'+cw+' &middot; D'+t.Day+'</div>'+
           '<div class="today-task-text">'+(t['Task Title']||'')+'</div>'+
-          '<span class="badge '+tc+'" style="flex-shrink:0">'+(t.Type||'')+'</span></div>';
+          '<span class="badge today-task-badge '+tc+'">'+(t.Type||'')+'</span></div>';
       }).join('')+
       (pending.length>2?'<div style="font-size:0.78rem;color:var(--muted);margin-top:8px;padding-left:4px">+ '+(pending.length-2)+' more this week</div>':'');
     }).catch(function(){});
@@ -1477,8 +1515,10 @@ function loadPlan() {
                   '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+
                   '<div class="task-text '+(ck?'done':'')+'" style="flex:1">'+(t['Task Title']||'')+'</div>'+
                 '</div>'+
-                '<span class="badge '+tc+'" style="flex-shrink:0;margin:0 8px">'+(t.Type||'')+'</span>'+
-                '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="&#x1F4DA; Study this topic">&#x1F4DA; Study</button>'+
+                '<div class="task-actions">'+
+                  '<span class="badge '+tc+'">'+(t.Type||'')+'</span>'+
+                  '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="&#x1F4DA; Study this topic">&#x1F4DA; Study</button>'+
+                '</div>'+
                 '</div>';
             }).join('')
           : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0;font-style:italic">'+subText+'</div>';

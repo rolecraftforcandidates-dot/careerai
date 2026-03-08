@@ -1971,7 +1971,14 @@ function analyseJobMatch() {
   .then(function(d){
     btn.disabled = false;
     btn.innerHTML = '&#129302; Analyse Job Match';
-    if (d.error) { showErr(document.getElementById('jobmatchError'), d.error); return; }
+    if (d.error) {
+      if (d.error === 'pro_required') {
+        showProGate('Job Match &mdash; Pro Feature', d.message || 'Upgrade to Pro for unlimited job match analysis.', '&#x1F3AF;');
+      } else {
+        showErr(document.getElementById('jobmatchError'), d.error);
+      }
+      return;
+    }
 
     var sc    = parseInt(d.score)||0;
     var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';

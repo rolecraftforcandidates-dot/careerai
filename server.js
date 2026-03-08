@@ -2211,20 +2211,62 @@ app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), asyn
 
 // ── Page routes ──
 // GET /api/ready?email=... — polling endpoint for processing page
-app.get('/api/ready', (req, res) => {
+app.get('/api/ready', async (req, res) => {
   const email = (req.query.email || '').toLowerCase().trim();
   if (!email) return res.status(400).json({ error: 'email required' });
+
+  // 1. Check in-memory token map (fastest path — normal flow)
   const token = emailTokenMap.get(email);
   if (token) return res.json({ ready: true, token });
+
+  // 2. Still processing
   if (processingEmails.has(email)) return res.json({ ready: false, processing: true });
+
+  // 3. Fallback — check Sheet to see if user exists (handles post-redeploy token loss)
+  // If user row exists with Plan Active = TRUE, plan is ready — issue a fresh token
+  try {
+    const sheets   = getSheetsClient();
+    const resp     = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:Q' });
+    const rows     = resp.data.values || [];
+    const userRow  = rows.find((r, i) => i > 0 && (r[0]||'').toLowerCase() === email);
+    if (userRow) {
+      const planActive = (userRow[6]||'').toUpperCase() === 'TRUE'; // col G
+      if (planActive) {
+        // Plan is ready but token was lost (redeploy) — create fresh token from Sheet data
+        const crypto = require('crypto');
+        const freshToken = crypto.randomBytes(20).toString('hex');
+        const welcomePayload = {
+          name:     userRow[1] || '',
+          email,
+          role:     userRow[3] || '',
+          atsScore: parseInt(userRow[7]) || 0,
+          atsTips:  userRow[8] || '',
+          taskCount: 28,
+          qCount:   28,
+          planReady: true,
+          createdAt: Date.now(),
+        };
+        welcomeTokens.set(freshToken, welcomePayload);
+        emailTokenMap.set(email, freshToken);
+        console.log('🔄 Fresh token issued from Sheet for', email, '(post-redeploy recovery)');
+        return res.json({ ready: true, token: freshToken });
+      }
+      // User exists but plan not ready yet — still processing
+      return res.json({ ready: false, processing: true });
+    }
+  } catch(e) {
+    console.error('Sheet fallback in /api/ready failed:', e.message);
+  }
+
   // Unknown — webhook may not have arrived yet, keep polling
   return res.json({ ready: false, processing: false });
 });
 
 app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
-app.get('/app',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
-app.get('/welcome',     (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
-app.get('/processing',    (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html')));
+const NO_CACHE = { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' } };
+app.get('/app',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html'), NO_CACHE));
+app.get('/welcome',    (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html'), NO_CACHE));
+app.get('/processing', (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html'), NO_CACHE));
 app.get('/privacy',       (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 app.get('/privacy.html',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 app.get('/refund',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'refund.html')));

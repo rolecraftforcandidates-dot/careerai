@@ -1512,67 +1512,143 @@ function loadQuestions() {
     .then(function(r){return r.json();})
     .then(function(d){
       if (d.error){showErr(document.getElementById('questionsError'),d.error);return;}
-      var qs=d.questions||[], wk=d.week||1;
-      document.getElementById('questionsSub').textContent='Week '+wk+' questions - submit answers for AI scoring';
-      document.getElementById('questionsDeadline').style.display='inline-block';
-      if (!qs.length){document.getElementById('questionsContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#10067;</div><div class="empty-text">No questions for this week yet. Check back Monday!</div></div>';return;}
-      // Count already AI-scored answers for free tier gate
-      var scoredCount = qs.filter(function(q){ return q.Submitted==='TRUE' && q.Score && q.Score!==''; }).length;
-      var freeAiUsed  = scoredCount; // how many AI scores already consumed
+      var allQs = d.questions||[], curWk = d.week||1;
+      document.getElementById('questionsSub').textContent = 'Week '+curWk+' questions — submit answers for AI scoring';
+      document.getElementById('questionsDeadline').style.display = 'inline-block';
+
+      if (!allQs.length){
+        document.getElementById('questionsContent').innerHTML='<div class="empty-state"><div class="empty-icon">❓</div><div class="empty-text">No questions yet. Check back soon!</div></div>';
+        return;
+      }
+
+      // Count AI-scored answers for free tier gate
+      var scoredCount = allQs.filter(function(q){ return q.Submitted==='TRUE' && q.Score && q.Score!==''; }).length;
+      var freeAiUsed  = scoredCount;
       var freeAiLimit = 3;
       var freeAiLeft  = Math.max(0, freeAiLimit - freeAiUsed);
       var isFree      = _userTier === 'free';
 
-      document.getElementById('questionsContent').innerHTML=
-        // Free tier info banner — shown above all questions
-        (isFree ? '<div style="background:linear-gradient(135deg,rgba(80,72,229,0.10),rgba(0,179,138,0.06));border:1px solid rgba(80,72,229,0.18);border-radius:12px;padding:13px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">'+
-          '<div>'+
-            '<div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">&#129302; AI Scoring — Free Plan</div>'+
-            '<div style="font-size:0.78rem;color:var(--muted)">'+
-              (freeAiLeft > 0
-                ? freeAiLeft+' of '+freeAiLimit+' free AI scores remaining — all questions visible'
-                : 'Free AI scores used up — answer boxes locked')+
-              ' &nbsp;·&nbsp; <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade for unlimited &#8599;</a>'+
-            '</div>'+
-          '</div>'+
-          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Upgrade</button>'+
-        '</div>' : '') +
-        qs.map(function(q,i){
-          var sub        = q.Submitted === 'TRUE';
-          var hasScore   = sub && q.Score && q.Score !== '';
-          var tc         = q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
-          var sc         = q.Score ? ' — Score: '+q.Score+'/100' : '';
-          // AI submit locked only when: free user, not yet submitted, and used up 3 free scores
-          var aiLocked   = isFree && !sub && freeAiUsed >= freeAiLimit;
+      // Group questions by week
+      var byWeek = {};
+      allQs.forEach(function(q, i) {
+        var w = parseInt(q.Week)||1;
+        if (!byWeek[w]) byWeek[w] = [];
+        byWeek[w].push({ q: q, i: i }); // keep original index for submitAnswer
+      });
 
-          return '<div class="question-card" id="qcard-'+i+'">' +
-            // Header row: type badge, Q number, submitted badge
-            '<div class="q-meta">'+
-              '<span class="badge '+tc+'">'+(q.Type||'')+'</span>'+
-              '<span class="q-num">Week '+wk+' — '+(q['Q No.']||'')+'</span>'+
-              (sub ? '<span class="submitted-badge">&#10003; Submitted'+sc+'</span>' : '')+
-              (aiLocked ? '<span style="font-size:0.72rem;background:rgba(80,72,229,0.13);color:var(--purple);padding:3px 9px;border-radius:6px;font-weight:600;margin-left:6px">&#128274; Pro</span>' : '')+
-            '</div>'+
-            // Question text — always visible
-            '<div class="q-text">'+(q.Question||'')+'</div>'+
-            // AI feedback if already scored
-            (hasScore && q['AI Feedback'] ? '<div class="ai-feedback-box"><strong>&#129302; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>' : '')+
-            // Answer area — always show textarea, but lock submit button if free limit hit
+      var weekTitles = {1:'Build Foundations', 2:'Strengthen Technical Depth', 3:'Real Interview Practice', 4:'Final Readiness'};
+
+      // Sort weeks descending so current week is first
+      var weeks = Object.keys(byWeek).map(Number).sort(function(a,b){return b-a;});
+
+      var html = '';
+
+      // Free tier banner
+      if (isFree) {
+        html += '<div style="background:linear-gradient(135deg,rgba(80,72,229,0.10),rgba(0,179,138,0.06));border:1px solid rgba(80,72,229,0.18);border-radius:12px;padding:13px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
+          '<div>' +
+            '<div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">🤖 AI Scoring — Free Plan</div>' +
+            '<div style="font-size:0.78rem;color:var(--muted)">' +
+              (freeAiLeft > 0
+                ? freeAiLeft+' of '+freeAiLimit+' free AI scores remaining'
+                : 'Free AI scores used up — upgrade for unlimited scoring') +
+              ' &nbsp;·&nbsp; <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade ↗</a>' +
+            '</div>' +
+          '</div>' +
+          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Upgrade</button>' +
+        '</div>';
+      }
+
+      weeks.forEach(function(w) {
+        var items    = byWeek[w];
+        var isPast   = w < curWk;
+        var isCur    = w === curWk;
+        var answered    = items.filter(function(x){ return x.q.Submitted==='TRUE'; }).length;
+        var allAnswered = answered === items.length;
+        var scored      = items.filter(function(x){ return x.q.Submitted==='TRUE' && x.q.Score && x.q.Score!==''; }).length;
+        var avgScore = scored > 0
+          ? Math.round(items.filter(function(x){ return x.q.Score&&x.q.Score!==''; })
+              .reduce(function(s,x){ return s+parseInt(x.q.Score||0); }, 0) / scored)
+          : null;
+
+        var wkId = 'wk-questions-'+w;
+
+        // Week header
+        html += '<div style="border:1px solid '+(isCur?'var(--teal)':isPast?'rgba(0,179,138,0.25)':'var(--border)')+';border-radius:14px;margin-bottom:16px;overflow:hidden">';
+
+        // Collapsible header for past weeks, always open for current
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:'+(isCur?'rgba(0,179,138,0.05)':isPast?'rgba(0,179,138,0.02)':'#fafafa')+';cursor:'+(isPast?'pointer':'default')+'"'
+          + (isPast ? ' onclick="toggleWeekQuestions(\''+wkId+'\')"' : '') + '>';
+
+        // Left: week label + status
+        html += '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="font-size:0.7rem;font-family:var(--mono);font-weight:700;letter-spacing:1.5px;color:'+(isCur?'var(--teal)':isPast?'var(--green)':'var(--muted)')+'">WEEK '+w+'</div>' +
+          '<div style="font-size:0.88rem;font-weight:700;color:var(--text)">'+(weekTitles[w]||'Week '+w)+'</div>' +
+          (isCur ? '<span style="font-size:0.65rem;background:var(--teal);color:#fff;padding:2px 8px;border-radius:100px;font-weight:700;letter-spacing:1px">CURRENT</span>' : '') +
+          (isPast ? '<span style="font-size:0.65rem;background:rgba(0,179,138,0.15);color:var(--green);padding:2px 8px;border-radius:100px;font-weight:600">COMPLETED</span>' : '') +
+        '</div>';
+
+        // Right: stats + chevron for past
+        html += '<div style="display:flex;align-items:center;gap:10px">';
+        html += '<div style="font-size:0.76rem;color:var(--muted)">' + answered + '/'+items.length+' answered</div>';
+        if (avgScore !== null) {
+          var sc = avgScore;
+          var scCol = sc>=80?'var(--green)':sc>=60?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
+          html += '<div style="font-size:0.76rem;font-weight:700;color:'+scCol+'">Avg '+sc+'/100</div>';
+        }
+        if (isPast) html += '<div id="chevron-'+wkId+'" style="font-size:0.8rem;color:var(--muted);transition:transform 0.2s;transform:'+(allAnswered?'':'rotate(180deg)')+'">▼</div>';
+        html += '</div></div>'; // close right + header row
+
+        // Questions body — past weeks collapsed only if fully answered
+        html += '<div id="'+wkId+'" style="display:'+(isPast && allAnswered?'none':'block')+'">';
+        html += '<div style="padding:4px 12px 12px">';
+
+        items.forEach(function(item) {
+          var q = item.q, i = item.i;
+          var sub      = q.Submitted === 'TRUE';
+          var hasScore = sub && q.Score && q.Score !== '';
+          var tc       = q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
+          var sc2      = q.Score ? ' — Score: '+q.Score+'/100' : '';
+          var aiLocked = isFree && !sub && freeAiUsed >= freeAiLimit;
+
+          html += '<div class="question-card" id="qcard-'+i+'">' +
+            '<div class="q-meta">' +
+              '<span class="badge '+tc+'">'+(q.Type||'')+'</span>' +
+              '<span class="q-num">Week '+w+' — '+(q['Q No.']||'')+'</span>' +
+              (sub ? '<span class="submitted-badge">✓ Submitted'+sc2+'</span>' : '') +
+              (aiLocked ? '<span style="font-size:0.72rem;background:rgba(80,72,229,0.13);color:var(--purple);padding:3px 9px;border-radius:6px;font-weight:600;margin-left:6px">🔒 Pro</span>' : '') +
+            '</div>' +
+            '<div class="q-text">'+(q.Question||'')+'</div>' +
+            (hasScore && q['AI Feedback'] ? '<div class="ai-feedback-box"><strong>🤖 AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>' : '') +
             (!sub ?
-              '<div class="q-hint">&#128161; Use STAR format — Situation, Task, Action, Result. Aim for 150–250 words.</div>'+
+              '<div class="q-hint">💡 Use STAR format — Situation, Task, Action, Result. Aim for 150–250 words.</div>' +
               '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."'+(aiLocked?' disabled style="opacity:0.45;cursor:not-allowed"':'')+'>'+
-              '</textarea>'+
+              '</textarea>' +
               (aiLocked ?
-                '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">'+
-                  '<div style="font-size:0.78rem;color:var(--purple)"><strong>&#128274; AI Scoring locked</strong> — you\'ve used your 3 free scores</div>'+
-                  '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade &#8599;</button>'+
+                '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
+                  '<div style="font-size:0.78rem;color:var(--purple)"><strong>🔒 AI Scoring locked</strong> — you\'ve used your 3 free scores</div>' +
+                  '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade ↗</button>' +
                 '</div>' :
-                '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+wk+'">Submit for AI Scoring</button></div>'
+                '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+w+'">Submit for AI Scoring</button></div>'
               ) : ''
-            )+
+            ) +
           '</div>';
-        }).join('');
+        });
+
+        html += '</div></div></div>'; // close padding, body, week block
+      });
+
+      document.getElementById('questionsContent').innerHTML = html;
     }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
+}
+
+function toggleWeekQuestions(id) {
+  var el  = document.getElementById(id);
+  var chv = document.getElementById('chevron-'+id);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chv) chv.style.transform = open ? '' : 'rotate(180deg)';
 }
 
 function submitAnswer(idx) {

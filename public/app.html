@@ -1651,38 +1651,24 @@ function updateFreeAiBanner() {
   var freeAiLimit = 3;
   var freeAiLeft  = Math.max(0, freeAiLimit - _freeAiUsed);
   var locked      = _freeAiUsed >= freeAiLimit;
-
-  // Update banner text
   var bannerText = document.getElementById('freeAiBannerText');
   if (bannerText) {
     bannerText.textContent = locked
-      ? 'Free AI scores used up &mdash; upgrade for unlimited scoring'
+      ? 'Free AI scores used up - upgrade for unlimited scoring'
       : freeAiLeft + ' of ' + freeAiLimit + ' free AI scores remaining';
   }
-
-  // Lock all remaining unanswered submit buttons and textareas
   if (locked) {
-    var allBtns = document.querySelectorAll('.btn-submit');
-    allBtns.forEach(function(btn) {
-      var idx    = btn.id.replace('sbtn-','');
-      var ansEl  = document.getElementById('ans-'+idx);
-      var card   = document.getElementById('qcard-'+idx);
+    document.querySelectorAll('.btn-submit').forEach(function(btn) {
+      var idx   = btn.id.replace('sbtn-','');
+      var ansEl = document.getElementById('ans-'+idx);
       if (!ansEl || ansEl.getAttribute('data-submitted') === 'true') return;
-      // Disable textarea
       ansEl.disabled = true;
       ansEl.style.opacity = '0.45';
-      ansEl.style.cursor  = 'not-allowed';
-      // Replace submit button with lock bar
-      var btnParent = btn.parentNode;
-      btnParent.innerHTML =
-        '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
-          '<div style="font-size:0.78rem;color:var(--purple)"><strong>&#x1F512; AI Scoring locked</strong> &mdash; you've used your 3 free scores</div>' +
-          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade &#x2197;</button>' +
-        '</div>';
+      ansEl.style.cursor = 'not-allowed';
+      btn.parentNode.innerHTML = '<div style="background:rgba(80,72,229,0.07);border:1px dashed #a09af0;border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:0.78rem;color:#5048e5"><strong>&#128274; AI Scoring locked</strong> - 3 free scores used</div><button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,#5048e5,#00b38a);color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade</button></div>';
     });
   }
 }
-
 function toggleWeekQuestions(id) {
   var el  = document.getElementById(id);
   var chv = document.getElementById('chevron-'+id);

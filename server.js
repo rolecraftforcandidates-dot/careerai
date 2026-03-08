@@ -1168,7 +1168,7 @@ app.post('/api/jobmatch', requireLogin, async (req, res) => {
     const Anthropic = require('@anthropic-ai/sdk');
     const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const prompt = `You are an expert ATS and recruitment specialist analysing a candidate's fit for a job.
+    const prompt = `You are a senior recruiter and ATS specialist helping a candidate understand how well they match a specific job.
 
 CANDIDATE PROFILE:
 - Target Role: ${role}
@@ -1178,35 +1178,37 @@ CANDIDATE PROFILE:
 JOB DESCRIPTION:
 ${jd.slice(0, 3000)}
 
-Analyse the match and return ONLY valid JSON — no markdown, no code fences, nothing else:
+Analyse the match carefully and return ONLY valid JSON — no markdown, no code fences, nothing else:
 {
-  "score": <integer 0-100, overall match score>,
-  "shortlist": "<High|Medium|Low — likelihood of being shortlisted>",
+  "score": <integer 0-100>,
+  "shortlist": "<High|Medium|Low>",
   "keywordsHave": ["keyword1", "keyword2", ...],
   "keywordsMissing": ["keyword1", "keyword2", ...],
   "tweaks": [
-    "Specific resume change 1 to better match this JD",
-    "Specific resume change 2",
-    "Specific resume change 3"
+    "Specific, detailed resume change 1 tailored exactly to this job",
+    "Specific, detailed resume change 2",
+    "Specific, detailed resume change 3"
   ],
   "breakdown": [
     {"label": "Technical Skills Match", "score": <0-100>},
     {"label": "Experience Level Match", "score": <0-100>},
     {"label": "Domain / Industry Match", "score": <0-100>},
-    {"label": "Keywords & ATS Score", "score": <0-100>}
+    {"label": "Keywords & ATS Score",    "score": <0-100>}
   ]
 }
 
-Rules:
-- keywordsHave: skills/tools/technologies from the JD that the candidate clearly has (max 12)
-- keywordsMissing: important keywords in the JD NOT in the candidate's profile (max 10, most critical first)
-- tweaks: 3 very specific, actionable resume changes for THIS job (not generic advice)
-- shortlist: High = 75+, Medium = 50-74, Low = below 50
-- Be honest — don't inflate scores`;
+Scoring rules:
+- Score generously for transferable skills — a candidate targeting this role likely has relevant experience even if their resume context is partial
+- If resume context is limited, infer skills from their target role and experience years
+- keywordsHave: up to 12 skills/tools from the JD the candidate clearly has or likely has given their background
+- keywordsMissing: up to 8 genuinely missing keywords that are critical for this specific role (not generic ones)
+- tweaks: 3 highly specific, actionable resume edits for THIS exact job — mention the company name, specific JD phrases, or metrics where possible. Each tweak should be 1-2 sentences
+- shortlist: High = 70+, Medium = 45-69, Low = below 45
+- Overall score: weighted average of breakdown scores (tech skills 40%, experience 30%, domain 20%, keywords 10%)`;
 
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-5', // Sonnet for deeper job match analysis
-      max_tokens: 1500,
+      max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });
 

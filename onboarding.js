@@ -555,7 +555,7 @@ async function sendWelcomeEmail(name, email, password, role, techStack, experien
   const subject   = `Your RoleKraft dashboard is ready, ${firstName}! 🚀`;
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
     <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">
-      <div style="font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:6px">ROLECRAFT</div>
+      <div style="font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:6px">ROLEKRAFT</div>
       <div style="font-size:16px;opacity:.9">Your 30-Day Interview Prep Plan is Ready</div>
     </div>
     <div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">
@@ -576,11 +576,36 @@ async function sendWelcomeEmail(name, email, password, role, techStack, experien
       <p style="color:#6b6b8a;font-size:13px;margin:0">💡 <strong>First thing to do:</strong> Login, check your Week 1 plan, and change your password in Settings.</p>
     </div>
     <div style="background:white;border-radius:14px;padding:20px;border:1px solid rgba(0,0,0,.07)">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px">What is waiting for you:</div>
-      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  28 personalised daily tasks across 4 weeks</div>
-      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  28 interview questions (Technical + Behavioral + System Design)</div>
-      <div style="font-size:13px;color:#6b6b8a;margin-bottom:8px">✅  Resume ATS analysis with improvement tips</div>
-      <div style="font-size:13px;color:#6b6b8a">✅  AI scoring on your submitted answers</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:#1a1a2e">🎁 What is waiting for you:</div>
+      <div style="display:grid;gap:9px">
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#3d3d5c">
+          <span style="color:#00b38a;font-weight:700;flex-shrink:0">✅</span>
+          <span><strong>28 personalised daily tasks</strong> across 4 weeks — specific to your role &amp; tech stack</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#3d3d5c">
+          <span style="color:#00b38a;font-weight:700;flex-shrink:0">✅</span>
+          <span><strong>28 interview questions</strong> (Technical + Behavioral + System Design) with AI scoring</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#3d3d5c">
+          <span style="color:#00b38a;font-weight:700;flex-shrink:0">✅</span>
+          <span><strong>Resume ATS analysis</strong> with score, improvement tips, and missing keywords</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#3d3d5c">
+          <span style="color:#00b38a;font-weight:700;flex-shrink:0">✅</span>
+          <span><strong>AI answer scoring</strong> — submit answers and get detailed feedback with scores out of 100</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#3d3d5c">
+          <span style="color:#5048e5;font-weight:700;flex-shrink:0">⚡</span>
+          <span><strong>Job Match Analyser</strong> — paste any JD and instantly see how well your profile matches with gap analysis</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#3d3d5c">
+          <span style="color:#5048e5;font-weight:700;flex-shrink:0">⚡</span>
+          <span><strong>Live Job Listings</strong> — curated jobs for your role with AI match scores so you apply smarter</span>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f8;font-size:11px;color:#9999bb">
+        ⚡ = Pro features · Free plan includes 3 AI-scored answers and 1 Job Match analysis
+      </div>
     </div>
     <div style="text-align:center;margin-top:20px;font-size:12px;color:#9999bb">Questions? Reply to this email. — Team RoleKraft</div>
   </div>`;
@@ -674,11 +699,26 @@ function parseTallyPayload(body) {
 
   console.log('Role resolution → raw: "' + rawRole + '" | other field: "' + otherRole + '" | final: "' + resolvedRole + '"');
 
+  // ── Email: try label match first, then INPUT_EMAIL type, then respondentEmail meta ──
+  // Tally also sends email in body.data.respondentEmail (when redirect URL has {email})
+  const emailFromField =
+    getField('email address') ||
+    getField('email') ||
+    (fields.find(f => f.type === 'INPUT_EMAIL')?.value || '') ||
+    '';
+  const emailFromMeta =
+    body?.data?.respondentEmail ||
+    body?.respondentEmail ||
+    '';
+  const resolvedEmail = (emailFromField || emailFromMeta || '').trim().toLowerCase();
+
+  console.log('Email resolution → field: "' + emailFromField + '" | meta: "' + emailFromMeta + '" | final: "' + resolvedEmail + '"');
+
   return {
     // name, techStack, experience are now extracted from resume by extractResumeInfo()
     // We still read them as graceful fallback for old form submissions
     name:       getField('name') || getField('full name') || '',
-    email:      getField('email'),
+    email:      resolvedEmail,
     role:       resolvedRole,
     techStack:  getField('tech stack') || getField('tech') || '',
     experience: getField('experience') || getField('years') || getField('exp') || '',

@@ -1782,11 +1782,13 @@ app.post('/api/onboard', async (req, res) => {
   let earlyEmail = null;
   try {
     const fields = (req.body?.data?.fields || req.body?.fields || []);
-    const emailField = fields.find(f =>
-      f.type === 'INPUT_EMAIL' ||
-      (f.label || '').toLowerCase().includes('email')
-    );
-    earlyEmail = emailField?.value || null;
+    // Try multiple strategies to find email — field type, label, then Tally meta
+    const emailField =
+      fields.find(f => f.type === 'INPUT_EMAIL') ||
+      fields.find(f => (f.label || '').toLowerCase().includes('email address')) ||
+      fields.find(f => (f.label || '').toLowerCase().includes('email'));
+    const emailFromMeta = req.body?.data?.respondentEmail || req.body?.respondentEmail || '';
+    earlyEmail = (emailField?.value || emailFromMeta || '').trim().toLowerCase() || null;
     if (earlyEmail) {
       processingEmails.add(earlyEmail.toLowerCase());
       console.log(`⏳ Processing started for: ${earlyEmail}`);
@@ -1819,7 +1821,7 @@ app.post('/api/onboard', async (req, res) => {
         const emailHtml =
           '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">' +
           '<div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">' +
-            '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLECRAFT</div>' +
+            '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>' +
             '<div style="font-size:14px;opacity:.85">Your Resume Analysis + 30-Day Plan is Ready</div>' +
           '</div>' +
           '<div style="background:white;border-radius:14px;padding:28px;margin-bottom:16px;border:1px solid rgba(0,0,0,.07)">' +

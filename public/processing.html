@@ -150,10 +150,18 @@
 </div>
 
 <script>
-var rawEmail = new URLSearchParams(window.location.search).get('email') || '';
-// Detect Tally sending literal placeholder instead of real value
+var params   = new URLSearchParams(window.location.search);
+var rawEmail = params.get('email') || params.get('Email') || params.get('EMAIL') || '';
+// Detect Tally sending literal placeholder {field_variable} instead of real value
+// This happens when the Tally redirect URL variable name doesn't match the field
 var email = (rawEmail.includes('{') || rawEmail.includes('%7B') || !rawEmail.includes('@'))
-  ? '' : rawEmail;
+  ? '' : rawEmail.trim().toLowerCase();
+
+// If email is empty, show a helpful message instead of silently failing
+if (!email) {
+  console.warn('⚠️ No valid email in URL — Tally redirect variable may be misconfigured.');
+  console.warn('URL was:', window.location.href);
+}
 var elapsed  = 0;
 var pollInterval = null;
 var stepTimer    = null;
@@ -195,7 +203,8 @@ function updateTimer() {
 
 function pollReady() {
   if (!email) {
-    showError('No email found in URL. Please check your welcome email for your dashboard link.');
+    showError('We could not read your email from this link. This usually means the Tally redirect URL is misconfigured.<br><br>' +
+      'Please <a href="/app" style="color:#00b38a">go to your dashboard</a> and log in — your plan will be ready there.');
     return;
   }
 

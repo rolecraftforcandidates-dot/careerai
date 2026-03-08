@@ -177,10 +177,10 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .gs-body{flex:1}
 .gs-link{background:none;border:none;color:var(--teal);font-size:0.78rem;font-family:'DM Sans',sans-serif;cursor:pointer;padding:0;font-weight:600;text-decoration:underline}
 .gs-link:hover{color:var(--teal-dark)}
-.today-task{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--teal-light);border-radius:10px;margin-bottom:8px}
+.today-task{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--teal-light);border-radius:10px;margin-bottom:8px}
 .today-task:last-child{margin-bottom:0}
-.today-task-num{font-size:0.68rem;font-family:'DM Mono',monospace;color:var(--teal-dark);font-weight:700;min-width:40px}
-.today-task-text{font-size:0.85rem;font-weight:500;flex:1}
+.today-task-num{display:flex;gap:4px;align-items:center;flex-shrink:0;min-width:0}.today-task-chip{font-size:0.62rem;font-family:'DM Mono',monospace;font-weight:700;background:rgba(0,179,138,0.18);color:var(--teal-dark);padding:2px 6px;border-radius:5px;letter-spacing:0.3px;white-space:nowrap}.today-task-chip-day{background:rgba(80,72,229,0.1);color:var(--purple)}
+.today-task-main{display:flex;align-items:center;gap:10px;flex:1;min-width:0}.today-task-text{font-size:0.85rem;font-weight:500;flex:1;line-height:1.4}
 .week-block{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
 .week-block{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
 .week-block.cw{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,179,138,0.1)}
@@ -216,10 +216,11 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   .week-hdr{flex-wrap:wrap;gap:6px}
   .week-hdr-title{font-size:0.88rem}
   /* Today's Focus tasks on Overview - force badge to its own line */
-  .today-task{flex-wrap:wrap;align-items:flex-start;gap:0;padding:12px 14px;row-gap:6px}
-  .today-task-num{min-width:44px;padding-top:3px;flex-shrink:0}
+  .today-task{flex-wrap:wrap;align-items:flex-start;gap:0;padding:12px 14px;row-gap:0}
+  .today-task-num{padding-top:2px;gap:4px}
+  .today-task-main{width:100%;flex:none}
   .today-task-text{flex:1;min-width:0}
-  .today-task-badge{width:100%;padding-left:44px;margin-top:2px;box-sizing:border-box}
+  .today-task-badge{width:auto;margin-left:0;margin-top:8px;display:inline-block}
 }
 .drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1400,9 +1401,13 @@ function loadTodayFocus() {
       focusCard.style.borderLeftColor='var(--teal)';
       focusContent.innerHTML=pending.slice(0,2).map(function(t){
         var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
-        return '<div class="today-task"><div class="today-task-num">W'+cw+' &middot; D'+t.Day+'</div>'+
-          '<div class="today-task-text">'+(t['Task Title']||'')+'</div>'+
-          '<span class="badge today-task-badge '+tc+'">'+(t.Type||'')+'</span></div>';
+        return '<div class="today-task">'+
+          '<div class="today-task-main">'+
+            '<div class="today-task-num"><span class="today-task-chip">W'+cw+'</span><span class="today-task-chip today-task-chip-day">D'+t.Day+'</span></div>'+
+            '<div class="today-task-text">'+(t['Task Title']||'')+'</div>'+
+          '</div>'+
+          '<span class="badge today-task-badge '+tc+'">'+(t.Type||'')+'</span>'+
+          '</div>';
       }).join('')+
       (pending.length>2?'<div style="font-size:0.78rem;color:var(--muted);margin-top:8px;padding-left:4px">+ '+(pending.length-2)+' more this week</div>':'');
     }).catch(function(){});

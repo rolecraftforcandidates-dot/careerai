@@ -845,7 +845,7 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       { pattern: 'back end',           alts: ['backend engineer','api developer','nodejs developer','java developer'] },
       { pattern: 'full stack',         alts: ['full stack engineer','software engineer','web developer','mern stack','mean stack developer'] },
       { pattern: 'fullstack',          alts: ['full stack engineer','software engineer','web developer','mern stack'] },
-      { pattern: 'data scientist',     alts: ['machine learning engineer','ml engineer','ai engineer','data analyst','research scientist'] },
+      { pattern: 'data scientist',     alts: ['data scientist','senior data scientist','machine learning engineer','ml engineer','ai engineer','applied scientist','research scientist','data science engineer'] },
       { pattern: 'devops',             alts: ['site reliability engineer','platform engineer','cloud engineer','infrastructure engineer','sre'] },
       { pattern: 'cloud engineer',     alts: ['aws engineer','azure engineer','gcp engineer','devops engineer','platform engineer'] },
       { pattern: 'product manager',    alts: ['product owner','program manager','technical product manager','senior product manager'] },
@@ -936,10 +936,16 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
           const skills = JSON.parse(raw);
           console.log('Resume skills extracted:', skills);
 
+          // Use role-aware skill search — append the user's core job function, not just 'engineer'
+          const coreRole = roleKeywords.toLowerCase().includes('scientist') ? 'scientist'
+                         : roleKeywords.toLowerCase().includes('analyst')   ? 'analyst'
+                         : roleKeywords.toLowerCase().includes('manager')   ? 'manager'
+                         : roleKeywords.toLowerCase().includes('designer')  ? 'designer'
+                         : 'engineer';
           for (const skill of skills.slice(0, 3)) {
             if (rawJobs.length >= 18) break;
-            const skillJobs = await fetchAdzuna(skill + ' engineer');
-            console.log('Skill fallback "' + skill + ' engineer": ' + skillJobs.length + ' jobs');
+            const skillJobs = await fetchAdzuna(skill + ' ' + coreRole);
+            console.log('Skill fallback "' + skill + ' ' + coreRole + '": ' + skillJobs.length + ' jobs');
             rawJobs = rawJobs.concat(skillJobs);
           }
         } catch(skillErr) {
@@ -1086,14 +1092,17 @@ app.get('/api/jobs', requireLogin, async (req, res) => {
       };
     });
 
-    // Sort: primarily by match score, premium companies bubble up on ties
-    jobs.sort((a, b) => {
+    // Filter out clearly irrelevant jobs (score < 20), then sort
+    const relevantJobs = jobs.filter(j => j.matchScore >= 20);
+    const filteredJobs = relevantJobs.length >= 5 ? relevantJobs : jobs; // fallback: keep all if too few
+    filteredJobs.sort((a, b) => {
       if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
       return (b.isPremium ? 1 : 0) - (a.isPremium ? 1 : 0);
     });
+    const jobs_final = filteredJobs;
 
-    console.log(`✅ Jobs ready for ${email}: top score=${jobs[0]?.matchScore}, bottom=${jobs[jobs.length-1]?.matchScore}`);
-    res.json({ jobs, total: jobs.length });
+    console.log(`✅ Jobs ready for ${email}: ${jobs_final.length}/${jobs.length} relevant jobs, top=${jobs_final[0]?.matchScore}`);
+    res.json({ jobs: jobs_final, total: jobs_final.length });
 
   } catch (err) {
     console.error('Jobs error:', err.message);

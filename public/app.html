@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<title>RoleKraft — Dashboard</title>
+<title>RoleKraft &mdash; Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -171,7 +171,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .gs-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;font-family:'DM Mono',monospace}
 .gs-icon.pending{background:var(--teal-light);color:var(--teal-dark)}
 .gs-icon.done{background:var(--green-light);color:var(--green)}
-.gs-icon.done::after{content:'✓'}
+.gs-icon.done::after{content:'&#x2713;'}
 .gs-title{font-weight:600;font-size:0.88rem;margin-bottom:2px}
 .gs-sub{font-size:0.78rem;color:var(--muted)}
 .gs-body{flex:1}
@@ -312,10 +312,10 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         </div>
       </div>
 
-      <!-- Welcome hint banner — shown when arriving from welcome page -->
+      <!-- Welcome hint banner &mdash; shown when arriving from welcome page -->
       <div id="welcomeHint" style="display:none;background:#f0fdf9;border:1px solid #bbf7e0;border-radius:10px;padding:13px 16px;margin-bottom:18px">
         <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="font-size:1.1rem;flex-shrink:0">📬</span>
+          <span style="font-size:1.1rem;flex-shrink:0">&#x1F4EC;</span>
           <div>
             <div style="font-size:0.82rem;font-weight:700;color:#065f46;margin-bottom:3px">Check your email for login details</div>
             <div style="font-size:0.78rem;color:#047857;line-height:1.5">We sent your email &amp; password to your inbox. Subject: <em>Welcome to RoleKraft</em></div>
@@ -329,7 +329,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" class="form-input" id="passInput" placeholder="••••••••" autocomplete="current-password">
+        <input type="password" class="form-input" id="passInput" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password">
       </div>
       <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
       <div class="login-hint">New user? <a href="https://tally.so/r/D4NpLX" target="_blank">Register via onboarding form</a></div>
@@ -362,7 +362,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       <button class="nav-item" onclick="showPanel('settings',this)"><span class="nav-icon">&#9881;&#65039;</span>Settings</button>
     </nav>
     <div class="sidebar-footer">
-      <button id="upgradeNavBtn" onclick="showUpgradeModal()" style="width:100%;padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.83rem;font-weight:700;cursor:pointer;margin-bottom:8px;display:none">⚡ Upgrade to Pro</button>
+      <button id="upgradeNavBtn" onclick="showUpgradeModal()" style="width:100%;padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.83rem;font-weight:700;cursor:pointer;margin-bottom:8px;display:none">&#x26A1; Upgrade to Pro</button>
       <button class="logout-btn" onclick="doLogout()"><span>&#128682;</span> Sign Out</button>
     </div>
   </aside>
@@ -401,7 +401,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
           <div class="stat-card o"><div class="stat-icon">&#10067;</div><div class="stat-val" id="statPending">-</div><div class="stat-lbl">Questions Pending</div></div>
         </div>
 
-        <!-- Today's Focus + Getting Started — two column on larger screens -->
+        <!-- Today's Focus + Getting Started &mdash; two column on larger screens -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px" id="overviewTopRow">
 
           <!-- Today's Focus -->
@@ -410,11 +410,11 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             <div id="todayFocusContent">
               <div style="color:var(--muted);font-size:0.85rem;font-style:italic">Loading your tasks...</div>
             </div>
-            <button class="ov-action-btn" onclick="showPanel('plan',document.querySelector('[onclick*=\'plan\']'))" style="margin-top:14px">View Full Plan →</button>
+            <button class="ov-action-btn" onclick="showPanel('plan',document.querySelector('[onclick*=\'plan\']'))" style="margin-top:14px">View Full Plan &#x2192;</button>
           </div>
 
           <!-- Getting Started Checklist -->
-          <!-- Week Progress Card — shown after 30% complete, replaces getting started -->
+          <!-- Week Progress Card &mdash; shown after 30% complete, replaces getting started -->
           <div class="card" id="weekProgressCard" style="border-top:3px solid var(--purple);display:none">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
               <div>
@@ -454,7 +454,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
                 <div class="gs-icon pending">1</div>
                 <div class="gs-body">
                   <div class="gs-title">Review your plan</div>
-                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('plan',document.querySelector('[onclick*=\'plan\']'))">Open My 4-Week Plan →</button></div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('plan',document.querySelector('[onclick*=\'plan\']'))">Open My 4-Week Plan &#x2192;</button></div>
                 </div>
               </div>
               <div class="gs-step" id="gs-task">
@@ -468,21 +468,21 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
                 <div class="gs-icon pending">3</div>
                 <div class="gs-body">
                   <div class="gs-title">Answer an interview question</div>
-                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('questions',document.querySelector('[onclick*=\'questions\']'))">Open Weekly Questions →</button></div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('questions',document.querySelector('[onclick*=\'questions\']'))">Open Weekly Questions &#x2192;</button></div>
                 </div>
               </div>
               <div class="gs-step" id="gs-resume">
                 <div class="gs-icon pending">4</div>
                 <div class="gs-body">
                   <div class="gs-title">Check your ATS resume score</div>
-                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('resume',document.querySelector('[onclick*=\'resume\']'))">Open Resume Review →</button></div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('resume',document.querySelector('[onclick*=\'resume\']'))">Open Resume Review &#x2192;</button></div>
                 </div>
               </div>
               <div class="gs-step" id="gs-password">
                 <div class="gs-icon pending">5</div>
                 <div class="gs-body">
                   <div class="gs-title">Change your default password</div>
-                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('settings',document.querySelector('[onclick*=\'settings\']'))">Open Settings →</button></div>
+                  <div class="gs-sub"><button class="gs-link" onclick="showPanel('settings',document.querySelector('[onclick*=\'settings\']'))">Open Settings &#x2192;</button></div>
                 </div>
               </div>
             </div>
@@ -494,7 +494,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
           <div class="card">
             <div class="card-title">&#128336; Recent Activity</div>
             <div class="activity-list" id="activityList">
-              <div class="ov-empty-hint">&#128073; Complete tasks and submit answers — your activity will appear here.</div>
+              <div class="ov-empty-hint">&#128073; Complete tasks and submit answers &mdash; your activity will appear here.</div>
             </div>
           </div>
           <div class="card">
@@ -565,13 +565,13 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       <!-- JOB MATCH -->
       <div class="panel" id="panel-jobmatch">
         <div class="panel-title">JOB MATCH</div>
-        <div class="panel-sub">Paste a job description — AI analyses how well your profile matches and what to fix</div>
+        <div class="panel-sub">Paste a job description &mdash; AI analyses how well your profile matches and what to fix</div>
         <div class="error-bar" id="jobmatchError"></div>
-        <!-- Free tier used-up banner — shown dynamically by showJobMatchPanel() -->
+        <!-- Free tier used-up banner &mdash; shown dynamically by showJobMatchPanel() -->
         <div id="jmProBanner" style="display:none;background:linear-gradient(135deg,rgba(80,72,229,0.12),rgba(0,179,138,0.08));border:1px solid rgba(80,72,229,0.25);border-radius:14px;padding:18px 20px;margin-bottom:18px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <div>
-              <div style="font-size:0.85rem;font-weight:700;color:var(--purple);margin-bottom:4px">&#128274; Pro Feature — 1 Free Analysis Used</div>
+              <div style="font-size:0.85rem;font-weight:700;color:var(--purple);margin-bottom:4px">&#128274; Pro Feature &mdash; 1 Free Analysis Used</div>
               <div style="font-size:0.80rem;color:var(--muted);line-height:1.5">You've used your free Job Match analysis. Upgrade to Pro for <strong>unlimited</strong> job matching against your resume.</div>
             </div>
             <button onclick="showUpgradeModal()" style="flex-shrink:0;padding:9px 18px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer">Upgrade &#8599;</button>
@@ -581,7 +581,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <!-- JD Input Card -->
         <div class="card" style="margin-bottom:18px">
           <div class="card-title">&#128203; Paste Job Description</div>
-          <textarea id="jdInput" style="width:100%;min-height:160px;border:1.5px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Paste the full job description here — role, requirements, responsibilities, tech stack..."></textarea>
+          <textarea id="jdInput" style="width:100%;min-height:160px;border:1.5px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Paste the full job description here &mdash; role, requirements, responsibilities, tech stack..."></textarea>
         </div>
 
         <!-- Resume Override Card -->
@@ -593,7 +593,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             </label>
           </div>
           <div id="resumeAutoMsg" style="font-size:0.83rem;color:var(--muted);padding:10px 14px;background:var(--teal-light);border-radius:8px">
-            &#9989; Using your uploaded resume. You can update it in <strong>Settings → Your Resume</strong>, or toggle above to paste a custom version for this analysis.
+            &#9989; Using your uploaded resume. You can update it in <strong>Settings &#x2192; Your Resume</strong>, or toggle above to paste a custom version for this analysis.
           </div>
           <textarea id="resumeOverrideInput" style="display:none;width:100%;min-height:120px;border:1.5px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;box-sizing:border-box;margin-top:10px" placeholder="Paste your resume text here (copy from your Word/PDF)..."></textarea>
         </div>
@@ -664,7 +664,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <!-- Filters -->
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;margin-top:14px">
           <select id="jobsLocation" onchange="loadJobs(true)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:0.83rem;background:var(--card);color:var(--text);cursor:pointer;outline:none">
-            <option value="india">🇮🇳 Pan India</option>
+            <option value="india">&#x1F1EE;&#x1F1F3; Pan India</option>
             <option value="bangalore">Bangalore</option>
             <option value="mumbai">Mumbai</option>
             <option value="delhi">Delhi / NCR</option>
@@ -678,7 +678,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             <option value="salary">Sort: Highest Salary</option>
           </select>
           <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;font-size:0.82rem;color:var(--muted)">
-            Showing: <strong id="jobsCount" style="color:var(--text);margin-left:4px">—</strong>
+            Showing: <strong id="jobsCount" style="color:var(--text);margin-left:4px">&mdash;</strong>
           </div>
         </div>
 
@@ -727,14 +727,14 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <!-- Resume Upload -->
         <div class="card" style="margin-top:16px">
           <div class="card-title">&#128196; Your Resume</div>
-          <div style="font-size:0.82rem;color:var(--muted);margin-bottom:16px">Upload once — AI extracts the text and uses it for Job Match, Resume Review, and scoring.</div>
+          <div style="font-size:0.82rem;color:var(--muted);margin-bottom:16px">Upload once &mdash; AI extracts the text and uses it for Job Match, Resume Review, and scoring.</div>
 
           <!-- Current resume status -->
           <div id="resumeCurrentStatus" style="display:none;margin-bottom:14px;padding:12px 14px;background:var(--teal-light);border-radius:10px;border:1px solid rgba(0,179,138,0.2);align-items:center;gap:10px">
             <span style="font-size:1.2rem">&#128196;</span>
             <div style="flex:1">
               <div style="font-size:0.84rem;font-weight:600;color:var(--teal-dark)">Resume on file</div>
-              <a id="resumeDriveLink" href="#" target="_blank" style="font-size:0.76rem;color:var(--teal);text-decoration:none">View on Google Drive ↗</a>
+              <a id="resumeDriveLink" href="#" target="_blank" style="font-size:0.76rem;color:var(--teal);text-decoration:none">View on Google Drive &#x2197;</a>
             </div>
             <span style="font-size:0.75rem;color:var(--green);font-weight:600">&#10003; Active</span>
           </div>
@@ -748,7 +748,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             style="border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg)">
             <div style="font-size:2rem;margin-bottom:8px">&#128228;</div>
             <div style="font-weight:700;font-size:0.92rem;margin-bottom:4px">Drop your resume here</div>
-            <div style="font-size:0.8rem;color:var(--muted)">or click to browse — PDF or DOCX, max 10MB</div>
+            <div style="font-size:0.8rem;color:var(--muted)">or click to browse &mdash; PDF or DOCX, max 10MB</div>
           </div>
           <input type="file" id="resumeFileInput" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResume(this.files[0])">
 
@@ -770,16 +770,16 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   </div>
 </div>
 
-<!-- ── RESOURCE DRAWER ── -->
+<!-- -- RESOURCE DRAWER -- -->
 <div id="resourceOverlay" onclick="closeResourceDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;backdrop-filter:blur(2px)"></div>
 <div id="resourceDrawer" style="position:fixed;top:0;right:-520px;width:500px;max-width:95vw;height:100vh;background:var(--card);z-index:201;display:flex;flex-direction:column;box-shadow:-4px 0 40px rgba(0,0,0,0.18);transition:right 0.3s cubic-bezier(0.4,0,0.2,1);overflow:hidden">
   <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div style="flex:1;min-width:0">
-        <div style="font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:4px" id="drawerWeekDay">WEEK 1 · DAY 1</div>
+        <div style="font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:4px" id="drawerWeekDay">WEEK 1 &middot; DAY 1</div>
         <div style="font-weight:700;font-size:1rem;color:var(--text);line-height:1.4" id="drawerTitle">Loading...</div>
       </div>
-      <button onclick="closeResourceDrawer()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:1rem;color:var(--muted);margin-left:12px;flex-shrink:0">✕</button>
+      <button onclick="closeResourceDrawer()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:1rem;color:var(--muted);margin-left:12px;flex-shrink:0">&#x2715;</button>
     </div>
     <div style="margin-top:10px" id="drawerTypeBadge"></div>
   </div>
@@ -793,7 +793,7 @@ var currentUser = null;
 var panelLoaded = {};
 var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', jobs:'Jobs For You', settings:'Settings' };
 
-// ── Plan polling — auto-refresh until plan is ready ──
+// -- Plan polling &mdash; auto-refresh until plan is ready --
 var _planPollTimer   = null;
 var _planPollCount   = 0;
 var _planPollMaxSecs = 300; // stop after 5 minutes
@@ -801,7 +801,7 @@ var _planPollInterval= 3000; // every 3 seconds
 
 function startPlanPolling() {
   if (_planPollTimer) return; // already polling
-  console.log('🔄 Starting plan polling...');
+  console.log('&#x1F504; Starting plan polling...');
   _planPollTimer = setInterval(function() {
     _planPollCount++;
     var elapsed = _planPollCount * (_planPollInterval / 1000);
@@ -811,7 +811,7 @@ function startPlanPolling() {
     if (elapsed > _planPollMaxSecs) {
       stopPlanPolling();
       var pc = document.getElementById('planContent');
-      if (pc) pc.innerHTML = '<div class="empty-state"><div class="empty-icon">⏱️</div><div class="empty-text">Taking longer than expected. Please refresh the page.</div></div>';
+      if (pc) pc.innerHTML = '<div class="empty-state"><div class="empty-icon">&#x23F1;</div><div class="empty-text">Taking longer than expected. Please refresh the page.</div></div>';
       return;
     }
 
@@ -819,7 +819,7 @@ function startPlanPolling() {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (d.plan && d.plan.length > 0) {
-          console.log('✅ Plan ready! Reloading panel...');
+          console.log('&#x2705; Plan ready! Reloading panel...');
           stopPlanPolling();
           panelLoaded['plan'] = false; // force reload
           loadPlan(); // re-render the plan
@@ -827,7 +827,7 @@ function startPlanPolling() {
           if (typeof updateOverviewStats === 'function') updateOverviewStats();
         }
       })
-      .catch(function() { /* ignore — will retry */ });
+      .catch(function() { /* ignore &mdash; will retry */ });
   }, _planPollInterval);
 }
 
@@ -896,11 +896,11 @@ function showLoginPage() {
 
 function showDashboard(user) {
   currentUser = user;
-  console.log('🚀 showDashboard — user.tier =', user.tier);
+  console.log('&#x1F680; showDashboard &mdash; user.tier =', user.tier);
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('dashboard').classList.add('active');
 
-  // Always reset to Overview panel on login — clear any previous panel state
+  // Always reset to Overview panel on login &mdash; clear any previous panel state
   document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
   document.getElementById('panel-overview').classList.add('active');
@@ -926,9 +926,9 @@ function showDashboard(user) {
   initTier(user.tier || 'free');
 
   // Server now redirects unregistered Google users to Tally before they reach here
-  // This is a safety net only — should never fire in normal flow
+  // This is a safety net only &mdash; should never fire in normal flow
   if (!user.role) {
-    console.warn('No role on session — redirecting to login');
+    console.warn('No role on session &mdash; redirecting to login');
     window.location.href = '/app';
     return;
   }
@@ -942,15 +942,15 @@ function setUserInfo(u) {
   document.getElementById('userAvatar').textContent = ini;
   document.getElementById('userName').textContent   = u.name||'';
   var expDisplay = u.experience || '';
-  document.getElementById('userRole').textContent   = (u.role||'') + (expDisplay ? ' — ' + expDisplay : '');
+  document.getElementById('userRole').textContent   = (u.role||'') + (expDisplay ? ' &mdash; ' + expDisplay : '');
   document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
   document.getElementById('dayPill').textContent    = 'DAY '+day+' OF 7';
   document.getElementById('dayPill').style.background = day >= 6 ? 'var(--orange-light)' : '#f0f0f8';
   document.getElementById('dayPill').style.color      = day >= 6 ? 'var(--orange)' : 'var(--muted)';
   document.getElementById('welcomeName').textContent = 'HI, '+((u.name||'').split(' ')[0]).toUpperCase()+'!';
-  document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan. Day '+day+' of 7'+(daysLeft<=2?' — <span style="color:#f59e0b;font-weight:600">'+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>':'')+ '.';
+  document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan. Day '+day+' of 7'+(daysLeft<=2?' &mdash; <span style="color:#f59e0b;font-weight:600">'+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>':'')+ '.';
   var expTag = u.experience || '';
-  document.getElementById('planRoleTag').textContent = (u.role||'') + (expTag ? ' · ' + expTag : '') + ' · Week '+(u.week||1)+' of 4 · Day '+day+' of 7';
+  document.getElementById('planRoleTag').textContent = (u.role||'') + (expTag ? ' &middot; ' + expTag : '') + ' &middot; Week '+(u.week||1)+' of 4 &middot; Day '+day+' of 7';
   document.getElementById('statWeek').textContent   = 'W'+(u.week||1)+'D'+day;
 }
 
@@ -1012,7 +1012,7 @@ function showPanel(id, btn) {
   document.getElementById('topbarTitle').textContent = panelTitles[id];
   closeSidebar();
   if (id === 'jobmatch') refreshJobMatchLock();
-  // Always reload questions + scores (data changes server-side — AI scoring)
+  // Always reload questions + scores (data changes server-side &mdash; AI scoring)
   // Plan reloads only if not already loaded (tasks are live via toggleTask)
   // Overview always live via updateOverviewStats
   if (!panelLoaded[id]) {
@@ -1021,7 +1021,7 @@ function showPanel(id, btn) {
     if (id==='settings') loadSettings();
     if (id==='jobs')     loadJobs(false);
   }
-  // Always reload fresh — these change per user and per action
+  // Always reload fresh &mdash; these change per user and per action
   if (id==='plan')      loadPlan();
   if (id==='overview')  loadOverview();
   if (id==='questions') loadQuestions();
@@ -1042,7 +1042,7 @@ function animateBars() {
 
 function toggleWeek(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
 
-// ── Live task counters — track state in memory ──
+// -- Live task counters &mdash; track state in memory --
 var _taskState = { done:0, total:0, overdue:0, curWeekDone:0, curWeekTotal:0 };
 
 function syncTaskState() {
@@ -1090,19 +1090,19 @@ function updateOverviewStats() {
   if (s.total === 0) {
     // Plan still generating
     card.style.borderColor = 'var(--teal)';
-    icon.textContent = '⚙️';
+    icon.textContent = '&#x2699;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--teal);font-family:DM Mono,monospace;margin-top:2px">GENERATING...</span>';
   } else if (s.overdue > 0) {
     card.style.borderColor = 'var(--red)';
-    icon.textContent = '🔴';
+    icon.textContent = '&#x1F534;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+s.overdue+' OVERDUE</span>';
   } else if (cwPct < 50 && s.curWeekTotal > 0 && s.curWeekDone < s.curWeekTotal) {
     card.style.borderColor = 'var(--orange)';
-    icon.textContent = '⚠️';
+    icon.textContent = '&#x26A0;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
   } else {
     card.style.borderColor = '';
-    icon.textContent = '✅';
+    icon.textContent = '&#x2705;';
     lbl.innerHTML = 'Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
   }
 
@@ -1131,19 +1131,19 @@ function refreshPlanHeaders() {
     var isCur   = w === cw;
     var block   = blocks[w-1];
 
-    // ── Update subtitle ──
+    // -- Update subtitle --
     var sub = block.querySelector('.week-hdr-sub');
     if (sub) {
       var pct  = wItems.length ? Math.round(wDone/wItems.length*100) : 0;
-      var txt  = wItems.length+' tasks · '+wDone+' completed';
-      if (isPast && !allDone) txt = wItems.length+' tasks · '+pending+' still pending';
+      var txt  = wItems.length+' tasks &middot; '+wDone+' completed';
+      if (isPast && !allDone) txt = wItems.length+' tasks &middot; '+pending+' still pending';
       var barColor = (isPast && !allDone) ? 'var(--red)' : 'linear-gradient(90deg,var(--teal),var(--purple))';
       var showBar  = isPast || isCur;
       sub.innerHTML = txt +
         (showBar ? '<div style="margin-top:6px;background:#eef0f8;border-radius:100px;height:5px;width:160px"><div style="height:100%;background:'+barColor+';border-radius:100px;width:'+pct+'%;transition:width 0.4s ease"></div></div>' : '');
     }
 
-    // ── Update overdue badge in title ──
+    // -- Update overdue badge in title --
     var titleEl = block.querySelector('.week-hdr-title');
     if (titleEl) {
       var existingBadge = titleEl.querySelector('.week-overdue-badge');
@@ -1157,16 +1157,16 @@ function refreshPlanHeaders() {
       }
     }
 
-    // ── Update block border + pill ──
+    // -- Update block border + pill --
     var pill   = block.querySelector('.ws-pill');
     var circle = block.querySelector('.week-circle');
     if (isPast && !allDone) {
       block.classList.add('overdue');
-      if (pill)   { pill.textContent = '⚠ OVERDUE';   pill.className = 'ws-pill ws-overdue'; }
+      if (pill)   { pill.textContent = '&#x26A0; OVERDUE';   pill.className = 'ws-pill ws-overdue'; }
       if (circle) { circle.className = 'week-circle wc-overdue'; }
     } else if (isPast && allDone) {
       block.classList.remove('overdue');
-      if (pill)   { pill.textContent = '✓ COMPLETE';  pill.className = 'ws-pill ws-done'; }
+      if (pill)   { pill.textContent = '&#x2713; COMPLETE';  pill.className = 'ws-pill ws-done'; }
       if (circle) { circle.className = 'week-circle wc-done'; }
     }
     // Current week pill doesn't change on toggle
@@ -1216,7 +1216,7 @@ function toggleTask(item) {
     })
     .catch(function(){
       item.style.opacity='1';
-      showToast('Connection error — changes may not have saved.', 'error');
+      showToast('Connection error &mdash; changes may not have saved.', 'error');
     });
 }
 
@@ -1247,29 +1247,29 @@ function loadOverview() {
     .then(function(d){
       if (!d.week) return;
 
-      // ── Stats ──
+      // -- Stats --
       document.getElementById('progressPct').textContent  = d.progress+'%';
       document.getElementById('progressFill').style.width = d.progress+'%';
       document.getElementById('statTasks').textContent    = d.tasksDone+'/'+d.totalTasks;
       document.getElementById('statScore').textContent    = d.latestScore!==null ? d.latestScore : '-';
       document.getElementById('statPending').textContent  = d.pendingQuestions;
 
-      // ── On-track status badge ──
+      // -- On-track status badge --
       var card = document.getElementById('statTasksCard');
       var icon = document.getElementById('statTasksIcon');
       var lbl  = document.getElementById('statTasksLbl');
       if (d.overdueCount && d.overdueCount > 0) {
-        card.style.borderColor='var(--red)'; icon.textContent='🔴';
+        card.style.borderColor='var(--red)'; icon.textContent='&#x1F534;';
         lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--red);font-family:DM Mono,monospace;margin-top:2px">'+d.overdueCount+' OVERDUE</span>';
       } else if (d.currentWeekProgress < 50 && d.pendingQuestions > 0) {
-        card.style.borderColor='var(--orange)'; icon.textContent='⚠️';
+        card.style.borderColor='var(--orange)'; icon.textContent='&#x26A0;';
         lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--orange);font-family:DM Mono,monospace;margin-top:2px">FALLING BEHIND</span>';
       } else {
-        card.style.borderColor=''; icon.textContent='✅';
+        card.style.borderColor=''; icon.textContent='&#x2705;';
         lbl.innerHTML='Tasks Done<span style="display:block;font-size:0.65rem;color:var(--green);font-family:DM Mono,monospace;margin-top:2px">ON TRACK</span>';
       }
 
-      // ── Nav badge ──
+      // -- Nav badge --
       var nb=document.getElementById('questionsNavBtn');
       var ob=nb?nb.querySelector('.nav-badge'):null;
       if (ob) ob.remove();
@@ -1277,7 +1277,7 @@ function loadOverview() {
         var b=document.createElement('span'); b.className='nav-badge'; b.textContent=d.pendingQuestions; nb.appendChild(b);
       }
 
-      // ── Recent Activity ──
+      // -- Recent Activity --
       if (d.recentActivity && d.recentActivity.length) {
         document.getElementById('activityList').innerHTML=d.recentActivity.map(function(a){
           var col=a.type==='score'?'var(--purple)':'var(--green)';
@@ -1285,7 +1285,7 @@ function loadOverview() {
         }).join('');
       }
 
-      // ── Getting Started Checklist: show until 30%, then swap to Week Progress ──
+      // -- Getting Started Checklist: show until 30%, then swap to Week Progress --
       var gsCard = document.getElementById('gettingStartedCard');
       var wpCard = document.getElementById('weekProgressCard');
       if (d.progress < 30) {
@@ -1305,8 +1305,8 @@ function loadOverview() {
           var wt  = {'1':'Build Foundations','2':'Strengthen Technical Depth','3':'Interview Practice','4':'Final Readiness'};
           var day = (currentUser && currentUser.dayOfWeek) || 1;
           var daysLeft = 7 - day + 1;
-          var urgency  = daysLeft <= 2 ? '<span style="color:var(--orange);font-weight:700">⚠ '+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>' : 'Day '+day+' of 7';
-          document.getElementById('wpWeekTitle').textContent  = 'Week '+cw+' · '+(wt[cw]||'');
+          var urgency  = daysLeft <= 2 ? '<span style="color:var(--orange);font-weight:700">&#x26A0; '+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>' : 'Day '+day+' of 7';
+          document.getElementById('wpWeekTitle').textContent  = 'Week '+cw+' &middot; '+(wt[cw]||'');
           document.getElementById('wpDayBadge').innerHTML     = urgency;
           document.getElementById('wpPct').textContent        = cwp+'%';
           document.getElementById('wpBar').style.width        = cwp+'%';
@@ -1317,11 +1317,11 @@ function loadOverview() {
         }
       }
 
-      // ── Today's Focus ──
+      // -- Today's Focus --
       loadTodayFocus();
 
       loadMiniScoreBars();
-      // Seed task counts from server — authoritative until plan DOM loads
+      // Seed task counts from server &mdash; authoritative until plan DOM loads
       if (d.tasksDone !== undefined && d.totalTasks !== undefined) {
         _taskState.done              = d.tasksDone;
         _taskState.total             = d.totalTasks;
@@ -1364,7 +1364,7 @@ function loadTodayFocus() {
       focusCard.style.borderLeftColor='var(--teal)';
       focusContent.innerHTML=pending.slice(0,2).map(function(t){
         var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
-        return '<div class="today-task"><div class="today-task-num">W'+cw+' · D'+t.Day+'</div>'+
+        return '<div class="today-task"><div class="today-task-num">W'+cw+' &middot; D'+t.Day+'</div>'+
           '<div class="today-task-text">'+(t['Task Title']||'')+'</div>'+
           '<span class="badge '+tc+'" style="flex-shrink:0">'+(t.Type||'')+'</span></div>';
       }).join('')+
@@ -1403,12 +1403,12 @@ function loadPlan() {
       plan.forEach(function(t){var w=String(t.Week||'1');if(!bw[w])bw[w]=[];bw[w].push(t);});
       var wt={'1':'Build Foundations','2':'Strengthen Technical Depth','3':'Real Interview Practice','4':'Final Readiness'};
       if (!plan.length){
-        // Plan not ready yet — show animated state and start polling
+        // Plan not ready yet &mdash; show animated state and start polling
         document.getElementById('planContent').innerHTML=
           '<div style="text-align:center;padding:48px 20px">' +
-            '<div style="font-size:2.8rem;margin-bottom:16px;animation:spin 2s linear infinite;display:inline-block">⚙️</div>' +
+            '<div style="font-size:2.8rem;margin-bottom:16px;animation:spin 2s linear infinite;display:inline-block">&#x2699;</div>' +
             '<div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Building your personalised plan...</div>' +
-            '<div style="font-size:0.83rem;color:var(--muted);margin-bottom:24px;line-height:1.6">Claude AI is generating your 28 tasks and 28 questions.<br>This takes about 30–60 seconds. Hang tight!</div>' +
+            '<div style="font-size:0.83rem;color:var(--muted);margin-bottom:24px;line-height:1.6">Claude AI is generating your 28 tasks and 28 questions.<br>This takes about 30&ndash;60 seconds. Hang tight!</div>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:28px">' +
               '<div class="pulse-dot"></div><div class="pulse-dot" style="animation-delay:0.2s"></div><div class="pulse-dot" style="animation-delay:0.4s"></div>' +
             '</div>' +
@@ -1424,7 +1424,7 @@ function loadPlan() {
         var pending=tasks.length-done;
         var allDone=tasks.length>0&&done===tasks.length;
 
-        // ── Determine real status ──
+        // -- Determine real status --
         var st, blockClass='', pillClass, pillLabel, circleClass, subText, extraBadge='';
 
         if (w < cw) {
@@ -1432,26 +1432,26 @@ function loadPlan() {
           if (allDone) {
             st='done'; blockClass=''; circleClass='wc-done'; pillClass='ws-done';
             pillLabel='&#10003; COMPLETE';
-            subText=tasks.length+' tasks · all done';
+            subText=tasks.length+' tasks &middot; all done';
           } else {
-            // Past but incomplete — OVERDUE
+            // Past but incomplete &mdash; OVERDUE
             st='overdue'; blockClass='overdue'; circleClass='wc-overdue'; pillClass='ws-overdue';
             pillLabel='&#9888; OVERDUE';
-            subText=tasks.length+' tasks · '+pending+' still pending';
+            subText=tasks.length+' tasks &middot; '+pending+' still pending';
             extraBadge='<span class="week-overdue-badge" data-week="'+w+'" style="font-size:0.68rem;background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">'+pending+' task'+(pending>1?'s':'')+' overdue</span>';
           }
         } else if (w == cw) {
-          // Current week — IN PROGRESS
+          // Current week &mdash; IN PROGRESS
           st='cur'; blockClass='cw'; circleClass='wc-cur'; pillClass='ws-cur';
           pillLabel='&#9679; IN PROGRESS';
           var pct=tasks.length?Math.round(done/tasks.length*100):0;
-          subText=tasks.length+' tasks · '+done+' completed';
+          subText=tasks.length+' tasks &middot; '+done+' completed';
           extraBadge='<span style="font-size:0.68rem;background:#f0f0f8;color:var(--muted);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">Day '+dayOfWeek+' of 7</span>';
           if (dayOfWeek >= 6 && pending > 0) {
             extraBadge += '<span style="font-size:0.68rem;background:var(--orange-light);color:var(--orange);padding:2px 8px;border-radius:100px;margin-left:4px;font-family:DM Mono,monospace">&#9200; '+(7-dayOfWeek+1)+' day'+(7-dayOfWeek===0?'':'s')+' left</span>';
           }
         } else {
-          // Future week — show unlock countdown
+          // Future week &mdash; show unlock countdown
           st='up'; blockClass=''; circleClass='wc-up'; pillClass='ws-up';
           var weeksAway = w - cw;
           var daysUntilUnlock = (weeksAway - 1) * 7 + (7 - dayOfWeek + 1);
@@ -1461,12 +1461,12 @@ function loadPlan() {
             : 'Unlocks in ~'+weeksAway+' week'+(weeksAway===1?'':'s');
         }
 
-        // ── Progress bar for current week ──
+        // -- Progress bar for current week --
         var progressBar = (st==='cur' || st==='overdue') && tasks.length
           ? '<div style="margin-top:7px;background:#eef0f8;border-radius:100px;height:5px;width:160px"><div style="height:100%;background:'+(st==='overdue'?'var(--red)':'linear-gradient(90deg,var(--teal),var(--purple))')+';border-radius:100px;width:'+Math.round(done/tasks.length*100)+'%;transition:width 0.6s ease"></div></div>'
           : '';
 
-        // ── Task rows — all weeks interactive (including overdue) ──
+        // -- Task rows &mdash; all weeks interactive (including overdue) --
         var rows = tasks.length
           ? tasks.map(function(t){
               var ck=t.Status==='Done';
@@ -1478,19 +1478,19 @@ function loadPlan() {
                   '<div class="task-text '+(ck?'done':'')+'" style="flex:1">'+(t['Task Title']||'')+'</div>'+
                 '</div>'+
                 '<span class="badge '+tc+'" style="flex-shrink:0;margin:0 8px">'+(t.Type||'')+'</span>'+
-                '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="📚 Study this topic">📚 Study</button>'+
+                '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="&#x1F4DA; Study this topic">&#x1F4DA; Study</button>'+
                 '</div>';
             }).join('')
           : '<div style="color:var(--muted);font-size:0.84rem;padding:6px 0;font-style:italic">'+subText+'</div>';
 
-        // ── Assemble week block ──
+        // -- Assemble week block --
         var isOpen = (st==='cur' || st==='overdue') ? 'open' : '';
         return '<div class="week-block '+blockClass+'">'+
           '<div class="week-hdr" onclick="toggleWeek(this)">'+
             '<div class="week-hdr-left">'+
               '<div class="week-circle '+circleClass+'">W'+w+'</div>'+
               '<div>'+
-                '<div class="week-hdr-title">Week '+w+' · '+(wt[w]||'')+extraBadge+'</div>'+
+                '<div class="week-hdr-title">Week '+w+' &middot; '+(wt[w]||'')+extraBadge+'</div>'+
                 '<div class="week-hdr-sub">'+subText+progressBar+'</div>'+
               '</div>'+
             '</div>'+
@@ -1502,7 +1502,7 @@ function loadPlan() {
           '<div class="week-tasks '+isOpen+'">'+rows+'</div>'+
         '</div>';
       }).join('');
-      // Plan DOM is now ready — clear server seed flag and sync from DOM
+      // Plan DOM is now ready &mdash; clear server seed flag and sync from DOM
       _taskState._seededFromServer = false;
       setTimeout(updateOverviewStats, 50);
     }).catch(function(){showErr(document.getElementById('planError'),'Could not load plan. Please refresh.');});
@@ -1514,11 +1514,11 @@ function loadQuestions() {
     .then(function(d){
       if (d.error){showErr(document.getElementById('questionsError'),d.error);return;}
       var allQs = d.questions||[], curWk = d.week||1;
-      document.getElementById('questionsSub').textContent = 'Week '+curWk+' questions — submit answers for AI scoring';
+      document.getElementById('questionsSub').textContent = 'Week '+curWk+' questions &mdash; submit answers for AI scoring';
       document.getElementById('questionsDeadline').style.display = 'inline-block';
 
       if (!allQs.length){
-        document.getElementById('questionsContent').innerHTML='<div class="empty-state"><div class="empty-icon">❓</div><div class="empty-text">No questions yet. Check back soon!</div></div>';
+        document.getElementById('questionsContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#x2753;</div><div class="empty-text">No questions yet. Check back soon!</div></div>';
         return;
       }
 
@@ -1549,14 +1549,14 @@ function loadQuestions() {
       if (isFree) {
         html += '<div style="background:linear-gradient(135deg,rgba(80,72,229,0.10),rgba(0,179,138,0.06));border:1px solid rgba(80,72,229,0.18);border-radius:12px;padding:13px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
           '<div>' +
-            '<div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">🤖 AI Scoring — Free Plan</div>' +
+            '<div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">&#x1F916; AI Scoring &mdash; Free Plan</div>' +
             '<div style="font-size:0.78rem;color:var(--muted)">' +
               '<span id="freeAiBannerText">' +
               (freeAiLeft > 0
                 ? freeAiLeft+' of '+freeAiLimit+' free AI scores remaining'
-                : 'Free AI scores used up — upgrade for unlimited scoring') +
+                : 'Free AI scores used up &mdash; upgrade for unlimited scoring') +
               '</span>' +
-              ' &nbsp;·&nbsp; <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade ↗</a>' +
+              ' &nbsp;&middot;&nbsp; <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade &#x2197;</a>' +
             '</div>' +
           '</div>' +
           '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer">Upgrade</button>' +
@@ -1600,10 +1600,10 @@ function loadQuestions() {
           var scCol = sc>=80?'var(--green)':sc>=60?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
           html += '<div style="font-size:0.76rem;font-weight:700;color:'+scCol+'">Avg '+sc+'/100</div>';
         }
-        if (isPast) html += '<div id="chevron-'+wkId+'" style="font-size:0.8rem;color:var(--muted);transition:transform 0.2s;transform:'+(allAnswered?'':'rotate(180deg)')+'">▼</div>';
+        if (isPast) html += '<div id="chevron-'+wkId+'" style="font-size:0.8rem;color:var(--muted);transition:transform 0.2s;transform:'+(allAnswered?'':'rotate(180deg)')+'">&#x25BC;</div>';
         html += '</div></div>'; // close right + header row
 
-        // Questions body — past weeks collapsed only if fully answered
+        // Questions body &mdash; past weeks collapsed only if fully answered
         html += '<div id="'+wkId+'" style="display:'+(isPast && allAnswered?'none':'block')+'">';
         html += '<div style="padding:4px 12px 12px">';
 
@@ -1612,26 +1612,26 @@ function loadQuestions() {
           var sub      = q.Submitted === 'TRUE';
           var hasScore = sub && q.Score && q.Score !== '';
           var tc       = q.Type==='Technical'?'badge-purple':q.Type==='Behavioral'?'badge-teal':'badge-orange';
-          var sc2      = q.Score ? ' — Score: '+q.Score+'/100' : '';
+          var sc2      = q.Score ? ' &mdash; Score: '+q.Score+'/100' : '';
           var aiLocked = isFree && !sub && freeAiUsed >= freeAiLimit;
 
           html += '<div class="question-card" id="qcard-'+i+'">' +
             '<div class="q-meta">' +
               '<span class="badge '+tc+'">'+(q.Type||'')+'</span>' +
-              '<span class="q-num">Week '+w+' — '+(q['Q No.']||'')+'</span>' +
-              (sub ? '<span class="submitted-badge">✓ Submitted'+sc2+'</span>' : '') +
-              (aiLocked ? '<span style="font-size:0.72rem;background:rgba(80,72,229,0.13);color:var(--purple);padding:3px 9px;border-radius:6px;font-weight:600;margin-left:6px">🔒 Pro</span>' : '') +
+              '<span class="q-num">Week '+w+' &mdash; '+(q['Q No.']||'')+'</span>' +
+              (sub ? '<span class="submitted-badge">&#x2713; Submitted'+sc2+'</span>' : '') +
+              (aiLocked ? '<span style="font-size:0.72rem;background:rgba(80,72,229,0.13);color:var(--purple);padding:3px 9px;border-radius:6px;font-weight:600;margin-left:6px">&#x1F512; Pro</span>' : '') +
             '</div>' +
             '<div class="q-text">'+(q.Question||'')+'</div>' +
-            (hasScore && q['AI Feedback'] ? '<div class="ai-feedback-box"><strong>🤖 AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>' : '') +
+            (hasScore && q['AI Feedback'] ? '<div class="ai-feedback-box"><strong>&#x1F916; AI Feedback</strong><br>'+(q['AI Feedback']||'')+'</div>' : '') +
             (!sub ?
-              '<div class="q-hint">💡 Use STAR format — Situation, Task, Action, Result. Aim for 150–250 words.</div>' +
+              '<div class="q-hint">&#x1F4A1; Use STAR format &mdash; Situation, Task, Action, Result. Aim for 150&ndash;250 words.</div>' +
               '<textarea class="answer-box" id="ans-'+i+'" placeholder="Write your answer here..."'+(aiLocked?' disabled style="opacity:0.45;cursor:not-allowed"':'')+'>'+
               '</textarea>' +
               (aiLocked ?
                 '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
                   '<div style="font-size:0.78rem;color:var(--purple)"><strong>&#x1F512; AI Scoring locked</strong> &mdash; you\'ve used your 3 free scores</div>' +
-                  '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade ↗</button>' +
+                  '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade &#x2197;</button>' +
                 '</div>' :
                 '<div><button class="btn-submit" onclick="submitAnswer('+i+')" id="sbtn-'+i+'" data-qno="'+(q['Q No.']||'')+'" data-week="'+w+'">Submit for AI Scoring</button></div>'
               ) : ''
@@ -1656,7 +1656,7 @@ function updateFreeAiBanner() {
   var bannerText = document.getElementById('freeAiBannerText');
   if (bannerText) {
     bannerText.textContent = locked
-      ? 'Free AI scores used up — upgrade for unlimited scoring'
+      ? 'Free AI scores used up &mdash; upgrade for unlimited scoring'
       : freeAiLeft + ' of ' + freeAiLimit + ' free AI scores remaining';
   }
 
@@ -1677,7 +1677,7 @@ function updateFreeAiBanner() {
       btnParent.innerHTML =
         '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div style="font-size:0.78rem;color:var(--purple)"><strong>&#x1F512; AI Scoring locked</strong> &mdash; you've used your 3 free scores</div>' +
-          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade ↗</button>' +
+          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade &#x2197;</button>' +
         '</div>';
     });
   }
@@ -1696,17 +1696,17 @@ function submitAnswer(idx) {
   var btn = document.getElementById('sbtn-'+idx);
   var qno = btn ? (btn.getAttribute('data-qno')||'') : '';
   var weekOverride = btn ? parseInt(btn.getAttribute('data-week')||'0') : null;
-  console.log('🚀 submitAnswer: idx='+idx+' qno=['+qno+'] week='+weekOverride);
+  console.log('&#x1F680; submitAnswer: idx='+idx+' qno=['+qno+'] week='+weekOverride);
   var ansEl = document.getElementById('ans-'+idx);
   var ans   = ansEl ? ansEl.value.trim() : '';
   if (!ans || ans.length < 20) { alert('Please write a proper answer (min 20 characters).'); return; }
 
   // Show loading with scoring message
   btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Scoring with AI — takes ~10 seconds...';
+  btn.innerHTML = '<span class="spin"></span> Scoring with AI &mdash; takes ~10 seconds...';
   ansEl.disabled = true; ansEl.style.opacity = '0.7';
 
-  console.log('📤 Sending to server: qno=['+qno+'] week='+weekOverride);
+  console.log('&#x1F4E4; Sending to server: qno=['+qno+'] week='+weekOverride);
 
   fetch('/api/questions/submit', {
     method: 'POST', credentials: 'include',
@@ -1722,12 +1722,12 @@ function submitAnswer(idx) {
       return;
     }
 
-    // ── Build score result HTML ──
+    // -- Build score result HTML --
     var scoreHtml = '';
     if (d.score !== null && d.score !== undefined) {
       var sc      = parseInt(d.score);
       var scCol   = sc>=80 ? 'var(--green)' : sc>=60 ? 'var(--teal)' : sc>=40 ? 'var(--orange)' : 'var(--red)';
-      var scLbl   = sc>=80 ? '🎉 Excellent!' : sc>=60 ? '👍 Good answer' : sc>=40 ? '⚠️ Needs improvement' : '❌ Weak answer';
+      var scLbl   = sc>=80 ? '&#x1F389; Excellent!' : sc>=60 ? '&#x1F44D; Good answer' : sc>=40 ? '&#x26A0; Needs improvement' : '&#x274C; Weak answer';
       var qType   = d.questionType || 'Technical';
       var primary = d.primarySkill || 'technical';
       var allBars = [
@@ -1748,7 +1748,7 @@ function submitAnswer(idx) {
             '</div>'+
             '<div style="flex:1">'+
               '<div style="font-weight:700;font-size:1rem;color:'+scCol+'">'+scLbl+'</div>'+
-              '<div style="font-size:0.7rem;color:var(--muted);margin-top:3px;font-family:DM Mono,monospace">'+qType.toUpperCase()+' QUESTION · AI scored · '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</div>'+
+              '<div style="font-size:0.7rem;color:var(--muted);margin-top:3px;font-family:DM Mono,monospace">'+qType.toUpperCase()+' QUESTION &middot; AI scored &middot; '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</div>'+
             '</div>'+
           '</div>'+
           '<div style="padding:14px 16px">'+
@@ -1757,7 +1757,7 @@ function submitAnswer(idx) {
               var isPrimary=b.key===primary;
               return '<div style="margin-bottom:10px'+(isPrimary?';padding:8px 10px;background:'+scCol+'0a;border-radius:8px;border-left:3px solid '+scCol:'')+'">'+
                 '<div style="display:flex;justify-content:space-between;font-size:0.76rem;margin-bottom:5px">'+
-                  '<span style="font-weight:'+(isPrimary?700:400)+';color:'+(isPrimary?scCol:'var(--muted)')+'">'+b.label+(isPrimary?' ★':'')+'</span>'+
+                  '<span style="font-weight:'+(isPrimary?700:400)+';color:'+(isPrimary?scCol:'var(--muted)')+'">'+b.label+(isPrimary?' &#x2605;':'')+'</span>'+
                   '<span style="font-weight:700;color:'+bc+'">'+pct+'/100</span>'+
                 '</div>'+
                 '<div style="background:#eef0f8;border-radius:100px;height:'+(isPrimary?7:5)+'px">'+
@@ -1766,7 +1766,7 @@ function submitAnswer(idx) {
             }).join('')+
             (d.feedback?
               '<div style="margin-top:12px;padding:12px 14px;background:var(--bg);border-radius:10px;font-size:0.83rem;line-height:1.7;color:var(--text)">'+
-                '<div style="font-size:0.7rem;font-weight:700;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--purple);margin-bottom:8px">🤖 AI FEEDBACK</div>'+
+                '<div style="font-size:0.7rem;font-weight:700;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--purple);margin-bottom:8px">&#x1F916; AI FEEDBACK</div>'+
                 d.feedback+
               '</div>':'')+
           '</div>'+
@@ -1775,18 +1775,18 @@ function submitAnswer(idx) {
 
     btn.parentNode.innerHTML = '<div class="submitted-badge">&#10003; Submitted &amp; Scored</div>' + scoreHtml;
 
-    // ── Update pending counters ──
+    // -- Update pending counters --
     var nb = document.getElementById('questionsNavBtn');
     var badge = nb ? nb.querySelector('.nav-badge') : null;
     if (badge) { var cnt=parseInt(badge.textContent||'1')-1; if(cnt<=0) badge.remove(); else badge.textContent=cnt; }
     var sp = document.getElementById('statPending');
     if (sp) sp.textContent = Math.max(0, parseInt(sp.textContent||'1')-1);
 
-    // ── Update score stat card on overview live ──
+    // -- Update score stat card on overview live --
     if (d.score !== null && d.score !== undefined) {
       var ss = document.getElementById('statScore'); if (ss) ss.textContent = d.score;
       var ws = document.getElementById('wpScore');   if (ws) ws.textContent = d.score+'/100';
-      showToast('Score: '+d.score+'/100 — '+(d.score>=80?'Excellent!':d.score>=60?'Good answer':'Keep practising'), d.score>=60 ? 'success' : 'info');
+      showToast('Score: '+d.score+'/100 &mdash; '+(d.score>=80?'Excellent!':d.score>=60?'Good answer':'Keep practising'), d.score>=60 ? 'success' : 'info');
       // Update mini score bars on overview instantly
       if (typeof renderMiniScoreBars === 'function') {
         renderMiniScoreBars(d.technical||0, d.communication||0, d.problemSolving||0, d.behavioral||0);
@@ -1797,7 +1797,7 @@ function submitAnswer(idx) {
     }
   })
   .catch(function(){
-    alert('Connection error — please try again.');
+    alert('Connection error &mdash; please try again.');
     btn.disabled=false; btn.innerHTML='Submit for AI Scoring';
     ansEl.disabled=false; ansEl.style.opacity='1';
   });
@@ -1815,7 +1815,7 @@ function loadScores() {
       document.getElementById('latestScoreNum').textContent = latest ? latest.Score : '-';
       document.getElementById('avgScoreNum').textContent    = d.average || '-';
 
-      var qLabel = latest ? (latest['Q No.'] ? 'Week '+latest.Week+' · '+latest['Q No.'] : 'Week '+latest.Week) : 'No submissions yet';
+      var qLabel = latest ? (latest['Q No.'] ? 'Week '+latest.Week+' &middot; '+latest['Q No.'] : 'Week '+latest.Week) : 'No submissions yet';
       document.getElementById('latestScoreSub').textContent = qLabel;
 
       var trendEl = document.getElementById('scoreTrend');
@@ -1839,13 +1839,13 @@ function loadScores() {
         document.getElementById('historyContent').innerHTML=scores.map(function(s,i){
           var sc=parseInt(s.Score||0);
           var cl=sc>=80?'great':sc>=60?'ok':'weak';
-          var qlbl=s['Q No.']?'Week '+s.Week+' · '+s['Q No.']:'Week '+s.Week;
+          var qlbl=s['Q No.']?'Week '+s.Week+' &middot; '+s['Q No.']:'Week '+s.Week;
           var trendHtml='';
-          if (i<scores.length-1){var delta=sc-parseInt(scores[i+1].Score||0);trendHtml='<span style="font-size:0.72rem;color:'+(delta>=0?'var(--green)':'var(--red)')+'">'+( delta>=0?'▲ +'+delta:'▼ '+delta)+'</span>';}
+          if (i<scores.length-1){var delta=sc-parseInt(scores[i+1].Score||0);trendHtml='<span style="font-size:0.72rem;color:'+(delta>=0?'var(--green)':'var(--red)')+'">'+( delta>=0?'&#x25B2; +'+delta:'&#x25BC; '+delta)+'</span>';}
           return '<div class="history-item"><div><div class="history-week">'+qlbl+'</div><div class="history-q">'+(s.Date||'Recently')+'</div></div><div style="display:flex;align-items:center;gap:10px">'+trendHtml+'<div class="history-score '+cl+'">'+sc+'</div></div></div>';
         }).join('');
       } else {
-        document.getElementById('historyContent').innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No submissions yet.</div></div>';
+        document.getElementById('historyContent').innerHTML='<div class="empty-state"><div class="empty-icon">&#x1F4CB;</div><div class="empty-text">No submissions yet.</div></div>';
       }
     }).catch(function(){ showErr(document.getElementById('scoresError'),'Could not load scores. Please refresh.'); });
 }
@@ -1869,13 +1869,13 @@ function loadResume() {
         '<div class="tip-item info"><div class="tip-icon">&#128161;</div><div><div class="tip-title">Detailed tips are being prepared. Check back soon!</div></div></div>');
     }).catch(function(){showErr(document.getElementById('resumeError'),'Could not load resume data. Please refresh.');});
 }
-// ══════════════════════════════════════════════════════
+// ======================================================
 // RESOURCE DRAWER
-// ══════════════════════════════════════════════════════
+// ======================================================
 function openResourceDrawer(evt, week, day) {
   evt.stopPropagation();
   if (_userTier === 'free') {
-    showProGate('Study Resources — Pro Feature', 'Get AI-generated cheatsheets, practice guides, and curated links for every task. Upgrade to Pro to unlock Study Resources.', '📚');
+    showProGate('Study Resources &mdash; Pro Feature', 'Get AI-generated cheatsheets, practice guides, and curated links for every task. Upgrade to Pro to unlock Study Resources.', '&#x1F4DA;');
     return;
   } // don't toggle task
   var btn   = evt.currentTarget;
@@ -1883,7 +1883,7 @@ function openResourceDrawer(evt, week, day) {
   var type  = btn.getAttribute('data-type')  || 'Theory';
   var tc    = type==='Theory'?'badge-purple':type==='Mock'?'badge-orange':'badge-teal';
 
-  document.getElementById('drawerWeekDay').textContent  = 'WEEK '+week+' · DAY '+day;
+  document.getElementById('drawerWeekDay').textContent  = 'WEEK '+week+' &middot; DAY '+day;
   document.getElementById('drawerTitle').textContent    = title;
   document.getElementById('drawerTypeBadge').innerHTML  = '<span class="badge '+tc+'">'+type+'</span>';
   document.getElementById('drawerContent').innerHTML    =
@@ -1909,9 +1909,9 @@ function openResourceDrawer(evt, week, day) {
         '<div style="font-size:0.86rem;line-height:1.7;padding:12px 14px;background:var(--teal-light);border-radius:10px;border-left:3px solid var(--teal)">'+d.summary+'</div></div>';
     }
     if (d.cheatsheet && d.cheatsheet.length) {
-      html += '<div class="drawer-section"><div class="drawer-section-title">&#128203; Cheatsheet — Key Points</div>'+
+      html += '<div class="drawer-section"><div class="drawer-section-title">&#128203; Cheatsheet &mdash; Key Points</div>'+
         d.cheatsheet.map(function(item){
-          return '<div class="cheatsheet-item"><div class="cheatsheet-bullet">›</div><div>'+item+'</div></div>';
+          return '<div class="cheatsheet-item"><div class="cheatsheet-bullet">&#x203A;</div><div>'+item+'</div></div>';
         }).join('')+'</div>';
     }
     if (d.practice && d.practice.length) {
@@ -1928,8 +1928,8 @@ function openResourceDrawer(evt, week, day) {
           var icon = r.type==='video'?'&#127916;':r.type==='docs'?'&#128196;':'&#128279;';
           return '<a href="'+r.url+'" target="_blank" rel="noopener" class="resource-link">'+
             '<div class="resource-link-icon">'+icon+'</div>'+
-            '<div style="flex:1"><div>'+r.title+'</div><div class="resource-link-meta">'+r.source+' · '+r.type+'</div></div>'+
-            '<div style="font-size:0.75rem;color:var(--muted)">↗</div></a>';
+            '<div style="flex:1"><div>'+r.title+'</div><div class="resource-link-meta">'+r.source+' &middot; '+r.type+'</div></div>'+
+            '<div style="font-size:0.75rem;color:var(--muted)">&#x2197;</div></a>';
         }).join('')+'</div>';
     }
     if (d.interviewTip) {
@@ -1939,7 +1939,7 @@ function openResourceDrawer(evt, week, day) {
     document.getElementById('drawerContent').innerHTML = html || '<p style="color:var(--muted)">No content generated.</p>';
   })
   .catch(function(){
-    document.getElementById('drawerContent').innerHTML = '<div style="color:var(--red);padding:20px">Connection error — please try again.</div>';
+    document.getElementById('drawerContent').innerHTML = '<div style="color:var(--red);padding:20px">Connection error &mdash; please try again.</div>';
   });
 }
 
@@ -1950,9 +1950,9 @@ function closeResourceDrawer() {
 }
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeResourceDrawer(); });
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // JOB MATCH
-// ══════════════════════════════════════════════════════
+// ======================================================
 function toggleResumeOverride() {
   var tog = document.getElementById('resumeOverrideToggle');
   var msg = document.getElementById('resumeAutoMsg');
@@ -1972,7 +1972,7 @@ function analyseJobMatch() {
 
   var btn = document.getElementById('jmAnalyseBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Analysing with AI — takes ~15 seconds...';
+  btn.innerHTML = '<span class="spin"></span> Analysing with AI &mdash; takes ~15 seconds...';
   document.getElementById('jobmatchError').style.display = 'none';
   document.getElementById('jmResults').style.display = 'none';
 
@@ -1989,7 +1989,7 @@ function analyseJobMatch() {
 
     var sc    = parseInt(d.score)||0;
     var scCol = sc>=75?'var(--green)':sc>=55?'var(--teal)':sc>=40?'var(--orange)':'var(--red)';
-    var scLbl = sc>=75?'🎉 Strong Match!':sc>=55?'👍 Good Match':sc>=40?'⚠️ Moderate Match':'❌ Weak Match';
+    var scLbl = sc>=75?'&#x1F389; Strong Match!':sc>=55?'&#x1F44D; Good Match':sc>=40?'&#x26A0; Moderate Match':'&#x274C; Weak Match';
 
     var banner = document.getElementById('jmScoreBanner');
     banner.style.cssText += ';background:linear-gradient(135deg,'+scCol+'18,'+scCol+'06);border:1px solid '+scCol+'33';
@@ -2013,7 +2013,7 @@ function analyseJobMatch() {
     var miss = d.keywordsMissing||[];
     document.getElementById('jmKeywordsMissing').innerHTML = miss.length
       ? miss.map(function(k){ return '<span class="jm-keyword missing">'+k+'</span>'; }).join('')
-      : '<span style="font-size:0.82rem;color:var(--green);font-weight:600">✓ No critical gaps!</span>';
+      : '<span style="font-size:0.82rem;color:var(--green);font-weight:600">&#x2713; No critical gaps!</span>';
 
     document.getElementById('jmTweaks').innerHTML = (d.tweaks||[]).map(function(t,i){
       return '<div class="jm-tweak"><div class="jm-tweak-num">'+(i+1)+'</div><div>'+t+'</div></div>';
@@ -2036,13 +2036,13 @@ function analyseJobMatch() {
   })
   .catch(function(){
     btn.disabled=false; btn.innerHTML='&#129302; Analyse Job Match';
-    showErr(document.getElementById('jobmatchError'),'Connection error — please try again.');
+    showErr(document.getElementById('jobmatchError'),'Connection error &mdash; please try again.');
   });
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // RESUME UPLOAD
-// ══════════════════════════════════════════════════════
+// ======================================================
 function handleResumeDrop(e) {
   e.preventDefault();
   var dz = document.getElementById('resumeDropZone');
@@ -2062,7 +2062,7 @@ function uploadResume(file) {
     return;
   }
   if (file.size > 10 * 1024 * 1024) {
-    showResumeResult('error', '&#10060; File too large — maximum 10MB.');
+    showResumeResult('error', '&#10060; File too large &mdash; maximum 10MB.');
     return;
   }
 
@@ -2122,7 +2122,7 @@ function uploadResume(file) {
     clearInterval(prog);
     document.getElementById('resumeUploadProgress').style.display = 'none';
     document.getElementById('resumeDropZone').style.opacity = '1';
-    showResumeResult('error', '&#10060; Upload failed — please try again.');
+    showResumeResult('error', '&#10060; Upload failed &mdash; please try again.');
   });
 }
 
@@ -2135,9 +2135,9 @@ function showResumeResult(type, html) {
   el.innerHTML = html;
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // JOBS FOR YOU
-// ══════════════════════════════════════════════════════
+// ======================================================
 var _jobsCache    = null;
 var _jobsLoading  = false;
 var _jobsScoring  = {}; // track which jobs are being scored
@@ -2154,7 +2154,7 @@ function loadJobs(forceRefresh) {
     '<div style="text-align:center;padding:40px 20px">'+
     '<div style="width:36px;height:36px;border:3px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px"></div>'+
     '<div style="font-weight:600;color:var(--text);margin-bottom:6px">Finding and scoring jobs with AI...</div>'+
-    '<div style="font-size:0.8rem;color:var(--muted)">Fetching live listings and ranking them by match to your profile · ~10 seconds</div>'+
+    '<div style="font-size:0.8rem;color:var(--muted)">Fetching live listings and ranking them by match to your profile &middot; ~10 seconds</div>'+
     '</div>';
 
   fetch('/api/jobs?location='+encodeURIComponent(loc), { credentials:'include' })
@@ -2185,7 +2185,7 @@ function renderJobs(jobs) {
   var count = jobs.length;
   document.getElementById('jobsCount').textContent = count + ' jobs';
   document.getElementById('jobsPanelSub').textContent =
-    'Live listings for your role · click Analyse Match for AI scoring';
+    'Live listings for your role &middot; click Analyse Match for AI scoring';
 
   if (!count) {
     document.getElementById('jobsList').innerHTML =
@@ -2228,8 +2228,8 @@ function buildJobCardHtml(job, i, sc, scCol, scLbl){
   var kwHtml = haveKw.map(function(k){ return '<span class="job-kw have">'+k+'</span>'; }).join('') +
                missKw.map(function(k){ return '<span class="job-kw miss">+'+k+'</span>'; }).join('');
   var salary = job.salaryMin && job.salaryMax
-    ? '₹' + Math.round(job.salaryMin/100000) + '–' + Math.round(job.salaryMax/100000) + 'L'
-    : job.salaryMin ? '₹' + Math.round(job.salaryMin/100000) + 'L+' : 'Salary not listed';
+    ? '&#x20B9;' + Math.round(job.salaryMin/100000) + '&ndash;' + Math.round(job.salaryMax/100000) + 'L'
+    : job.salaryMin ? '&#x20B9;' + Math.round(job.salaryMin/100000) + 'L+' : 'Salary not listed';
   var daysAgo = job.created ? Math.floor((Date.now()-new Date(job.created).getTime())/86400000) : null;
   var timeStr = daysAgo!==null?(daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+'d ago'):'';
   return '<div class="job-card" id="jcard-'+i+'">'+
@@ -2239,9 +2239,9 @@ function buildJobCardHtml(job, i, sc, scCol, scLbl){
     (kwHtml?'<div class="job-keywords">'+kwHtml+'</div>':'')+
     '<div class="job-actions">' +
     (_userTier === 'free'
-      ? '<button class="job-btn-primary" onclick="showProGate(&quot;Analyse Match&quot;,&quot;Upgrade to Pro to run AI match analysis.&quot;,&quot;🎯&quot;)" style="opacity:0.6">🔒 Analyse Match</button>' +
-        '<button class="job-btn-secondary" onclick="showProGate(&quot;View Job&quot;,&quot;Upgrade to Pro to view listings and apply.&quot;,&quot;💼&quot;)" style="opacity:0.6;cursor:pointer;border:none;background:var(--bg);display:flex;align-items:center">🔒 View Job</button>'
-      : '<button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button><a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job ↗</a>'
+      ? '<button class="job-btn-primary" onclick="showProGate(&quot;Analyse Match&quot;,&quot;Upgrade to Pro to run AI match analysis.&quot;,&quot;&#x1F3AF;&quot;)" style="opacity:0.6">&#x1F512; Analyse Match</button>' +
+        '<button class="job-btn-secondary" onclick="showProGate(&quot;View Job&quot;,&quot;Upgrade to Pro to view listings and apply.&quot;,&quot;&#x1F4BC;&quot;)" style="opacity:0.6;cursor:pointer;border:none;background:var(--bg);display:flex;align-items:center">&#x1F512; View Job</button>'
+      : '<button class="job-btn-primary" onclick="analyseJobFromListing('+i+')">&#129302; Analyse Match</button><a href="'+job.url+'" target="_blank" rel="noopener" class="job-btn-secondary" style="display:flex;align-items:center;text-decoration:none">View Job &#x2197;</a>'
     ) +
     '</div>'+
     '<div class="job-scoring-inline" id="jscoring-'+i+'"></div></div>';
@@ -2253,7 +2253,7 @@ function escHtml(str) {
 
 function analyseJobFromListing(idx) {
   if (_userTier === 'free') {
-    showProGate('Analyse Match — Pro Feature', 'Run AI-powered match analysis on any job listing against your resume. Upgrade to Pro for unlimited job match scoring.', '🎯');
+    showProGate('Analyse Match &mdash; Pro Feature', 'Run AI-powered match analysis on any job listing against your resume. Upgrade to Pro for unlimited job match scoring.', '&#x1F3AF;');
     return;
   }
   if (_jobsScoring[idx]) return;
@@ -2297,11 +2297,11 @@ function analyseJobFromListing(idx) {
 
     var miss = (d.keywordsMissing||[]).slice(0,5);
     box.innerHTML =
-      '<div style="font-size:0.76rem;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--muted);margin-bottom:8px">AI ANALYSIS · '+sc+'/100 MATCH</div>'+
+      '<div style="font-size:0.76rem;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--muted);margin-bottom:8px">AI ANALYSIS &middot; '+sc+'/100 MATCH</div>'+
       (miss.length?'<div style="margin-bottom:8px;font-size:0.8rem;color:var(--muted)">Add to resume: '+
         miss.map(function(k){ return '<span class="job-kw miss" style="margin-left:4px">+'+k+'</span>'; }).join('')+
       '</div>':'')+
-      '<div style="font-size:0.82rem;line-height:1.6;color:var(--text)">'+(d.tweaks&&d.tweaks[0]?'💡 '+d.tweaks[0]:'')+'</div>';
+      '<div style="font-size:0.82rem;line-height:1.6;color:var(--text)">'+(d.tweaks&&d.tweaks[0]?'&#x1F4A1; '+d.tweaks[0]:'')+'</div>';
 
     // Update _jobsCache with AI score
     _jobsCache[idx].matchScore       = sc;
@@ -2312,7 +2312,7 @@ function analyseJobFromListing(idx) {
     _jobsScoring[idx] = false;
     btn.disabled = false;
     btn.innerHTML = '&#129302; Analyse Match';
-    box.innerHTML = '<div style="color:var(--red);font-size:0.82rem">Connection error — try again.</div>';
+    box.innerHTML = '<div style="color:var(--red);font-size:0.82rem">Connection error &mdash; try again.</div>';
   });
 }
 
@@ -2333,9 +2333,9 @@ function buildJobSkeletons(n) {
   return s;
 }
 
-// ══════════════════════════════════════════════════════
-// NEW GOOGLE USER — ONBOARDING PROMPT
-// ══════════════════════════════════════════════════════
+// ======================================================
+// NEW GOOGLE USER &mdash; ONBOARDING PROMPT
+// ======================================================
 function showNewGoogleUserPrompt(name, email) {
   // Redirect directly to Tally form with email pre-filled
   var tallyBase = 'https://tally.so/r/D4NpLX';
@@ -2343,7 +2343,7 @@ function showNewGoogleUserPrompt(name, email) {
   if (email) params.set('email', email);
   if (name)  params.set('name',  name);
   var tallyUrl  = tallyBase + '?' + params.toString();
-  console.log('New Google user — redirecting to Tally:', tallyUrl);
+  console.log('New Google user &mdash; redirecting to Tally:', tallyUrl);
   window.location.href = tallyUrl;
 }
 
@@ -2353,12 +2353,12 @@ function hideGoogleOnboard() {
   loadOverview(); // load what we can in the meantime
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // TIER + PAYWALL SYSTEM
-// ══════════════════════════════════════════════════════
+// ======================================================
 var _userTier    = 'free';
 var _jmUsage     = 0; // how many job match analyses free user has done
-var _freeAiUsed  = 0; // live counter — incremented on each successful AI score
+var _freeAiUsed  = 0; // live counter &mdash; incremented on each successful AI score
 var _billingMode = 'monthly';
 
 var PRICES = {
@@ -2370,7 +2370,7 @@ var PRICES = {
 
 function initTier(tier) {
   _userTier = (tier || 'free').toLowerCase().trim();
-  console.log('🎫 initTier called with:', tier, '→ _userTier =', _userTier);
+  console.log('&#x1F3AB; initTier called with:', tier, '&#x2192; _userTier =', _userTier);
 
   // Show/hide upgrade button
   var upgradeBtn = document.getElementById('upgradeNavBtn');
@@ -2381,10 +2381,10 @@ function initTier(tier) {
   if (badge) {
     if (tier === 'pro') {
       badge.style.display = 'inline-block';
-      badge.innerHTML = '<span style="background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:100px;letter-spacing:0.5px">⚡ PRO</span>';
+      badge.innerHTML = '<span style="background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:100px;letter-spacing:0.5px">&#x26A1; PRO</span>';
     } else if (tier === 'premium') {
       badge.style.display = 'inline-block';
-      badge.innerHTML = '<span style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:100px;letter-spacing:0.5px">👑 PREMIUM</span>';
+      badge.innerHTML = '<span style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:100px;letter-spacing:0.5px">&#x1F451; PREMIUM</span>';
     } else {
       badge.style.display = 'none';
     }
@@ -2409,17 +2409,17 @@ function setBilling(mode) {
   if (mode === 'monthly') {
     mBtn.style.background = 'var(--teal)'; mBtn.style.borderColor = 'var(--teal)'; mBtn.style.color = '#fff';
     yBtn.style.background = 'none'; yBtn.style.borderColor = 'var(--border)'; yBtn.style.color = 'var(--muted)';
-    document.getElementById('proPrice').innerHTML     = '₹499<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('proPrice').innerHTML     = '&#x20B9;499<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
     document.getElementById('proNote').textContent    = 'billed monthly';
-    document.getElementById('premiumPrice').innerHTML = '₹999<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('premiumPrice').innerHTML = '&#x20B9;999<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
     document.getElementById('premiumNote').textContent = 'billed monthly';
   } else {
     yBtn.style.background = 'var(--teal)'; yBtn.style.borderColor = 'var(--teal)'; yBtn.style.color = '#fff';
     mBtn.style.background = 'none'; mBtn.style.borderColor = 'var(--border)'; mBtn.style.color = 'var(--muted)';
-    document.getElementById('proPrice').innerHTML     = '₹333<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
-    document.getElementById('proNote').innerHTML      = '<span style="color:var(--green)">₹3,999/year · save ₹1,989</span>';
-    document.getElementById('premiumPrice').innerHTML = '₹667<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
-    document.getElementById('premiumNote').innerHTML  = '<span style="color:var(--green)">₹7,999/year · save ₹3,989</span>';
+    document.getElementById('proPrice').innerHTML     = '&#x20B9;333<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('proNote').innerHTML      = '<span style="color:var(--green)">&#x20B9;3,999/year &middot; save &#x20B9;1,989</span>';
+    document.getElementById('premiumPrice').innerHTML = '&#x20B9;667<span style="font-size:0.75rem;color:var(--muted);font-weight:400">/mo</span>';
+    document.getElementById('premiumNote').innerHTML  = '<span style="color:var(--green)">&#x20B9;7,999/year &middot; save &#x20B9;3,989</span>';
   }
 }
 
@@ -2444,7 +2444,7 @@ function startPayment(tier) {
       prefill:     { email: d.email, name: d.name },
       theme:       { color: '#00b38a' },
       handler: function(response) {
-        // Payment success — verify with server
+        // Payment success &mdash; verify with server
         fetch('/api/payment/verify', {
           method:'POST', credentials:'include',
           headers:{'Content-Type':'application/json'},
@@ -2484,7 +2484,7 @@ function showPaymentSuccess(tier, expiry) {
   var tierLabel = tier === 'premium' ? 'Premium' : 'Pro';
   var expiryFmt = expiry ? new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '';
 
-  document.getElementById('proGateIcon').textContent  = '🎉';
+  document.getElementById('proGateIcon').textContent  = '&#x1F389;';
   document.getElementById('proGateTitle').textContent = 'You are now on ' + tierLabel + '!';
   document.getElementById('proGateMsg').textContent   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard...';
 
@@ -2493,7 +2493,7 @@ function showPaymentSuccess(tier, expiry) {
   if (!existingBtn) {
     var btn = document.createElement('button');
     btn.id = 'paySuccessBtn';
-    btn.textContent = 'Go to Dashboard →';
+    btn.textContent = 'Go to Dashboard &#x2192;';
     btn.style.cssText = 'margin-top:16px;padding:12px 28px;background:var(--teal);color:white;border:none;border-radius:10px;font-family:sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%';
     btn.onclick = function() { window.location.reload(); };
     modal.appendChild(btn);
@@ -2507,7 +2507,7 @@ function showPaymentSuccess(tier, expiry) {
 }
 
 function showProGate(title, message, icon) {
-  document.getElementById('proGateIcon').textContent  = icon  || '⚡';
+  document.getElementById('proGateIcon').textContent  = icon  || '&#x26A1;';
   document.getElementById('proGateTitle').textContent = title || 'Pro Feature';
   document.getElementById('proGateMsg').textContent   = message || 'Upgrade to RoleKraft Pro to unlock this feature.';
   document.getElementById('proGateOverlay').style.display = 'block';
@@ -2525,7 +2525,7 @@ function proFetch(url, opts) {
     if (r.status === 403) {
       return r.json().then(function(d) {
         if (d.error === 'pro_required') {
-          showProGate('Pro Feature Required', d.message || 'Upgrade to unlock this feature.', '⚡');
+          showProGate('Pro Feature Required', d.message || 'Upgrade to unlock this feature.', '&#x26A1;');
           throw new Error('pro_required');
         }
         throw new Error(d.error || 'Forbidden');
@@ -2540,9 +2540,9 @@ function loadSettings() {
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
   document.getElementById('settingsEmail').textContent = currentUser.email || '-';
   var settingsExp = currentUser.experience || '';
-  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (settingsExp ? ' — ' + settingsExp : '');
+  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (settingsExp ? ' &mdash; ' + settingsExp : '');
   var sw = currentUser.week||1, sd = currentUser.dayOfWeek||1;
-  document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 — Day ' + sd + ' of 7';
+  document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 &mdash; Day ' + sd + ' of 7';
   // Reset form
   document.getElementById('currentPw').value = '';
   document.getElementById('newPw').value      = '';
@@ -2607,13 +2607,13 @@ function changePassword() {
 }
 </script>
 
-<!-- ── UPGRADE MODAL ── -->
+<!-- -- UPGRADE MODAL -- -->
 <div id="upgradeOverlay" onclick="hideUpgradeModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;backdrop-filter:blur(4px)"></div>
 <div id="upgradeModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;max-width:95vw;max-height:92vh;overflow-y:auto;background:var(--card);border-radius:20px;z-index:301;box-shadow:0 20px 80px rgba(0,0,0,0.3);padding:32px 28px">
 
   <!-- Header -->
   <div style="text-align:center;margin-bottom:24px">
-    <div style="font-size:2.2rem;margin-bottom:8px">⚡</div>
+    <div style="font-size:2.2rem;margin-bottom:8px">&#x26A1;</div>
     <div style="font-size:1.4rem;font-weight:800;margin-bottom:6px">Upgrade to RoleKraft Pro</div>
     <div style="font-size:0.88rem;color:var(--muted)">Unlock unlimited AI coaching and land your dream role faster</div>
   </div>
@@ -2622,13 +2622,13 @@ function changePassword() {
   <div style="background:var(--bg);border-radius:14px;padding:18px;margin-bottom:22px">
     <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:12px">WHAT YOU GET WITH PRO</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Unlimited AI scoring</strong> with detailed feedback on every answer</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>All weekly questions</strong> — not just 3, get the full question bank</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Study Resources</strong> — AI cheatsheets + curated links for every task</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Unlimited Job Match</strong> — analyse your fit against any JD</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Analyse Match on job listings</strong> — one-click AI scoring on live jobs</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">✓</span><span><strong>Resume upload + AI extraction</strong> — powers smarter matching everywhere</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--teal);font-size:1rem">⟳</span><span style="color:var(--muted)">Mock Interview with AI voice <em>(coming soon)</em></span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Unlimited AI scoring</strong> with detailed feedback on every answer</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>All weekly questions</strong> &mdash; not just 3, get the full question bank</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Study Resources</strong> &mdash; AI cheatsheets + curated links for every task</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Unlimited Job Match</strong> &mdash; analyse your fit against any JD</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Analyse Match on job listings</strong> &mdash; one-click AI scoring on live jobs</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Resume upload + AI extraction</strong> &mdash; powers smarter matching everywhere</span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--teal);font-size:1rem">&#x27F3;</span><span style="color:var(--muted)">Mock Interview with AI voice <em>(coming soon)</em></span></div>
     </div>
   </div>
 
@@ -2638,59 +2638,59 @@ function changePassword() {
     <button id="billingYearly" onclick="setBilling('yearly')" style="padding:7px 20px;border-radius:100px;border:1.5px solid var(--border);background:none;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;color:var(--muted);cursor:pointer;position:relative">Yearly <span style="background:#f5576c;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:100px;margin-left:4px">SAVE 33%</span></button>
   </div>
 
-  <!-- Plan card — Pro only -->
+  <!-- Plan card &mdash; Pro only -->
   <div style="margin-bottom:20px">
     <div style="border:2px solid var(--teal);border-radius:14px;padding:22px;position:relative;text-align:center">
       <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-size:0.65rem;font-weight:700;padding:3px 14px;border-radius:100px;white-space:nowrap">UNLOCK EVERYTHING</div>
       <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">RoleKraft Pro</div>
-      <div id="proPrice" style="font-size:2rem;font-weight:900;color:var(--teal)">₹499<span style="font-size:0.8rem;color:var(--muted);font-weight:400">/mo</span></div>
+      <div id="proPrice" style="font-size:2rem;font-weight:900;color:var(--teal)">&#x20B9;499<span style="font-size:0.8rem;color:var(--muted);font-weight:400">/mo</span></div>
       <div id="proNote" style="font-size:0.75rem;color:var(--muted);margin-bottom:6px">billed monthly</div>
       <div style="font-size:0.72rem;color:var(--green);margin-bottom:18px" id="proYearlyNote"></div>
       <div style="display:flex;flex-direction:column;gap:7px;text-align:left;margin-bottom:18px;font-size:0.83rem">
-        <div>✅ Unlimited interview questions</div>
-        <div>✅ AI scoring with detailed feedback</div>
-        <div>✅ Study resources for every task</div>
-        <div>✅ Job Match — paste any JD, get match score</div>
-        <div>✅ Jobs For You — live listings matched to your profile</div>
+        <div>&#x2705; Unlimited interview questions</div>
+        <div>&#x2705; AI scoring with detailed feedback</div>
+        <div>&#x2705; Study resources for every task</div>
+        <div>&#x2705; Job Match &mdash; paste any JD, get match score</div>
+        <div>&#x2705; Jobs For You &mdash; live listings matched to your profile</div>
       </div>
-      <button onclick="startPayment('pro')" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer">Get Pro — ₹499/mo →</button>
+      <button onclick="startPayment('pro')" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer">Get Pro &mdash; &#x20B9;499/mo &#x2192;</button>
     </div>
   </div>
 
-  <div style="text-align:center;font-size:0.75rem;color:var(--muted);margin-bottom:16px">🔒 Secure payment via Razorpay · Cancel anytime</div>
+  <div style="text-align:center;font-size:0.75rem;color:var(--muted);margin-bottom:16px">&#x1F512; Secure payment via Razorpay &middot; Cancel anytime</div>
 
   <button onclick="hideUpgradeModal()" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Maybe later</button>
 </div>
 
-<!-- ── PRO GATE MODAL (inline blocker) ── -->
+<!-- -- PRO GATE MODAL (inline blocker) -- -->
 <div id="proGateOverlay" onclick="hideProGate()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;backdrop-filter:blur(3px)"></div>
 <div id="proGateModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;max-width:92vw;background:var(--card);border-radius:18px;z-index:301;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:28px 24px;text-align:center">
-  <div style="font-size:2rem;margin-bottom:10px" id="proGateIcon">⚡</div>
+  <div style="font-size:2rem;margin-bottom:10px" id="proGateIcon">&#x26A1;</div>
   <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px" id="proGateTitle">Pro Feature</div>
   <div style="font-size:0.86rem;color:var(--muted);line-height:1.6;margin-bottom:20px" id="proGateMsg">Upgrade to RoleKraft Pro to unlock this feature.</div>
-  <button onclick="hideProGate();showUpgradeModal()" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:10px">⚡ Upgrade to Pro →</button>
+  <button onclick="hideProGate();showUpgradeModal()" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:10px">&#x26A1; Upgrade to Pro &#x2192;</button>
   <button onclick="hideProGate()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Not now</button>
 </div>
 
-<!-- ── NEW GOOGLE USER ONBOARDING MODAL ── -->
+<!-- -- NEW GOOGLE USER ONBOARDING MODAL -- -->
 <div id="googleOnboardOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:400;backdrop-filter:blur(4px)"></div>
 <div id="googleOnboardModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-width:92vw;background:var(--card);border-radius:20px;z-index:401;box-shadow:0 20px 80px rgba(0,0,0,0.3);padding:36px 28px;text-align:center">
-  <div style="font-size:2.5rem;margin-bottom:12px">🎉</div>
+  <div style="font-size:2.5rem;margin-bottom:12px">&#x1F389;</div>
   <div style="font-size:1.3rem;font-weight:800;margin-bottom:8px">Welcome, <span id="googleOnboardName">there</span>!</div>
   <div style="font-size:0.88rem;color:var(--muted);line-height:1.7;margin-bottom:24px">
-    Your Google account is connected. To get your personalised <strong>4-week interview plan</strong>, AI questions, and resume analysis — complete the quick onboarding form (takes 3 minutes).
+    Your Google account is connected. To get your personalised <strong>4-week interview plan</strong>, AI questions, and resume analysis &mdash; complete the quick onboarding form (takes 3 minutes).
   </div>
   <div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:24px;text-align:left">
     <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:10px">YOU'LL GET</div>
     <div style="display:flex;flex-direction:column;gap:7px;font-size:0.85rem">
-      <div>✅ Personalised 4-week prep plan for your role</div>
-      <div>✅ AI-generated interview questions</div>
-      <div>✅ Resume ATS analysis</div>
-      <div>✅ Live job listings matched to your profile</div>
+      <div>&#x2705; Personalised 4-week prep plan for your role</div>
+      <div>&#x2705; AI-generated interview questions</div>
+      <div>&#x2705; Resume ATS analysis</div>
+      <div>&#x2705; Live job listings matched to your profile</div>
     </div>
   </div>
   <a href="https://tally.so/r/D4NpLX" target="_blank" style="display:block;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.92rem;font-weight:700;text-decoration:none;margin-bottom:10px">
-    Complete Onboarding Form →
+    Complete Onboarding Form &#x2192;
   </a>
   <button onclick="hideGoogleOnboard()" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">
     I'll do this later

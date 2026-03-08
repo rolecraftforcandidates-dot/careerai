@@ -1032,7 +1032,7 @@ function openSidebar()  { document.getElementById('sidebar').classList.add('open
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
 // HELPERS
-function showErr(el,msg) { el.textContent=msg; el.style.display='block'; }
+function showErr(el,msg) { el.innerHTML=msg; el.style.display='block'; }
 
 function animateBars() {
   document.querySelectorAll('.skill-bar-fill[data-w],.mini-bar-fill[data-w]').forEach(function(b,i){
@@ -1225,7 +1225,7 @@ function showToast(msg, type) {
   var t = document.createElement('div');
   var bg = type==='error' ? 'var(--red)' : type==='success' ? 'var(--green)' : 'var(--teal)';
   t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:'+bg+';color:#fff;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-family:DM Sans,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:slideDown 0.3s ease';
-  t.textContent = msg;
+  t.innerHTML = msg;
   document.body.appendChild(t);
   setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity 0.4s'; setTimeout(function(){ t.remove(); },400); }, 3000);
 }
@@ -2170,7 +2170,7 @@ function sortAndRenderJobs() {
 function renderJobs(jobs) {
   var count = jobs.length;
   document.getElementById('jobsCount').textContent = count + ' jobs';
-  document.getElementById('jobsPanelSub').textContent =
+  document.getElementById('jobsPanelSub').innerHTML =
     'Live listings for your role &middot; click Analyse Match for AI scoring';
 
   if (!count) {
@@ -2471,8 +2471,8 @@ function showPaymentSuccess(tier, expiry) {
   var expiryFmt = expiry ? new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '';
 
   document.getElementById('proGateIcon').innerHTML  = '&#x1F389;';
-  document.getElementById('proGateTitle').textContent = 'You are now on ' + tierLabel + '!';
-  document.getElementById('proGateMsg').textContent   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard...';
+  document.getElementById('proGateTitle').innerHTML = 'You are now on ' + tierLabel + '!';
+  document.getElementById('proGateMsg').innerHTML   = 'All ' + tierLabel + ' features are now unlocked.' + (expiryFmt ? ' Active until ' + expiryFmt + '.' : '') + ' Taking you back to your dashboard...';
 
   // Add a "Go to Dashboard" button
   var existingBtn = document.getElementById('paySuccessBtn');
@@ -2494,8 +2494,8 @@ function showPaymentSuccess(tier, expiry) {
 
 function showProGate(title, message, icon) {
   document.getElementById('proGateIcon').innerHTML  = icon  || '&#x26A1;';
-  document.getElementById('proGateTitle').textContent = title || 'Pro Feature';
-  document.getElementById('proGateMsg').textContent   = message || 'Upgrade to RoleKraft Pro to unlock this feature.';
+  document.getElementById('proGateTitle').innerHTML = title || 'Pro Feature';
+  document.getElementById('proGateMsg').innerHTML   = message || 'Upgrade to RoleKraft Pro to unlock this feature.';
   document.getElementById('proGateOverlay').style.display = 'block';
   document.getElementById('proGateModal').style.display   = 'block';
 }

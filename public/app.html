@@ -1801,7 +1801,7 @@ function loadScores() {
       document.getElementById('latestScoreNum').textContent = latest ? latest.Score : '-';
       document.getElementById('avgScoreNum').textContent    = d.average || '-';
 
-      var qLabel = latest ? (latest['Q No.'] ? 'Week '+latest.Week+' &middot; '+latest['Q No.'] : 'Week '+latest.Week) : 'No submissions yet';
+      var qLabel = latest ? (latest['Q No.'] ? 'Week '+latest.Week+' · '+latest['Q No.'] : 'Week '+latest.Week) : 'No submissions yet';
       document.getElementById('latestScoreSub').textContent = qLabel;
 
       var trendEl = document.getElementById('scoreTrend');
@@ -1983,7 +1983,7 @@ function analyseJobMatch() {
     circle.style.borderColor = scCol;
     document.getElementById('jmScoreNum').style.color  = scCol;
     document.getElementById('jmScoreNum').textContent  = sc;
-    document.getElementById('jmScoreLabel').textContent = scLbl;
+    document.getElementById('jmScoreLabel').innerHTML = scLbl;
     document.getElementById('jmScoreLabel').style.color = scCol;
 
     var slCol = d.shortlist==='High'?'background:var(--green-light);color:var(--green)':

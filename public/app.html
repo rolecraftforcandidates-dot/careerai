@@ -2341,13 +2341,45 @@ function analyseJobFromListing(idx) {
     if (numEl)  { numEl.textContent=sc; numEl.style.color=scCol; }
     if (lblEl)  { lblEl.textContent=sc>=75?'Strong':sc>=55?'Good':sc>=40?'Fair':'Weak'; lblEl.style.color=scCol; }
 
+    var have = (d.keywordsHave||[]).slice(0,6);
     var miss = (d.keywordsMissing||[]).slice(0,5);
+    var breakdown = d.breakdown || [];
+    var tweaks = d.tweaks || [];
+
+    // Build breakdown mini-bars
+    var barsHtml = breakdown.length ? breakdown.map(function(b){
+      var pct=parseInt(b.score)||0;
+      var bc=pct>=75?'var(--green)':pct>=50?'var(--teal)':pct>=35?'var(--orange)':'var(--red)';
+      return '<div style="margin-bottom:6px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:2px">'+
+          '<span style="color:var(--muted)">'+b.label+'</span>'+
+          '<span style="font-weight:700;color:'+bc+'">'+pct+'%</span>'+
+        '</div>'+
+        '<div style="background:#eef0f8;border-radius:100px;height:5px">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+bc+';border-radius:100px"></div>'+
+        '</div></div>';
+    }).join('') : '';
+
+    // Build tweaks list
+    var tweaksHtml = tweaks.length ? tweaks.map(function(t,i){
+      return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;line-height:1.5">'+
+        '<span style="background:var(--purple-light);color:var(--purple);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;font-family:DM Mono,monospace;margin-top:1px">'+(i+1)+'</span>'+
+        '<span>'+t+'</span></div>';
+    }).join('') : '';
+
     box.innerHTML =
-      '<div style="font-size:0.76rem;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--muted);margin-bottom:8px">AI ANALYSIS &middot; '+sc+'/100 MATCH</div>'+
-      (miss.length?'<div style="margin-bottom:8px;font-size:0.8rem;color:var(--muted)">Add to resume: '+
-        miss.map(function(k){ return '<span class="job-kw miss" style="margin-left:4px">+'+k+'</span>'; }).join('')+
-      '</div>':'')+
-      '<div style="font-size:0.82rem;line-height:1.6;color:var(--text)">'+(d.tweaks&&d.tweaks[0]?'&#x1F4A1; '+d.tweaks[0]:'')+'</div>';
+      '<div style="font-size:0.72rem;font-family:DM Mono,monospace;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">AI ANALYSIS &middot; '+sc+'/100 MATCH</div>'+
+      // Keywords row
+      (have.length||miss.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
+        (have.length?'<div><div style="font-size:0.7rem;font-weight:700;color:var(--green);margin-bottom:4px">&#9989; YOU HAVE</div>'+
+          have.map(function(k){ return '<span class="job-kw have" style="margin:2px 2px 0 0;display:inline-block">'+k+'</span>'; }).join('')+'</div>':'')+
+        (miss.length?'<div><div style="font-size:0.7rem;font-weight:700;color:var(--red);margin-bottom:4px">&#10060; ADD TO CV</div>'+
+          miss.map(function(k){ return '<span class="job-kw miss" style="margin:2px 2px 0 0;display:inline-block">+'+k+'</span>'; }).join('')+'</div>':'')+
+      '</div>' : '')+
+      // Breakdown bars
+      (barsHtml?'<div style="margin-bottom:10px"><div style="font-size:0.7rem;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:0.5px">MATCH BREAKDOWN</div>'+barsHtml+'</div>':'')+
+      // Tweaks
+      (tweaksHtml?'<div><div style="font-size:0.7rem;font-weight:700;color:var(--purple);margin-bottom:4px;letter-spacing:0.5px">&#9999;&#65039; RESUME TWEAKS</div>'+tweaksHtml+'</div>':'');
 
     // Update _jobsCache with AI score
     _jobsCache[idx].matchScore       = sc;

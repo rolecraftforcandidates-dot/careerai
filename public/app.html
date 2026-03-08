@@ -1523,7 +1523,8 @@ function loadQuestions() {
 
       // Count AI-scored answers for free tier gate
       var scoredCount = allQs.filter(function(q){ return q.Submitted==='TRUE' && q.Score && q.Score!==''; }).length;
-      var freeAiUsed  = scoredCount;
+      _freeAiUsed     = scoredCount; // sync global from server data
+      var freeAiUsed  = _freeAiUsed;
       var freeAiLimit = 3;
       var freeAiLeft  = Math.max(0, freeAiLimit - freeAiUsed);
       var isFree      = _userTier === 'free';
@@ -1549,9 +1550,11 @@ function loadQuestions() {
           '<div>' +
             '<div style="font-size:0.82rem;font-weight:700;color:var(--purple);margin-bottom:3px">🤖 AI Scoring — Free Plan</div>' +
             '<div style="font-size:0.78rem;color:var(--muted)">' +
+              '<span id="freeAiBannerText">' +
               (freeAiLeft > 0
                 ? freeAiLeft+' of '+freeAiLimit+' free AI scores remaining'
                 : 'Free AI scores used up — upgrade for unlimited scoring') +
+              '</span>' +
               ' &nbsp;·&nbsp; <a href="#" onclick="showUpgradeModal();return false;" style="color:var(--teal);font-weight:600">Upgrade ↗</a>' +
             '</div>' +
           '</div>' +
@@ -1640,6 +1643,43 @@ function loadQuestions() {
 
       document.getElementById('questionsContent').innerHTML = html;
     }).catch(function(){showErr(document.getElementById('questionsError'),'Could not load questions. Please refresh.');});
+}
+
+function updateFreeAiBanner() {
+  if (_userTier !== 'free') return;
+  var freeAiLimit = 3;
+  var freeAiLeft  = Math.max(0, freeAiLimit - _freeAiUsed);
+  var locked      = _freeAiUsed >= freeAiLimit;
+
+  // Update banner text
+  var bannerText = document.getElementById('freeAiBannerText');
+  if (bannerText) {
+    bannerText.textContent = locked
+      ? 'Free AI scores used up — upgrade for unlimited scoring'
+      : freeAiLeft + ' of ' + freeAiLimit + ' free AI scores remaining';
+  }
+
+  // Lock all remaining unanswered submit buttons and textareas
+  if (locked) {
+    var allBtns = document.querySelectorAll('.btn-submit');
+    allBtns.forEach(function(btn) {
+      var idx    = btn.id.replace('sbtn-','');
+      var ansEl  = document.getElementById('ans-'+idx);
+      var card   = document.getElementById('qcard-'+idx);
+      if (!ansEl || ansEl.getAttribute('data-submitted') === 'true') return;
+      // Disable textarea
+      ansEl.disabled = true;
+      ansEl.style.opacity = '0.45';
+      ansEl.style.cursor  = 'not-allowed';
+      // Replace submit button with lock bar
+      var btnParent = btn.parentNode;
+      btnParent.innerHTML =
+        '<div style="background:rgba(80,72,229,0.07);border:1px dashed rgba(80,72,229,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
+          '<div style="font-size:0.78rem;color:var(--purple)"><strong>🔒 AI Scoring locked</strong> — you've used your 3 free scores</div>' +
+          '<button onclick="showUpgradeModal()" style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;border:none;border-radius:8px;font-size:0.76rem;font-weight:700;cursor:pointer">Upgrade ↗</button>' +
+        '</div>';
+    });
+  }
 }
 
 function toggleWeekQuestions(id) {
@@ -1750,6 +1790,9 @@ function submitAnswer(idx) {
       if (typeof renderMiniScoreBars === 'function') {
         renderMiniScoreBars(d.technical||0, d.communication||0, d.problemSolving||0, d.behavioral||0);
       }
+      // Increment live counter and refresh paywall state
+      _freeAiUsed++;
+      updateFreeAiBanner();
     }
   })
   .catch(function(){
@@ -2314,6 +2357,7 @@ function hideGoogleOnboard() {
 // ══════════════════════════════════════════════════════
 var _userTier    = 'free';
 var _jmUsage     = 0; // how many job match analyses free user has done
+var _freeAiUsed  = 0; // live counter — incremented on each successful AI score
 var _billingMode = 'monthly';
 
 var PRICES = {

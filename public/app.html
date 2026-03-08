@@ -950,7 +950,7 @@ function setUserInfo(u) {
   document.getElementById('welcomeName').textContent = 'HI, '+((u.name||'').split(' ')[0]).toUpperCase()+'!';
   document.getElementById('welcomeSub').innerHTML   = "You're on <strong>Week "+(u.week||1)+"</strong> of your "+(u.role||'')+' prep plan. Day '+day+' of 7'+(daysLeft<=2?' &mdash; <span style="color:#f59e0b;font-weight:600">'+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>':'')+ '.';
   var expTag = u.experience || '';
-  document.getElementById('planRoleTag').textContent = (u.role||'') + (expTag ? ' &middot; ' + expTag : '') + ' &middot; Week '+(u.week||1)+' of 4 &middot; Day '+day+' of 7';
+  document.getElementById('planRoleTag').innerHTML = (u.role||'') + (expTag ? ' &middot; ' + expTag : '') + ' &middot; Week '+(u.week||1)+' of 4 &middot; Day '+day+' of 7';
   document.getElementById('statWeek').textContent   = 'W'+(u.week||1)+'D'+day;
 }
 
@@ -1135,8 +1135,8 @@ function refreshPlanHeaders() {
     var sub = block.querySelector('.week-hdr-sub');
     if (sub) {
       var pct  = wItems.length ? Math.round(wDone/wItems.length*100) : 0;
-      var txt  = wItems.length+' tasks &middot; '+wDone+' completed';
-      if (isPast && !allDone) txt = wItems.length+' tasks &middot; '+pending+' still pending';
+      var txt  = wItems.length+' tasks · '+wDone+' completed';
+      if (isPast && !allDone) txt = wItems.length+' tasks · '+pending+' still pending';
       var barColor = (isPast && !allDone) ? 'var(--red)' : 'linear-gradient(90deg,var(--teal),var(--purple))';
       var showBar  = isPast || isCur;
       sub.innerHTML = txt +
@@ -1306,7 +1306,7 @@ function loadOverview() {
           var day = (currentUser && currentUser.dayOfWeek) || 1;
           var daysLeft = 7 - day + 1;
           var urgency  = daysLeft <= 2 ? '<span style="color:var(--orange);font-weight:700">&#x26A0; '+daysLeft+' day'+(daysLeft===1?'':'s')+' left!</span>' : 'Day '+day+' of 7';
-          document.getElementById('wpWeekTitle').textContent  = 'Week '+cw+' &middot; '+(wt[cw]||'');
+          document.getElementById('wpWeekTitle').innerHTML  = 'Week '+cw+' &middot; '+(wt[cw]||'');
           document.getElementById('wpDayBadge').innerHTML     = urgency;
           document.getElementById('wpPct').textContent        = cwp+'%';
           document.getElementById('wpBar').style.width        = cwp+'%';
@@ -1432,12 +1432,12 @@ function loadPlan() {
           if (allDone) {
             st='done'; blockClass=''; circleClass='wc-done'; pillClass='ws-done';
             pillLabel='&#10003; COMPLETE';
-            subText=tasks.length+' tasks &middot; all done';
+            subText=tasks.length+' tasks · all done';
           } else {
             // Past but incomplete &mdash; OVERDUE
             st='overdue'; blockClass='overdue'; circleClass='wc-overdue'; pillClass='ws-overdue';
             pillLabel='&#9888; OVERDUE';
-            subText=tasks.length+' tasks &middot; '+pending+' still pending';
+            subText=tasks.length+' tasks · '+pending+' still pending';
             extraBadge='<span class="week-overdue-badge" data-week="'+w+'" style="font-size:0.68rem;background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">'+pending+' task'+(pending>1?'s':'')+' overdue</span>';
           }
         } else if (w == cw) {
@@ -1445,7 +1445,7 @@ function loadPlan() {
           st='cur'; blockClass='cw'; circleClass='wc-cur'; pillClass='ws-cur';
           pillLabel='&#9679; IN PROGRESS';
           var pct=tasks.length?Math.round(done/tasks.length*100):0;
-          subText=tasks.length+' tasks &middot; '+done+' completed';
+          subText=tasks.length+' tasks · '+done+' completed';
           extraBadge='<span style="font-size:0.68rem;background:#f0f0f8;color:var(--muted);padding:2px 8px;border-radius:100px;margin-left:6px;font-family:DM Mono,monospace">Day '+dayOfWeek+' of 7</span>';
           if (dayOfWeek >= 6 && pending > 0) {
             extraBadge += '<span style="font-size:0.68rem;background:var(--orange-light);color:var(--orange);padding:2px 8px;border-radius:100px;margin-left:4px;font-family:DM Mono,monospace">&#9200; '+(7-dayOfWeek+1)+' day'+(7-dayOfWeek===0?'':'s')+' left</span>';
@@ -1869,7 +1869,7 @@ function openResourceDrawer(evt, week, day) {
   var type  = btn.getAttribute('data-type')  || 'Theory';
   var tc    = type==='Theory'?'badge-purple':type==='Mock'?'badge-orange':'badge-teal';
 
-  document.getElementById('drawerWeekDay').textContent  = 'WEEK '+week+' &middot; DAY '+day;
+  document.getElementById('drawerWeekDay').innerHTML  = 'WEEK '+week+' &middot; DAY '+day;
   document.getElementById('drawerTitle').textContent    = title;
   document.getElementById('drawerTypeBadge').innerHTML  = '<span class="badge '+tc+'">'+type+'</span>';
   document.getElementById('drawerContent').innerHTML    =

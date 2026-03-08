@@ -566,13 +566,14 @@ app.get('/api/plan', requireLogin, async (req, res) => {
   }
 });
 
-// GET /api/questions — current week's questions for logged-in user
+// GET /api/questions — all questions up to current week for logged-in user
 app.get('/api/questions', requireLogin, async (req, res) => {
   try {
     const { email, week, tier } = req.session.user;
     const rows = await readSheet('Questions');
+    // Return all questions for weeks 1 through current week
     const questions = rows.filter(
-      r => r.Email.toLowerCase() === email.toLowerCase() && parseInt(r.Week) === week
+      r => r.Email.toLowerCase() === email.toLowerCase() && parseInt(r.Week) <= week
     );
     res.json({ questions, week });
   } catch (err) {

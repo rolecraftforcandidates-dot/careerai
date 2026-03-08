@@ -215,11 +215,11 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   .task-actions .study-btn{font-size:0.78rem;padding:5px 12px}
   .week-hdr{flex-wrap:wrap;gap:6px}
   .week-hdr-title{font-size:0.88rem}
-  /* Today's Focus tasks on Overview */
-  .today-task{flex-wrap:wrap;align-items:flex-start;gap:6px;padding:12px 14px}
-  .today-task-num{min-width:44px;padding-top:2px}
+  /* Today's Focus tasks on Overview - force badge to its own line */
+  .today-task{flex-wrap:wrap;align-items:flex-start;gap:0;padding:12px 14px;row-gap:6px}
+  .today-task-num{min-width:44px;padding-top:3px;flex-shrink:0}
   .today-task-text{flex:1;min-width:0}
-  .today-task-badge{margin-left:44px;margin-top:4px;flex-basis:auto}
+  .today-task-badge{width:100%;padding-left:44px;margin-top:2px;box-sizing:border-box}
 }
 .drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -311,10 +311,8 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   .week-hdr-left{flex:1;min-width:0}
   .week-hdr-title{font-size:0.9rem}
   .week-sub{font-size:0.75rem}
-  /* Today focus tasks */
-  .today-task{flex-wrap:wrap;gap:8px;padding:12px}
-  .today-task-num{min-width:auto}
-  .today-task>span.badge,.today-task>button{margin-top:4px}
+  /* Today focus tasks - inherits 600px rules, just tweak padding */
+  .today-task{padding:10px 12px}
   /* Topbar pills */
   #weekPill,#dayPill{font-size:0.68rem;padding:4px 10px}
   /* Panel title */

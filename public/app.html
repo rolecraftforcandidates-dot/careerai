@@ -942,7 +942,7 @@ function setUserInfo(u) {
   document.getElementById('userAvatar').textContent = ini;
   document.getElementById('userName').textContent   = u.name||'';
   var expDisplay = u.experience || '';
-  document.getElementById('userRole').textContent   = (u.role||'') + (expDisplay ? ' &#8212; ' + expDisplay : '');
+  document.getElementById('userRole').innerHTML   = (u.role||'') + (expDisplay ? ' &mdash; ' + expDisplay : '');
   document.getElementById('weekPill').textContent   = 'WEEK '+(u.week||1)+' OF 4';
   document.getElementById('dayPill').textContent    = 'DAY '+day+' OF 7';
   document.getElementById('dayPill').style.background = day >= 6 ? 'var(--orange-light)' : '#f0f0f8';
@@ -1514,7 +1514,7 @@ function loadQuestions() {
     .then(function(d){
       if (d.error){showErr(document.getElementById('questionsError'),d.error);return;}
       var allQs = d.questions||[], curWk = d.week||1;
-      document.getElementById('questionsSub').textContent = 'Week '+curWk+' questions &#8212; submit answers for AI scoring';
+      document.getElementById('questionsSub').innerHTML = 'Week '+curWk+' questions &mdash; submit answers for AI scoring';
       document.getElementById('questionsDeadline').style.display = 'inline-block';
 
       if (!allQs.length){
@@ -2526,9 +2526,9 @@ function loadSettings() {
   document.getElementById('settingsName').textContent  = currentUser.name  || '-';
   document.getElementById('settingsEmail').textContent = currentUser.email || '-';
   var settingsExp = currentUser.experience || '';
-  document.getElementById('settingsRole').textContent  = (currentUser.role || '-') + (settingsExp ? ' &#8212; ' + settingsExp : '');
+  document.getElementById('settingsRole').innerHTML  = (currentUser.role || '-') + (settingsExp ? ' &mdash; ' + settingsExp : '');
   var sw = currentUser.week||1, sd = currentUser.dayOfWeek||1;
-  document.getElementById('settingsWeek').textContent  = 'Week ' + sw + ' of 4 &#8212; Day ' + sd + ' of 7';
+  document.getElementById('settingsWeek').innerHTML  = 'Week ' + sw + ' of 4 &mdash; Day ' + sd + ' of 7';
   // Reset form
   document.getElementById('currentPw').value = '';
   document.getElementById('newPw').value      = '';

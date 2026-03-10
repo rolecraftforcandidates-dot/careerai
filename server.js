@@ -547,7 +547,8 @@ app.get('/api/me', requireLogin, async (req, res) => {
       jmUsage = parseInt(user && user['JM Usage'] || '0');
     } catch(e) { /* non-critical */ }
   }
-  res.json({ user: u, jmUsage });
+  const tallyFormUrl = process.env.TALLY_FORM_URL || 'https://tally.so/r/D4NpLX';
+  res.json({ user: u, jmUsage, tallyFormUrl });
 });
 
 // ════════════════════════════════════════
@@ -1888,6 +1889,12 @@ app.get('/api/session-test', (req, res) => {
     userEmail:  req.session.user?.email || null,
     sessionKeys: Object.keys(req.session),
   });
+});
+
+// GET /register — redirect to correct Tally form based on environment
+app.get('/register', (req, res) => {
+  const tallyUrl = process.env.TALLY_FORM_URL || 'https://tally.so/r/D4NpLX';
+  res.redirect(tallyUrl);
 });
 
 // GET /api/onboard/ping — test that onboard endpoint is reachable

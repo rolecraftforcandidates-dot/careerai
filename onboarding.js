@@ -34,14 +34,24 @@ async function extractNameFromResume(resumeText, emailHint, tallyName, emailPref
   }
 
   // Try a simple heuristic first — first non-empty line of resume is usually the name
-  const firstLines = resumeText.trim().split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3);
+  // Common job titles to skip if they appear as first line
+  const JOB_TITLE_WORDS = ['engineer','developer','analyst','manager','designer','architect',
+    'consultant','specialist','lead','director','officer','intern','fresher','associate',
+    'scientist','administrator','coordinator','executive','head','vp','president','cto','ceo'];
+
+  const firstLines = resumeText.trim().split('\n').map(l => l.trim()).filter(Boolean).slice(0, 5);
   for (const line of firstLines) {
-    // A name line: 2-4 words, no @, no digits, not too long
     const words = line.split(/\s+/);
-    if (words.length >= 2 && words.length <= 5 && !line.includes('@') && !/\d/.test(line) && line.length < 50) {
-      // Title case it
+    const lowerLine = line.toLowerCase();
+    // Skip lines with digits, email, URLs, or that look like job titles
+    if (line.includes('@') || /\d/.test(line) || line.includes('http') || line.length > 60) continue;
+    // Skip if any word is a known job title word
+    const looksLikeTitle = words.some(w => JOB_TITLE_WORDS.includes(w.toLowerCase()));
+    if (looksLikeTitle) continue;
+    // Accept 1-5 word lines (single first names like "Sneha" are valid)
+    if (words.length >= 1 && words.length <= 5) {
       const titled = words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-      console.log(`👤 Name from resume first line: "${titled}"`);
+      console.log(`👤 Name from resume heuristic: "${titled}"`);
       return titled;
     }
   }
@@ -53,7 +63,9 @@ async function extractNameFromResume(resumeText, emailHint, tallyName, emailPref
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 30,
       messages: [{ role: 'user', content:
-        'What is the full name of the person in this resume? Reply with ONLY the name, nothing else.\n\n' +
+        'Extract the full name of the person who owns this resume. ' +
+        'It is usually the very first line — a person\'s name (first name only or full name), NOT a job title like "Data Engineer" or "Software Developer". ' +
+        'Reply with ONLY the person\'s name, nothing else. No punctuation, no explanation.\n\n' +
         resumeText.slice(0, 500)
       }],
     });
@@ -693,8 +705,43 @@ function parseTallyPayload(body) {
     return otherField ? String(otherField.value || '').trim() : '';
   })();
 
+  // If user typed a long free-text for Other role, extract just the role title
+  // e.g. "I am a fresher and want to become a data analyst" → "Data Analyst"
+  function sanitiseOtherRole(text) {
+    if (!text) return text;
+    const t = text.trim();
+    if (t.length < 40 && t.split(' ').length <= 6) return t;
+
+    const ROLE_KEYWORDS = ['developer','engineer','analyst','designer','manager','scientist',
+      'fresher','graduate','intern','consultant','specialist','lead','architect',
+      'administrator','executive','officer','coordinator'];
+    const FILLERS = new Set(['i','am','a','an','the','is','are','was','want','to','become',
+      'be','and','or','with','as','for','looking','interested','in','into','have','recently',
+      'just','completed','my','their','our','its','this','that','who','which','will','can',
+      'would','could','should','positions','roles','job','work','career']);
+
+    const words = t.match(/[a-zA-Z]+/g) || [];
+    let best = null;
+
+    // Find the last/most specific role keyword and take up to 2 qualifier words before it
+    for (let i = 0; i < words.length; i++) {
+      if (ROLE_KEYWORDS.includes(words[i].toLowerCase())) {
+        const qualifiers = words.slice(Math.max(0, i-2), i)
+          .filter(w => !FILLERS.has(w.toLowerCase()))
+          .slice(-2);
+        const chunk = [...qualifiers, words[i]];
+        best = chunk.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+    if (best) return best;
+
+    // Fallback: first 4 non-filler words
+    const clean = words.filter(w => !FILLERS.has(w.toLowerCase()));
+    return clean.slice(0, 4).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
+
   const resolvedRole = (rawRole.toLowerCase().trim() === 'other' && otherRole)
-    ? otherRole
+    ? sanitiseOtherRole(otherRole)
     : rawRole;
 
   console.log('Role resolution → raw: "' + rawRole + '" | other field: "' + otherRole + '" | final: "' + resolvedRole + '"');

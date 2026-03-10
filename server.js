@@ -547,7 +547,8 @@ app.get('/api/me', requireLogin, async (req, res) => {
       jmUsage = parseInt(user && user['JM Usage'] || '0');
     } catch(e) { /* non-critical */ }
   }
-  res.json({ user: u, jmUsage });
+  const tallyFormUrl = process.env.TALLY_FORM_URL || 'https://tally.so/r/D4NpLX';
+  res.json({ user: u, jmUsage, tallyFormUrl });
 });
 
 // ════════════════════════════════════════

@@ -1891,6 +1891,44 @@ app.get('/api/session-test', (req, res) => {
   });
 });
 
+
+// ── robots.txt ──
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send(`User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /processing
+Disallow: /welcome
+Disallow: /api/
+Disallow: /register
+
+Sitemap: https://www.rolekraft.com/sitemap.xml`);
+});
+
+// ── sitemap.xml ──
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.rolekraft.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.rolekraft.com/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.rolekraft.com/refund</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>`);
+});
+
 // GET /register — redirect to correct Tally form based on environment
 app.get('/register', (req, res) => {
   const tallyUrl = process.env.TALLY_FORM_URL || 'https://tally.so/r/D4NpLX';

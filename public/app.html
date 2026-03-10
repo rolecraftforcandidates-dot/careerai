@@ -902,7 +902,11 @@ window.addEventListener('pageshow', function(e) {
 window.addEventListener('DOMContentLoaded', function() {
   fetch('/api/me', { credentials:'include' })
     .then(function(r) {
-      if (r.ok) return r.json().then(function(d) { showDashboard(d.user); });
+      if (r.ok) return r.json().then(function(d) {
+        // Check if URL has a panel hash on load (e.g. from back navigation)
+        var hashPanel = window.location.hash.replace('#','');
+        showDashboard(d.user, hashPanel || 'overview');
+      });
       else showLoginPage();
     })
     .catch(function() { showLoginPage(); });
@@ -941,19 +945,25 @@ function showLoginPage() {
   document.getElementById('dashboard').classList.remove('active');
 }
 
-function showDashboard(user) {
+function showDashboard(user, initialPanel) {
   currentUser = user;
   console.log('&#x1F680; showDashboard &mdash; user.tier =', user.tier);
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('dashboard').classList.add('active');
 
-  // Always reset to Overview panel on login &mdash; clear any previous panel state
+  // Reset all panels
   document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
-  document.getElementById('panel-overview').classList.add('active');
-  var overviewNavBtn = document.querySelector('.nav-item[onclick*="overview"]');
-  if (overviewNavBtn) overviewNavBtn.classList.add('active');
-  document.getElementById('topbarTitle').textContent = 'Overview';
+
+  // Start on requested panel (from hash) or overview
+  var startPanel = (initialPanel && document.getElementById('panel-'+initialPanel)) ? initialPanel : 'overview';
+  document.getElementById('panel-'+startPanel).classList.add('active');
+  var startNavBtn = document.querySelector('.nav-item[onclick*="\'' + startPanel + '\'"]');
+  if (startNavBtn) startNavBtn.classList.add('active');
+  document.getElementById('topbarTitle').textContent = panelTitles[startPanel] || 'Overview';
+
+  // Set initial history state so first back press exits the app cleanly
+  history.replaceState({ panel: startPanel }, '', '/app#' + startPanel);
 
   // Clear ALL dynamic panel content so previous user data never bleeds through
   var clearIds = ['jobsList','jobsCount','planList','overviewStats',
@@ -979,7 +989,16 @@ function showDashboard(user) {
     window.location.href = '/app';
     return;
   }
-  loadOverview();
+  // Load initial panel data
+  if (startPanel === 'overview' || startPanel === 'overview') loadOverview();
+  if (startPanel === 'plan')      loadPlan();
+  if (startPanel === 'questions') loadQuestions();
+  if (startPanel === 'scores')    { loadScores(); setTimeout(animateBars,300); }
+  if (startPanel === 'resume')    { panelLoaded['resume'] = true; loadResume(); }
+  if (startPanel === 'settings')  { panelLoaded['settings'] = true; loadSettings(); }
+  if (startPanel === 'jobs')      { panelLoaded['jobs'] = true; loadJobs(false); }
+  if (startPanel === 'jobmatch')  { refreshJobMatchLock(); loadOverview(); }
+  if (startPanel === 'overview' || !['plan','questions','scores','resume','settings','jobs','jobmatch'].includes(startPanel)) loadOverview();
 }
 
 function setUserInfo(u) {
@@ -1051,29 +1070,48 @@ function doLogout() {
 }
 
 // NAV
-function showPanel(id, btn) {
+function showPanel(id, btn, skipHistory) {
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('panel-'+id).classList.add('active');
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   document.getElementById('topbarTitle').textContent = panelTitles[id];
   closeSidebar();
   if (id === 'jobmatch') refreshJobMatchLock();
-  // Always reload questions + scores (data changes server-side &mdash; AI scoring)
-  // Plan reloads only if not already loaded (tasks are live via toggleTask)
-  // Overview always live via updateOverviewStats
+
+  // Push browser history state so back button works on mobile
+  if (!skipHistory) {
+    var currentState = history.state && history.state.panel;
+    if (currentState !== id) {
+      history.pushState({ panel: id }, '', '/app#' + id);
+    }
+  }
+
   if (!panelLoaded[id]) {
     panelLoaded[id] = true;
     if (id==='resume')   loadResume();
     if (id==='settings') loadSettings();
     if (id==='jobs')     loadJobs(false);
   }
-  // Always reload fresh &mdash; these change per user and per action
   if (id==='plan')      loadPlan();
   if (id==='overview')  loadOverview();
   if (id==='questions') loadQuestions();
   if (id==='scores')    { loadScores(); setTimeout(animateBars,300); }
 }
+
+// Handle browser back/forward button — restore the correct panel
+window.addEventListener('popstate', function(e) {
+  var panel = (e.state && e.state.panel) || 'overview';
+  var btn = document.querySelector('[onclick*="showPanel('' + panel + ''"]') ||
+            document.querySelector('[onclick*="\'' + panel + '\'"]');
+  // Fallback: find nav button by panel name
+  if (!btn) {
+    document.querySelectorAll('.nav-item').forEach(function(n) {
+      if ((n.getAttribute('onclick')||'').indexOf("'" + panel + "'") !== -1) btn = n;
+    });
+  }
+  showPanel(panel, btn || document.querySelector('.nav-item'), true);
+});
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }

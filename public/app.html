@@ -958,7 +958,10 @@ function showDashboard(user, initialPanel) {
   // Start on requested panel (from hash) or overview
   var startPanel = (initialPanel && document.getElementById('panel-'+initialPanel)) ? initialPanel : 'overview';
   document.getElementById('panel-'+startPanel).classList.add('active');
-  var startNavBtn = document.querySelector('.nav-item[onclick*="\'' + startPanel + '\'"]');
+  var startNavBtn = null;
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    if ((n.getAttribute('onclick')||'').indexOf("'" + startPanel + "'") !== -1) startNavBtn = n;
+  });
   if (startNavBtn) startNavBtn.classList.add('active');
   document.getElementById('topbarTitle').textContent = panelTitles[startPanel] || 'Overview';
 
@@ -1102,14 +1105,10 @@ function showPanel(id, btn, skipHistory) {
 // Handle browser back/forward button — restore the correct panel
 window.addEventListener('popstate', function(e) {
   var panel = (e.state && e.state.panel) || 'overview';
-  var btn = document.querySelector('[onclick*="showPanel('' + panel + ''"]') ||
-            document.querySelector('[onclick*="\'' + panel + '\'"]');
-  // Fallback: find nav button by panel name
-  if (!btn) {
-    document.querySelectorAll('.nav-item').forEach(function(n) {
-      if ((n.getAttribute('onclick')||'').indexOf("'" + panel + "'") !== -1) btn = n;
-    });
-  }
+  var btn = null;
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    if ((n.getAttribute('onclick')||'').indexOf("'" + panel + "'") !== -1) btn = n;
+  });
   showPanel(panel, btn || document.querySelector('.nav-item'), true);
 });
 

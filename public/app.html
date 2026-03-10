@@ -894,7 +894,10 @@ window.addEventListener('pageshow', function(e) {
   if (e.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
     // Page was restored from bfcache (back button) — re-verify session
     fetch('/api/me', { credentials:'include', cache:'no-store' })
-      .then(function(r) { if (!r.ok) { currentUser=null; showLoginPage(); } })
+      .then(function(r) {
+        if (!r.ok) { currentUser=null; showLoginPage(); }
+        else return r.json().then(function(d){ if(d.tallyFormUrl) _tallyFormUrl = d.tallyFormUrl; });
+      })
       .catch(function() { currentUser=null; showLoginPage(); });
   }
 });
@@ -905,6 +908,7 @@ window.addEventListener('DOMContentLoaded', function() {
       if (r.ok) return r.json().then(function(d) {
         // Check if URL has a panel hash on load (e.g. from back navigation)
         var hashPanel = window.location.hash.replace('#','');
+        if (d.tallyFormUrl) _tallyFormUrl = d.tallyFormUrl;
         showDashboard(d.user, hashPanel || 'overview');
       });
       else showLoginPage();
@@ -2453,7 +2457,7 @@ function buildJobSkeletons(n) {
 // ======================================================
 function showNewGoogleUserPrompt(name, email) {
   // Redirect directly to Tally form with email pre-filled
-  var tallyBase = 'https://tally.so/r/D4NpLX';
+  var tallyBase = _tallyFormUrl;
   var params    = new URLSearchParams();
   if (email) params.set('email', email);
   if (name)  params.set('name',  name);
@@ -2472,6 +2476,7 @@ function hideGoogleOnboard() {
 // TIER + PAYWALL SYSTEM
 // ======================================================
 var _userTier    = 'free';
+var _tallyFormUrl = 'https://tally.so/r/D4NpLX'; // overridden from server
 var _jmUsage     = 0; // how many job match analyses free user has done
 var _freeAiUsed  = 0; // live counter &mdash; incremented on each successful AI score
 var _billingMode = 'monthly';

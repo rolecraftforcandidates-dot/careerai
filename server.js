@@ -1891,6 +1891,196 @@ app.get('/api/session-test', (req, res) => {
   });
 });
 
+
+
+// ══════════════════════════════════════════════════════
+// MOCK INTERVIEW ROUTES  (Pro + Premium)
+// ══════════════════════════════════════════════════════
+
+function requirePremium(req, res, next) {
+  if (!req.session || !req.session.user) return res.status(401).json({ error: 'Not logged in' });
+  const tier = (req.session.user.tier || 'free').toLowerCase();
+  if (tier !== 'pro' && tier !== 'premium') return res.status(403).json({ error: 'Pro required', upgrade: true });
+  next();
+}
+
+// GET /api/mock/question — generate one interview question
+app.get('/api/mock/question', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { type = 'Technical', difficulty = 'mid', index = 0 } = req.query;
+    const { role = 'Software Engineer', experience = '2' } = req.session.user;
+
+    const diffLabel = { entry: 'entry-level (0-1 yrs)', mid: 'mid-level (2-4 yrs)', senior: 'senior (5-8 yrs)', staff: 'staff/principal (8+ yrs)' };
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `You are an expert interviewer at a top Indian tech company. Generate ONE interview question for:
+- Role: ${role}
+- Interview type: ${type}
+- Level: ${diffLabel[difficulty] || difficulty}
+- Question index: ${index} (vary the topic from earlier questions)
+
+Rules:
+- For Technical: focus on real code/system scenarios relevant to ${role}
+- For Behavioral: use real-world team/deadline/conflict scenarios
+- For System Design: ask to design a real product or subsystem
+- For Mixed: combine technical and behavioral in one scenario
+- Make it specific, not generic
+- 1-2 sentences maximum
+
+Return ONLY the question text, nothing else.`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const question = msg.content[0].text.trim().replace(/^["']|["']$/g, '');
+    res.json({ question });
+  } catch (err) {
+    console.error('Mock question error:', err.message);
+    res.status(500).json({ error: 'Could not generate question', question: 'Tell me about a challenging project you worked on recently.' });
+  }
+});
+
+// POST /api/mock/score — score a candidate's answer
+app.post('/api/mock/score', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { question, answer, type = 'Technical', difficulty = 'mid' } = req.body;
+    if (!answer || !answer.trim()) return res.status(400).json({ error: 'Answer required' });
+
+    const { role = 'Software Engineer' } = req.session.user;
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `You are an expert interviewer scoring a ${type} answer for a ${difficulty} ${role} role.
+
+QUESTION: ${question}
+ANSWER: ${answer.trim()}
+
+Return ONLY valid JSON, no markdown:
+{
+  "score": <0-100>,
+  "feedback": "<2-3 sentences: 1) what was strong, 2) what was missing, 3) one specific actionable tip>"
+}
+
+Scoring:
+- 85-100: Specific, structured, concrete examples, depth
+- 70-84: Covers main points, lacks depth or examples
+- 55-69: Basic, vague, or missing key aspects
+- Below 55: Incomplete or off-topic`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(raw);
+    const score  = Math.min(100, Math.max(0, parseInt(parsed.score) || 60));
+    res.json({ score, feedback: parsed.feedback || 'Good effort. Keep practising!' });
+  } catch (err) {
+    console.error('Mock score error:', err.message);
+    res.status(500).json({ error: 'Scoring failed', score: 65, feedback: 'Could not score automatically — please review your answer manually.' });
+  }
+});
+
+// POST /api/mock/schedule — schedule a session and send Brevo reminder email
+app.post('/api/mock/schedule', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { date, time, type = 'Technical', difficulty = 'mid' } = req.body;
+    if (!date || !time) return res.status(400).json({ error: 'Date and time required' });
+
+    const { email, name } = req.session.user;
+    const firstName = (name || '').split(' ')[0] || 'there';
+    const diffLabel = { entry: 'Entry Level', mid: 'Mid Level', senior: 'Senior', staff: 'Staff / Principal' };
+
+    // Send reminder email via Brevo
+    if (process.env.BREVO_API_KEY) {
+      const https2 = require('https');
+      const emailHtml =
+        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">' +
+        '<div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">' +
+          '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>' +
+          '<div style="font-size:14px;opacity:.85">&#127908; Mock Interview Scheduled</div>' +
+        '</div>' +
+        '<div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07)">' +
+          '<p style="font-size:18px;font-weight:700;margin-bottom:12px">Hi ' + firstName + '! &#128075;</p>' +
+          '<p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your mock interview session is confirmed. Come prepared!</p>' +
+          '<div style="background:#f8f9ff;border-radius:12px;padding:20px;margin-bottom:24px">' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">DATE</div><div style="font-weight:700;font-size:15px">' + date + '</div></div>' +
+              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">TIME</div><div style="font-weight:700;font-size:15px">' + time + '</div></div>' +
+              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">TYPE</div><div style="font-weight:700;font-size:15px">' + type + '</div></div>' +
+              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">LEVEL</div><div style="font-weight:700;font-size:15px">' + (diffLabel[difficulty]||difficulty) + '</div></div>' +
+            '</div>' +
+          '</div>' +
+          '<a href="' + (process.env.APP_URL||'https://www.rolekraft.com') + '/app" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">Open RoleKraft Dashboard &#8594;</a>' +
+          '<p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Tip: Find a quiet spot, have water nearby, and practise thinking aloud.</p>' +
+        '</div></div>';
+
+      const payload = JSON.stringify({
+        sender: { name: 'RoleKraft', email: process.env.BREVO_SENDER_EMAIL || 'noreply@rolekraft.ai' },
+        to: [{ email, name }],
+        subject: 'Your Mock Interview: ' + date + ' at ' + time + ' — ' + type,
+        htmlContent: emailHtml,
+      });
+      const opts = {
+        hostname: 'api.brevo.com', path: '/v3/smtp/email', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'api-key': process.env.BREVO_API_KEY, 'Content-Length': Buffer.byteLength(payload) }
+      };
+      const req2 = https2.request(opts, r2 => { let d=''; r2.on('data',c=>d+=c); r2.on('end',()=>console.log('📧 Mock schedule email:', r2.statusCode, email)); });
+      req2.on('error', e => console.error('Mock schedule email error:', e.message));
+      req2.write(payload); req2.end();
+    }
+
+    console.log(`📅 Mock interview scheduled: ${email} → ${date} ${time} [${type}, ${difficulty}]`);
+    res.json({ success: true, message: 'Session scheduled and reminder sent.' });
+  } catch (err) {
+    console.error('Mock schedule error:', err.message);
+    res.status(500).json({ error: 'Could not schedule: ' + err.message });
+  }
+});
+
+// ── robots.txt ──
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send(`User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /processing
+Disallow: /welcome
+Disallow: /api/
+Disallow: /register
+
+Sitemap: https://www.rolekraft.com/sitemap.xml`);
+});
+
+// ── sitemap.xml ──
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.rolekraft.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.rolekraft.com/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.rolekraft.com/refund</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>`);
+});
+
 // GET /register — redirect to correct Tally form based on environment
 app.get('/register', (req, res) => {
   const tallyUrl = process.env.TALLY_FORM_URL || 'https://tally.so/r/D4NpLX';

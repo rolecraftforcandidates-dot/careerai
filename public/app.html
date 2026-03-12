@@ -3004,9 +3004,9 @@ var _mockSelectedDate = null;
 var _mockSelectedTime = null;
 
 function showMockInterviewPanel(navEl) {
-  // Premium gate
-  if (_userTier !== 'premium') {
-    showProGate('&#127908; Premium Feature','Mock Interview is available on RoleKraft Premium. Upgrade to practise with live AI feedback, voice input, and detailed scoring.');
+  // Pro + Premium gate (free users are blocked)
+  if (_userTier === 'free') {
+    showProGate('&#127908; Pro Feature', 'Mock Interview is available on RoleKraft Pro and Premium. Upgrade to practise with live AI feedback, voice input, and detailed scoring.', '&#127908;');
     return;
   }
   showPanel('mock', navEl || document.getElementById('mockNavBtn'));
@@ -3172,6 +3172,58 @@ function startMockInterview() {
   loadMockQuestion(0);
 }
 
+// Fallback question banks if API fails
+var _mockFallbackQs = {
+  'Technical': [
+    'Walk me through how you would design a caching layer for a high-traffic web application.',
+    'Explain the difference between synchronous and asynchronous programming with a real example.',
+    'How would you debug a memory leak in a Node.js production server?',
+    'Describe how database indexing works and when you would and would not use it.',
+    'How do you ensure code quality in a fast-moving team? What tools or processes do you use?',
+    'What happens when a user types a URL in the browser and presses Enter?',
+    'How would you approach refactoring a large legacy codebase with no tests?',
+    'Explain REST vs GraphQL — when would you choose one over the other?',
+    'What is the difference between horizontal and vertical scaling? Give a real scenario for each.',
+    'How would you implement rate limiting on a public API?'
+  ],
+  'Behavioral': [
+    'Tell me about a time you had a conflict with a teammate and how you resolved it.',
+    'Describe a project where you had to meet a very tight deadline. What did you do?',
+    'Tell me about a time you made a significant technical mistake. What happened and what did you learn?',
+    'How do you handle disagreements with your manager about technical decisions?',
+    'Describe a time you took ownership of a problem outside your direct responsibility.',
+    'Tell me about the most complex project you have worked on. How did you manage it?',
+    'Give an example of when you had to learn a new technology quickly under pressure.',
+    'Describe a time you improved a process or workflow at your company.',
+    'Tell me about a time you had to give difficult feedback to a colleague.',
+    'How do you prioritise when you have multiple urgent tasks competing for your attention?'
+  ],
+  'System Design': [
+    'Design a URL shortener like bit.ly. Walk me through your approach.',
+    'How would you design a real-time notification system for 10 million users?',
+    'Design the backend for a food delivery app like Swiggy or Zomato.',
+    'How would you build a scalable file storage system like Google Drive?',
+    'Design a system to detect fraud in real-time financial transactions.',
+    'How would you architect a chat application like WhatsApp that supports millions of users?',
+    'Design a search autocomplete feature for a large e-commerce platform.',
+    'How would you build a rate limiter that works across multiple servers?',
+    'Design a ride-sharing system like Ola or Uber — focus on matching drivers to riders.',
+    'How would you design a distributed job queue for processing background tasks?'
+  ],
+  'Mixed': [
+    'Walk me through your most impactful technical project from idea to production.',
+    'How do you balance technical debt with delivering features on time?',
+    'Tell me about a time you influenced an architectural decision. What was the outcome?',
+    'Describe a situation where you had to simplify a complex technical concept for a non-technical stakeholder.',
+    'How do you stay current with new technologies while delivering on your current project?'
+  ]
+};
+
+function getMockFallbackQuestion(type, idx) {
+  var bank = _mockFallbackQs[type] || _mockFallbackQs['Technical'];
+  return bank[idx % bank.length];
+}
+
 function loadMockQuestion(idx) {
   var s = _mockSession;
   document.getElementById('mockAnswerBox').value = '';
@@ -3180,31 +3232,43 @@ function loadMockQuestion(idx) {
   document.getElementById('mockSubmitBtn').disabled = false;
   document.getElementById('mockSubmitBtn').innerHTML = 'Submit Answer &#8594;';
 
-  // If we already fetched questions, use cached
+  // If we already fetched this question, use cached
   if (s.questions[idx]) {
-    document.getElementById('mockQText').textContent = s.questions[idx];
+    setMockQuestion(s.questions[idx]);
     return;
   }
 
   document.getElementById('mockQText').textContent = 'Loading question...';
+
   fetch('/api/mock/question?type='+encodeURIComponent(s.type)+'&difficulty='+encodeURIComponent(s.diff)+'&index='+idx, {
     credentials:'include'
   })
-  .then(function(r){return r.json();})
-  .then(function(d){
-    var q = d.question || 'Tell me about yourself.';
-    s.questions[idx] = q;
-    document.getElementById('mockQText').textContent = q;
-    // TTS: speak question
-    if (window.speechSynthesis && d.question) {
-      var utt = new SpeechSynthesisUtterance(q);
-      utt.rate = 0.95; utt.lang = 'en-IN';
-      speechSynthesis.speak(utt);
-    }
+  .then(function(r){
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
   })
-  .catch(function(){
-    document.getElementById('mockQText').textContent = 'Could not load question. Please type your answer anyway.';
+  .then(function(d){
+    var q = d.question || getMockFallbackQuestion(s.type, idx);
+    s.questions[idx] = q;
+    setMockQuestion(q);
+  })
+  .catch(function(err){
+    console.warn('Question API failed, using fallback:', err.message);
+    var q = getMockFallbackQuestion(s.type, idx);
+    s.questions[idx] = q;
+    setMockQuestion(q);
   });
+}
+
+function setMockQuestion(q) {
+  document.getElementById('mockQText').textContent = q;
+  // TTS: speak question aloud
+  if (window.speechSynthesis) {
+    speechSynthesis.cancel();
+    var utt = new SpeechSynthesisUtterance(q);
+    utt.rate = 0.92; utt.lang = 'en-IN';
+    speechSynthesis.speak(utt);
+  }
 }
 
 function updateMockWordCount() {

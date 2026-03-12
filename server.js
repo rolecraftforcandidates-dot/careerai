@@ -1905,30 +1905,70 @@ function requirePremium(req, res, next) {
 }
 
 // GET /api/mock/question — generate one interview question
-app.get('/api/mock/question', requireLogin, requirePremium, async (req, res) => {
+app.get('/api/mock/question', requireLogin, async (req, res) => {
   try {
     const { type = 'Technical', difficulty = 'mid', index = 0 } = req.query;
     const { role = 'Software Engineer', experience = '2' } = req.session.user;
+    const email = req.session.user.email;
 
     const diffLabel = { entry: 'entry-level (0-1 yrs)', mid: 'mid-level (2-4 yrs)', senior: 'senior (5-8 yrs)', staff: 'staff/principal (8+ yrs)' };
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const prompt = `You are an expert interviewer at a top Indian tech company. Generate ONE interview question for:
+    let prompt;
+
+    if (parseInt(index) === 0) {
+      // First question: pull resume text from sheet and ask about latest project
+      let resumeText = '';
+      try {
+        const raw = await getSheetsClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:Z' });
+        const hdrs = raw.data.values[0];
+        const rows = raw.data.values.slice(1);
+        const eIdx = hdrs.indexOf('Email');
+        const rIdx = hdrs.findIndex(h => h.trim() === 'Resume Text');
+        const userRow = rows.find(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase());
+        if (userRow && rIdx !== -1) resumeText = (userRow[rIdx] || '').slice(0, 1200);
+      } catch(e) { /* non-fatal */ }
+
+      if (resumeText) {
+        prompt = `You are an expert interviewer at a top Indian tech company. 
+
+The candidate is a ${diffLabel[difficulty]||difficulty} ${role}.
+
+Here is a snippet of their resume:
+"""
+${resumeText}
+"""
+
+Generate ONE opening interview question that:
+- References their most recent or most impressive project/experience from the resume above
+- Asks them to walk through it (what they built, their specific role, challenges, outcome)
+- Feels natural and personalised, not generic
+- Is 1-2 sentences
+
+Return ONLY the question text, nothing else.`;
+      } else {
+        // No resume — fall back to a general "tell me about yourself" opener
+        prompt = `You are an expert interviewer. Generate ONE warm opening question for a ${diffLabel[difficulty]||difficulty} ${role} that asks them to briefly introduce themselves and highlight their most recent project or achievement. 1-2 sentences. Return ONLY the question text.`;
+      }
+    } else {
+      // Questions 2+ : standard type-based questions
+      prompt = `You are an expert interviewer at a top Indian tech company. Generate ONE interview question for:
 - Role: ${role}
 - Interview type: ${type}
 - Level: ${diffLabel[difficulty] || difficulty}
-- Question index: ${index} (vary the topic from earlier questions)
+- Question index: ${index} (vary the topic — don't repeat earlier themes)
 
 Rules:
-- For Technical: focus on real code/system scenarios relevant to ${role}
-- For Behavioral: use real-world team/deadline/conflict scenarios
-- For System Design: ask to design a real product or subsystem
-- For Mixed: combine technical and behavioral in one scenario
-- Make it specific, not generic
+- For Technical: real code/system scenarios specific to ${role}
+- For Behavioral: real-world team/deadline/conflict scenarios using STAR framework
+- For System Design: design a real product or subsystem relevant to India's tech market
+- For Mixed: blend technical context with soft-skill probing
+- Be specific, not generic — reference real tools/patterns used by ${role}s
 - 1-2 sentences maximum
 
 Return ONLY the question text, nothing else.`;
+    }
 
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -1987,6 +2027,98 @@ Scoring:
   }
 });
 
+// POST /api/mock/save — persist completed session to MockSessions sheet
+app.post('/api/mock/save', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { date, type, difficulty, score, numQuestions, durationMins, questions, scores, feedbacks } = req.body;
+    const { email } = req.session.user;
+    const sheets = getSheetsClient();
+
+    // Ensure MockSessions sheet exists
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const exists = meta.data.sheets.some(s => s.properties.title === 'MockSessions');
+    if (!exists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: { requests: [{ addSheet: { properties: { title: 'MockSessions' } } }] }
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID, range: 'MockSessions!A1',
+        valueInputOption: 'RAW',
+        requestBody: { values: [['Email','Date','Type','Difficulty','Score','NumQuestions','DurationMins','Questions','Scores','Feedbacks','SavedAt']] }
+      });
+      console.log('✅ Created MockSessions sheet');
+    }
+
+    const row = [
+      email,
+      date || new Date().toISOString().split('T')[0],
+      type || '',
+      difficulty || '',
+      String(score || 0),
+      String(numQuestions || 0),
+      String(durationMins || 0),
+      (questions || []).join(' | '),
+      (scores || []).join(','),
+      (feedbacks || []).join(' | '),
+      new Date().toISOString()
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: 'MockSessions!A:A',
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] }
+    });
+
+    console.log(`✅ Mock session saved: ${email} score=${score} type=${type}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mock save error:', err.message);
+    res.status(500).json({ error: 'Could not save session: ' + err.message });
+  }
+});
+
+// GET /api/mock/history — fetch past sessions for logged-in user
+app.get('/api/mock/history', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { email } = req.session.user;
+    const sheets = getSheetsClient();
+
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const exists = meta.data.sheets.some(s => s.properties.title === 'MockSessions');
+    if (!exists) return res.json({ sessions: [] });
+
+    const raw = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'MockSessions!A:K'
+    });
+
+    const values = raw.data.values || [];
+    if (values.length < 2) return res.json({ sessions: [] });
+
+    const [headers, ...rows] = values;
+    const eIdx = headers.indexOf('Email');
+    const sessions = rows
+      .filter(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase())
+      .reverse()
+      .slice(0, 20)
+      .map(r => ({
+        date:  r[headers.indexOf('Date')]        || '',
+        type:  r[headers.indexOf('Type')]        || '',
+        diff:  r[headers.indexOf('Difficulty')]  || '',
+        score: parseInt(r[headers.indexOf('Score')])        || 0,
+        numQ:  parseInt(r[headers.indexOf('NumQuestions')]) || 0,
+        mins:  parseInt(r[headers.indexOf('DurationMins')]) || 0,
+      }));
+
+    res.json({ sessions });
+  } catch (err) {
+    console.error('Mock history error:', err.message);
+    res.status(500).json({ error: 'Could not load history', sessions: [] });
+  }
+});
+
 // POST /api/mock/schedule — schedule a session and send Brevo reminder email
 app.post('/api/mock/schedule', requireLogin, requirePremium, async (req, res) => {
   try {
@@ -1997,43 +2129,35 @@ app.post('/api/mock/schedule', requireLogin, requirePremium, async (req, res) =>
     const firstName = (name || '').split(' ')[0] || 'there';
     const diffLabel = { entry: 'Entry Level', mid: 'Mid Level', senior: 'Senior', staff: 'Staff / Principal' };
 
-    // Send reminder email via Brevo
-    if (process.env.BREVO_API_KEY) {
-      const https2 = require('https');
-      const emailHtml =
-        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">' +
-        '<div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">' +
-          '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>' +
-          '<div style="font-size:14px;opacity:.85">&#127908; Mock Interview Scheduled</div>' +
+    const emailHtml =
+      '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">' +
+      '<div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">' +
+        '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>' +
+        '<div style="font-size:14px;opacity:.85">&#127908; Mock Interview Scheduled</div>' +
+      '</div>' +
+      '<div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07)">' +
+        '<p style="font-size:18px;font-weight:700;margin-bottom:12px">Hi ' + firstName + '! &#128075;</p>' +
+        '<p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your mock interview session is confirmed. Come prepared!</p>' +
+        '<div style="background:#f8f9ff;border-radius:12px;padding:20px;margin-bottom:24px">' +
+          '<table style="width:100%;border-collapse:collapse">' +
+            '<tr><td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">DATE</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + date + '</td>' +
+                '<td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">TIME</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + time + '</td></tr>' +
+            '<tr><td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">TYPE</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + type + '</td>' +
+                '<td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">LEVEL</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + (diffLabel[difficulty]||difficulty) + '</td></tr>' +
+          '</table>' +
         '</div>' +
-        '<div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07)">' +
-          '<p style="font-size:18px;font-weight:700;margin-bottom:12px">Hi ' + firstName + '! &#128075;</p>' +
-          '<p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your mock interview session is confirmed. Come prepared!</p>' +
-          '<div style="background:#f8f9ff;border-radius:12px;padding:20px;margin-bottom:24px">' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
-              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">DATE</div><div style="font-weight:700;font-size:15px">' + date + '</div></div>' +
-              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">TIME</div><div style="font-weight:700;font-size:15px">' + time + '</div></div>' +
-              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">TYPE</div><div style="font-weight:700;font-size:15px">' + type + '</div></div>' +
-              '<div><div style="font-size:11px;color:#6b6b8a;letter-spacing:2px;margin-bottom:4px;font-weight:600">LEVEL</div><div style="font-weight:700;font-size:15px">' + (diffLabel[difficulty]||difficulty) + '</div></div>' +
-            '</div>' +
-          '</div>' +
-          '<a href="' + (process.env.APP_URL||'https://www.rolekraft.com') + '/app" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">Open RoleKraft Dashboard &#8594;</a>' +
-          '<p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Tip: Find a quiet spot, have water nearby, and practise thinking aloud.</p>' +
-        '</div></div>';
+        '<a href="' + (process.env.APP_URL||'https://www.rolekraft.com') + '/app" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">Open RoleKraft Dashboard &#8594;</a>' +
+        '<p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Tip: Find a quiet spot, have water nearby, and practise thinking aloud.</p>' +
+      '</div></div>';
 
-      const payload = JSON.stringify({
-        sender: { name: 'RoleKraft', email: process.env.BREVO_SENDER_EMAIL || 'noreply@rolekraft.ai' },
-        to: [{ email, name }],
-        subject: 'Your Mock Interview: ' + date + ' at ' + time + ' — ' + type,
-        htmlContent: emailHtml,
-      });
-      const opts = {
-        hostname: 'api.brevo.com', path: '/v3/smtp/email', method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'api-key': process.env.BREVO_API_KEY, 'Content-Length': Buffer.byteLength(payload) }
-      };
-      const req2 = https2.request(opts, r2 => { let d=''; r2.on('data',c=>d+=c); r2.on('end',()=>console.log('📧 Mock schedule email:', r2.statusCode, email)); });
-      req2.on('error', e => console.error('Mock schedule email error:', e.message));
-      req2.write(payload); req2.end();
+    // Use the same sendBrevoEmail helper used by onboarding (properly awaited + error-checked)
+    const { sendBrevoEmail } = require('./onboarding');
+    try {
+      await sendBrevoEmail(email, name || firstName, 'Your Mock Interview: ' + date + ' at ' + time + ' — ' + type, emailHtml);
+      console.log(`📧 Mock schedule email sent to ${email}`);
+    } catch (emailErr) {
+      console.error('Mock schedule email failed:', emailErr.message);
+      // Don't block the response — schedule still saved, email failure is non-fatal
     }
 
     console.log(`📅 Mock interview scheduled: ${email} → ${date} ${time} [${type}, ${difficulty}]`);

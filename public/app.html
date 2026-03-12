@@ -797,6 +797,18 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <div class="panel-title">MOCK INTERVIEW</div>
         <div class="panel-sub">AI-powered interview practice — get real-time feedback on every answer</div>
 
+        <!-- Free trial banner (hidden for pro/premium) -->
+        <div id="mockFreeTrialBanner" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.08),rgba(80,72,229,0.06));border:1px solid rgba(0,179,138,0.25);border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.3rem">&#9200;</span>
+            <div>
+              <div style="font-size:0.85rem;font-weight:700;color:var(--teal-dark)">Free Trial &mdash; 10 Minutes</div>
+              <div style="font-size:0.76rem;color:var(--muted)">Try one session free. Upgrade to Pro for unlimited practice, scheduling &amp; history.</div>
+            </div>
+          </div>
+          <button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 16px;border:none;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">Upgrade &#x26A1;</button>
+        </div>
+
         <!-- Mode selector: Now vs Schedule -->
         <div class="mock-mode-bar" id="mockModeBar">
           <button class="mock-mode-btn active" onclick="setMockMode('now',this)" id="mockModeNow">
@@ -3004,15 +3016,25 @@ var _mockSelectedDate = null;
 var _mockSelectedTime = null;
 
 function showMockInterviewPanel(navEl) {
-  // Pro + Premium gate (free users are blocked)
-  if (_userTier === 'free') {
-    showProGate('&#127908; Pro Feature', 'Mock Interview is available on RoleKraft Pro and Premium. Upgrade to practise with live AI feedback, voice input, and detailed scoring.', '&#127908;');
-    return;
-  }
+  // Free users get a 10-minute trial (enforced via timer), Pro/Premium get full access
   showPanel('mock', navEl || document.getElementById('mockNavBtn'));
   buildMockDateGrid();
   renderMockHistory();
   renderMockUpcoming();
+
+  // Show/hide free trial banner
+  var trialBanner = document.getElementById('mockFreeTrialBanner');
+  if (trialBanner) trialBanner.style.display = _userTier === 'free' ? 'block' : 'none';
+
+  // Disable schedule tab for free users
+  var schedMode = document.getElementById('mockModeSched');
+  if (schedMode && _userTier === 'free') {
+    schedMode.style.opacity = '0.5';
+    schedMode.title = 'Upgrade to Pro to schedule sessions';
+    schedMode.onclick = function() {
+      showProGate('&#128197; Pro Feature', 'Schedule mock interviews and get reminder emails with RoleKraft Pro.');
+    };
+  }
 }
 
 function setMockMode(mode, btn) {
@@ -3028,6 +3050,9 @@ function setMockMode(mode, btn) {
 
 function showMockHome() {
   stopMockTimer();
+  // Remove free trial overlay if present
+  var overlay = document.getElementById('mockFreeOverlay');
+  if (overlay) overlay.remove();
   document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
   document.getElementById('mockSectionNow').classList.add('active');
   document.querySelectorAll('.mock-mode-btn').forEach(function(b){b.classList.remove('active');});
@@ -3248,13 +3273,13 @@ function loadMockQuestion(idx) {
     return r.json();
   })
   .then(function(d){
-    var q = d.question || getMockFallbackQuestion(s.type, idx);
+    var q = d.question || (idx === 0 ? 'Walk me through your most recent project — what did you build, what was your role, and what was the outcome?' : getMockFallbackQuestion(s.type, idx));
     s.questions[idx] = q;
     setMockQuestion(q);
   })
   .catch(function(err){
     console.warn('Question API failed, using fallback:', err.message);
-    var q = getMockFallbackQuestion(s.type, idx);
+    var q = idx === 0 ? 'Walk me through your most recent project — what did you build, what was your role, and what was the outcome?' : getMockFallbackQuestion(s.type, idx);
     s.questions[idx] = q;
     setMockQuestion(q);
   });
@@ -3399,14 +3424,34 @@ function endMockSession() {
   var avg    = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
   var mins   = Math.floor(s.elapsed / 60);
 
-  // Save to history
-  var history = JSON.parse(localStorage.getItem('mockHistory')||'[]');
-  history.unshift({
+  var sessionRecord = {
     date: new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),
+    isoDate: new Date().toISOString().split('T')[0],
     type: s.type, diff: s.diff, score: avg,
     numQ: s.numQ, mins: mins, id: Date.now()
-  });
+  };
+
+  // 1. Save to localStorage immediately (instant)
+  var history = JSON.parse(localStorage.getItem('mockHistory')||'[]');
+  history.unshift(sessionRecord);
   localStorage.setItem('mockHistory', JSON.stringify(history.slice(0,20)));
+
+  // 2. Save to Google Sheets in background (non-blocking)
+  fetch('/api/mock/save', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      date: sessionRecord.isoDate,
+      type: s.type,
+      difficulty: s.diff,
+      score: avg,
+      numQuestions: s.numQ,
+      durationMins: mins,
+      questions: s.questions.slice(0, s.numQ),
+      scores: s.scores.slice(0, s.numQ),
+      feedbacks: s.feedbacks.slice(0, s.numQ)
+    })
+  }).catch(function(e){ console.warn('Mock save to Sheets failed (non-fatal):', e.message); });
 
   // Show results
   var scoreEl = document.getElementById('mockResultScore');
@@ -3450,11 +3495,40 @@ function endMockSession() {
   document.getElementById('mockSectionResults').classList.add('active');
 }
 
-function renderMockHistory() {
+function renderMockHistory(fromSheets) {
   var el = document.getElementById('mockHistoryList');
   if (!el) return;
-  var history = JSON.parse(localStorage.getItem('mockHistory')||'[]');
-  if (!history.length) {
+
+  // If we have fresh Sheets data passed in, use + cache it
+  if (fromSheets && fromSheets.length) {
+    localStorage.setItem('mockHistory', JSON.stringify(fromSheets.slice(0,20)));
+    renderMockHistoryHtml(el, fromSheets);
+    return;
+  }
+
+  // Show localStorage instantly while Sheets loads
+  var cached = JSON.parse(localStorage.getItem('mockHistory')||'[]');
+  if (cached.length) renderMockHistoryHtml(el, cached);
+  else el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">Loading history...</div></div>';
+
+  // Fetch from Sheets in background and refresh
+  fetch('/api/mock/history', { credentials: 'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.sessions && d.sessions.length) {
+        localStorage.setItem('mockHistory', JSON.stringify(d.sessions.slice(0,20)));
+        renderMockHistoryHtml(el, d.sessions);
+      } else if (!cached.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>';
+      }
+    })
+    .catch(function(){
+      if (!cached.length) el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>';
+    });
+}
+
+function renderMockHistoryHtml(el, history) {
+  if (!history || !history.length) {
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>';
     return;
   }
@@ -3483,6 +3557,31 @@ function startMockTimer() {
     var s = String(e%60).padStart(2,'0');
     var el = document.getElementById('mockTimer');
     if (el) el.textContent = m + ':' + s;
+
+    // Free users: lock after 10 minutes
+    if (_userTier === 'free' && e >= 600) {
+      stopMockTimer();
+      // Disable answer input and submit
+      var box = document.getElementById('mockAnswerBox');
+      var btn = document.getElementById('mockSubmitBtn');
+      if (box) { box.disabled = true; box.placeholder = 'Upgrade to Pro to continue practising...'; }
+      if (btn) { btn.disabled = true; }
+      // Show upgrade prompt overlay inside live view
+      var liveSection = document.getElementById('mockSectionLive');
+      if (liveSection) {
+        var overlay = document.createElement('div');
+        overlay.id = 'mockFreeOverlay';
+        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(248,249,255,0.96);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;z-index:10';
+        overlay.innerHTML =
+          '<div style="font-size:2.5rem;margin-bottom:12px">&#9200;</div>'+
+          '<div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">Free Trial Ended</div>'+
+          '<div style="font-size:0.88rem;color:var(--muted);line-height:1.6;max-width:320px;margin-bottom:22px">You\'ve used your free 10-minute mock interview. Upgrade to Pro for unlimited sessions, scheduling, and detailed history.</div>'+
+          '<button onclick="hideProGate();showUpgradeModal()" style="padding:12px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:\'DM Sans\',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;margin-bottom:10px">&#x26A1; Upgrade to Pro</button>'+
+          '<button onclick="showMockHome()" style="padding:9px 20px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:\'DM Sans\',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Back to Home</button>';
+        liveSection.style.position = 'relative';
+        liveSection.appendChild(overlay);
+      }
+    }
   }, 1000);
 }
 
@@ -3512,7 +3611,7 @@ function stopMockTimer() {
       <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Unlimited Job Match</strong> &mdash; analyse your fit against any JD</span></div>
       <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Analyse Match on job listings</strong> &mdash; one-click AI scoring on live jobs</span></div>
       <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Resume upload + AI extraction</strong> &mdash; powers smarter matching everywhere</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--teal);font-size:1rem">&#127908;</span><span><strong>Mock Interview</strong> &mdash; AI-powered live practice with voice + instant scoring <span style="background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-size:0.6rem;padding:2px 7px;border-radius:100px;margin-left:4px;font-weight:700">PREMIUM</span></span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Mock Interview</strong> &mdash; AI-powered live practice with voice + instant scoring</span></div>
     </div>
   </div>
 
@@ -3536,6 +3635,7 @@ function stopMockTimer() {
         <div>&#x2705; Study resources for every task</div>
         <div>&#x2705; Job Match &mdash; paste any JD, get match score</div>
         <div>&#x2705; Jobs For You &mdash; live listings matched to your profile</div>
+        <div>&#x2705; Mock Interview &mdash; AI voice practice + instant scoring</div>
       </div>
       <button onclick="startPayment('pro')" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer">Get Pro &mdash; &#x20B9;499/mo &#x2192;</button>
     </div>

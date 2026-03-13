@@ -3038,6 +3038,23 @@ function showMockInterviewPanel(navEl) {
           bannerDesc.textContent = remainMins + ' minute' + (remainMins !== 1 ? 's' : '') + ' remaining. Upgrade to Pro for unlimited sessions.';
         }
       }
+      // Lock or unlock the Start button
+      var startBtn = document.getElementById('mockStartBtn');
+      if (startBtn) {
+        if (remainMins <= 0) {
+          startBtn.disabled = true;
+          startBtn.style.opacity = '0.5';
+          startBtn.style.cursor = 'not-allowed';
+          startBtn.innerHTML = '&#128274; Trial Ended &mdash; Upgrade to Start';
+          startBtn.onclick = function() { showUpgradeModal(); };
+        } else {
+          startBtn.disabled = false;
+          startBtn.style.opacity = '';
+          startBtn.style.cursor = '';
+          startBtn.innerHTML = '&#9889; Start Interview Now';
+          startBtn.onclick = function() { startMockInterview(); };
+        }
+      }
     } else {
       trialBanner.style.display = 'none';
     }
@@ -3189,6 +3206,15 @@ function renderMockUpcoming() {
 
 // ── START LIVE ──
 function startMockInterview() {
+  // Gate: free users who have used up their 10-minute trial must upgrade first
+  if (_userTier === 'free') {
+    var usedSecs = getMockFreeUsed();
+    if (usedSecs >= _FREE_LIMIT_SECS) {
+      showUpgradeModal();
+      return; // stop here — no session init, no API call
+    }
+  }
+
   var type    = document.getElementById('mockType').value;
   var diff    = document.getElementById('mockDifficulty').value;
   var numQ    = parseInt(document.getElementById('mockNumQ').value);
@@ -3224,33 +3250,73 @@ function startMockInterview() {
 function toggleMockMic() {
   var btn = document.getElementById('mockMicBtn');
   if (_mockRecognition) {
-    _mockRecognition.stop(); _mockRecognition = null;
+    // User manually stopped
+    _mockRecognition._manualStop = true;
+    _mockRecognition.stop();
+    _mockRecognition = null;
     btn.classList.remove('recording');
     btn.innerHTML = '&#127908; Start Speaking';
     return;
   }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert('Your browser does not support voice input. Please type your answer.'); return; }
-  var r = new SR();
-  r.continuous = true; r.interimResults = true; r.lang = 'en-IN';
-  var finalText = document.getElementById('mockAnswerBox').value;
-  r.onresult = function(e) {
-    var interim = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) finalText += ' ' + e.results[i][0].transcript;
-      else interim = e.results[i][0].transcript;
-    }
-    document.getElementById('mockAnswerBox').value = (finalText + ' ' + interim).trim();
-    updateMockWordCount();
-  };
-  r.onend = function() {
-    btn.classList.remove('recording');
-    btn.innerHTML = '&#127908; Start Speaking';
-    _mockRecognition = null;
-  };
-  r.start(); _mockRecognition = r;
-  btn.classList.add('recording');
-  btn.innerHTML = '&#9632; Stop Recording';
+
+  function startRecognition() {
+    var r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = 'en-IN';
+    r.maxAlternatives = 1;
+    r._manualStop = false;
+
+    // Build on top of whatever is already in the box
+    var baseText = document.getElementById('mockAnswerBox').value;
+
+    r.onresult = function(e) {
+      var finalChunk = '';
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalChunk += e.results[i][0].transcript + ' ';
+        } else {
+          interim = e.results[i][0].transcript;
+        }
+      }
+      if (finalChunk) baseText = (baseText + ' ' + finalChunk).trim();
+      document.getElementById('mockAnswerBox').value = interim ? (baseText + ' ' + interim).trim() : baseText;
+      updateMockWordCount();
+    };
+
+    r.onerror = function(e) {
+      if (e.error === 'no-speech') return; // ignore, will auto-restart
+      if (e.error === 'aborted') return;   // manual stop
+      console.warn('Speech error:', e.error);
+    };
+
+    r.onend = function() {
+      if (r._manualStop) return; // user clicked Stop
+      // Auto-restart if still in recording mode (browser cuts off after silence)
+      if (_mockRecognition === r) {
+        try {
+          // Update base from current box before restart
+          baseText = document.getElementById('mockAnswerBox').value;
+          r.start();
+        } catch(err) {
+          // If restart fails, show as stopped
+          btn.classList.remove('recording');
+          btn.innerHTML = '&#127908; Start Speaking';
+          _mockRecognition = null;
+        }
+      }
+    };
+
+    r.start();
+    _mockRecognition = r;
+    btn.classList.add('recording');
+    btn.innerHTML = '&#9632; Stop Recording';
+  }
+
+  startRecognition();
 }
 
 // Fallback question banks if API fails
@@ -3321,7 +3387,10 @@ function callMockChat(action, userContent) {
       type: s.type,
       diff: s.diff,
       numQ: s.numQ,
-      action: action
+      action: action,
+      // Pass exact Q+A for clean per-question scoring (not polluted by history)
+      currentQuestion: (action === 'answer') ? (s.questions[s.currentQ] || '') : '',
+      currentAnswer:   (action === 'answer') ? (userContent || '') : ''
     })
   }).then(function(r) { return r.json(); });
 }
@@ -3421,7 +3490,13 @@ function submitMockAnswer() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> Getting AI Feedback...';
 
-  if (_mockRecognition) { _mockRecognition.stop(); _mockRecognition = null; }
+  if (_mockRecognition) {
+    _mockRecognition._manualStop = true;
+    _mockRecognition.stop();
+    _mockRecognition = null;
+    var micBtn = document.getElementById('mockMicBtn');
+    if (micBtn) { micBtn.classList.remove('recording'); micBtn.innerHTML = '&#127908; Start Speaking'; }
+  }
 
   s.answers[s.currentQ] = ans;
 

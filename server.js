@@ -1908,7 +1908,7 @@ function requirePremium(req, res, next) {
 // Handles: opening greeting, resume-based Q1, follow-ups, hints, adaptive difficulty, scoring
 app.post('/api/mock/chat', requireLogin, async (req, res) => {
   try {
-    const { history = [], type = 'Technical', difficulty = 'mid', numQ = 5, action = 'next' } = req.body;
+    const { history = [], type = 'Technical', difficulty = 'mid', numQ = 5, action = 'next', currentQuestion = '', currentAnswer = '' } = req.body;
     // action: 'start' | 'answer' | 'skip' | 'hint'
     const { role = 'Software Engineer', name = 'there' } = req.session.user;
     const email = req.session.user.email;
@@ -1936,103 +1936,113 @@ app.post('/api/mock/chat', requireLogin, async (req, res) => {
     const questionCount = history.filter(m => m.role === 'assistant' && m.isQuestion).length;
     const isLastQuestion = questionCount >= numQ - 1;
 
+    // ── STEP 1: Score the answer separately (clean, focused, no conversation noise) ──
+    let score = null, feedback = null, nextDifficulty = 'same';
+    if (action === 'answer' && currentQuestion && currentAnswer) {
+      try {
+        const scorePrompt = `You are scoring a mock interview answer.
+
+Role: ${role} (${diffLabel[difficulty]||difficulty})
+Interview type: ${type}
+Question: ${currentQuestion}
+Candidate's answer: ${currentAnswer}
+
+Score this answer honestly on a 0-100 scale:
+- 85-100: Excellent — specific, structured, concrete examples, real depth
+- 70-84: Good — covers main points but lacks depth or concrete examples  
+- 50-69: Needs work — vague, incomplete, or missing key aspects
+- Below 50: Weak — off-topic, very short, or "I don't know" type answers
+
+Return ONLY valid JSON (no markdown, no extra text):
+{"score":<number>,"feedback":"<2-3 sentences: 1 strength, 1 gap, 1 specific actionable tip>","nextDifficulty":"<easier|same|harder>"}`;
+
+        const scoreMsg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 250,
+          system: 'You are a strict interview scorer. Return ONLY valid JSON. No extra text before or after.',
+          messages: [{ role: 'user', content: scorePrompt }],
+        });
+        const raw = scoreMsg.content[0].text.trim().replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(raw);
+        score = Math.min(100, Math.max(0, parseInt(parsed.score) || 50));
+        feedback = parsed.feedback || '';
+        nextDifficulty = parsed.nextDifficulty || 'same';
+      } catch(e) {
+        console.error('Inline scoring failed:', e.message);
+        // Don't block — score stays null
+      }
+    }
+
+    // ── STEP 2: Generate conversational interviewer response ──
     const systemPrompt = `You are an experienced technical interviewer conducting a mock interview with ${firstName}, a ${diffLabel[difficulty]||difficulty} ${role} candidate.
 
 ${resumeText ? `Their resume (excerpt):\n"""\n${resumeText}\n"""\n` : ''}
 
 INTERVIEW CONTEXT
 - Interview type: ${type}
-- Difficulty level: ${diffLabel[difficulty]||difficulty}
 - Total questions planned: ${numQ}
 - Questions asked so far: ${questionCount}
 - Current action: ${action}
+${action === 'answer' && score !== null ? `- Candidate just scored ${score}/100 on their answer` : ''}
 
 YOUR PERSONA
 - You are a warm, professional human interviewer — not an AI
 - Speak naturally and conversationally
-- Use the candidate's name (${firstName}) occasionally
+- Use the candidate's name (${firstName}) occasionally but not every message
 - Keep responses short and voice-friendly (2-4 sentences max)
 - Never mention that you are an AI or Claude
 
 INTERVIEW FLOW
-${history.length === 0 ? `Start with: a warm 1-sentence greeting using their name, then immediately ask your first question about their most recent project from the resume above (or their background if no resume). The greeting and first question in the same short message.` : ''}
+${history.length === 0 ? `Start with: a warm 1-sentence greeting using their name, then immediately ask your first question about their most recent project from the resume (or their background if no resume). Keep it to 2-3 sentences total.` : ''}
 
-${action === 'answer' ? `The candidate just answered. Do ALL of the following in your response:
-1. Give a brief natural acknowledgement (1 sentence: "Good point.", "Interesting.", "That makes sense.", etc.)
-2. ${isLastQuestion ? 'This was the last question. Conclude the interview warmly and thank them.' : 'Ask ONE follow-up question if their answer was good (go deeper), OR ask a simpler clarifying question if their answer was weak. Base next question difficulty on answer quality.'}
-3. Include a JSON block at the END of your message (hidden from display) in this exact format:
-[SCORE:{"score":<0-100>,"feedback":"<2-3 sentences: strength + gap + tip>","nextDifficulty":"<easier|same|harder>"}]` : ''}
+${action === 'answer' ? `The candidate just answered a question.
+${isLastQuestion
+  ? 'This was the LAST question. Give a brief warm acknowledgement (1 sentence) then conclude the interview gracefully. Thank them by name.'
+  : score !== null && score >= 75
+    ? 'Their answer was good. Acknowledge briefly (1 sentence), then ask ONE deeper follow-up question on the same topic.'
+    : score !== null && score < 50
+      ? 'Their answer was weak. Acknowledge encouragingly (1 sentence), then move to a slightly easier or different question to rebuild confidence.'
+      : 'Acknowledge their answer briefly (1 sentence), then ask ONE natural follow-up or next question.'}` : ''}
 
-${action === 'hint' ? `The candidate is struggling. Give them a small, encouraging hint (1-2 sentences). Start with "That's okay, take a moment to think." then give one specific conceptual nudge without giving away the answer.` : ''}
+${action === 'hint' ? `The candidate is struggling. Give a small encouraging hint (1-2 sentences). Start with "That's okay, take a moment." then give one specific conceptual nudge without giving the answer.` : ''}
 
-${action === 'skip' ? `The candidate skipped. Acknowledge briefly (1 sentence), then move to the next question naturally.` : ''}
+${action === 'skip' ? `The candidate skipped. Acknowledge briefly in one sentence, then move on with the next question.` : ''}
 
-${action === 'start' || history.length === 0 ? '' : `Ask only ONE question at a time. Never list multiple questions.`}
+CODING QUESTION RULE
+${type === 'Technical' || type === 'Mixed' ? `Around question ${Math.floor(numQ * 0.6) + 1} onwards, you may ask a coding or algorithm question — describe the problem clearly and ask the candidate to walk through their approach and logic (not write actual code, just explain it).` : ''}
 
 STRICT OUTPUT RULES
-- Output only what you would say aloud as an interviewer
-- No markdown, no asterisks, no bold, no bullet points
-- No meta-commentary like "here is the question" or "I notice the resume..."
-- No "they/their/the candidate" — always "you/your"
-- The [SCORE:{...}] block (if needed) must be on its own line at the very end`;
+- Output ONLY the spoken words of the interviewer
+- No markdown, no asterisks, no bold, no bullet points, no numbered lists
+- No meta-commentary, no "here is the question", no analysis of the resume
+- Never use "they/their/the candidate" — always "you/your"
+- ONE question only per response (never two questions in the same message)
+- Do NOT include any JSON or score data in your response`;
 
     const messages = history.map(m => ({
       role: m.role,
-      // Strip any leaked SCORE blocks from history so model doesn't see them again
-      content: (m.content || '')
-        .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')
-        .replace(/\[SCORE:\{[\s\S]*/g, '')
-        .replace(/\{"score"\s*:[\s\S]*?\}/g, '')
-        .replace(/\{"technical_competency"[\s\S]*?\}/g, '')
-        .trim()
+      content: (m.content || '').replace(/\[SCORE:\{[\s\S]*?\}\]/g, '').replace(/\[SCORE:\{[\s\S]*/g, '').trim()
     }));
     if (action === 'start' || messages.length === 0) {
       messages.push({ role: 'user', content: `Start the interview. My name is ${firstName}.` });
     }
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514', // Use Sonnet for better instruction-following
-      max_tokens: 400,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 350,
       system: systemPrompt,
       messages,
     });
 
-    let fullText = msg.content[0].text.trim();
-
-    // Extract score JSON if present - try multiple patterns
-    let score = null, feedback = null, nextDifficulty = 'same';
-    // Pattern 1: [SCORE:{...}]
-    let scoreMatch = fullText.match(/\[SCORE:(\{[\s\S]*?\})\]/);
-    // Pattern 2: bare JSON block with score key (fallback if model forgot brackets)
-    if (!scoreMatch) scoreMatch = fullText.match(/(\{"score"\s*:\s*\d+[\s\S]*?\})/);
-
-    if (scoreMatch) {
-      try {
-        const parsed = JSON.parse(scoreMatch[1]);
-        score = Math.min(100, Math.max(0, parseInt(parsed.score) || 60));
-        feedback = parsed.feedback || parsed.overall_assessment || '';
-        nextDifficulty = parsed.nextDifficulty || 'same';
-      } catch(e) { /* ignore parse errors */ }
-    }
-
-    // Aggressively strip ALL score/JSON artifacts from the displayed response
-    fullText = fullText
-      .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')       // [SCORE:{...}]
-      .replace(/\[SCORE:\{[\s\S]*/g, '')              // unclosed [SCORE:{
-      .replace(/\{"score"\s*:[\s\S]*?\}/g, '')        // bare {"score":...}
-      .replace(/\{"technical_competency"[\s\S]*?\}/g, '') // alternate JSON format
-      .replace(/\{[\s\S]*?"overall_assessment"[\s\S]*?\}/g, '')
-      .replace(/\n{3,}/g, '\n\n')                    // collapse excess blank lines
+    // Strip any JSON/SCORE that leaked into the response
+    let fullText = msg.content[0].text.trim()
+      .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')
+      .replace(/\[SCORE:\{[\s\S]*/g, '')
+      .replace(/\{"score"\s*:[\s\S]*?\}/g, '')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    res.json({
-      response: fullText,
-      score,
-      feedback,
-      nextDifficulty,
-      isLastQuestion,
-      questionCount: questionCount + (action === 'answer' && !isLastQuestion ? 1 : 0)
-    });
+    res.json({ response: fullText, score, feedback, nextDifficulty, isLastQuestion });
   } catch (err) {
     console.error('Mock chat error:', err.message);
     res.status(500).json({ error: 'Chat failed', response: 'Sorry, I had a connection issue. Please try again.' });
@@ -2136,6 +2146,55 @@ app.post('/api/mock/save', requireLogin, async (req, res) => {
     });
 
     console.log(`✅ Mock session saved to sheet: ${email} | tier=${tier} | score=${score} | type=${type} | mins=${durationMins}`);
+
+    // Send score summary email (non-blocking)
+    try {
+      const { sendBrevoEmail } = require('./onboarding');
+      const firstName = (name || '').split(' ')[0] || 'there';
+      const scoreColor = score >= 80 ? '#00b38a' : score >= 60 ? '#f5a623' : '#e74c3c';
+      const verdict = score >= 80 ? '🏆 Great session — you\'re interview-ready!' : score >= 60 ? '👍 Good effort — a bit more practice will sharpen your answers.' : '📅 Keep practising — focus on the tips below.';
+
+      const qRows = (questions || []).slice(0, numQuestions).map((q, i) => {
+        const sc = (scores || [])[i] || 0;
+        const fb = (feedbacks || [])[i] || '';
+        const color = sc >= 80 ? '#00b38a' : sc >= 60 ? '#f5a623' : '#e74c3c';
+        return `<tr style="border-bottom:1px solid #eee">
+          <td style="padding:10px 12px;font-size:0.82rem;color:#444;vertical-align:top">Q${i+1}: ${(q||'').substring(0,80)}${q && q.length > 80 ? '...' : ''}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:800;font-size:1rem;color:${color};white-space:nowrap">${sc}/100</td>
+          <td style="padding:10px 12px;font-size:0.79rem;color:#666;vertical-align:top">${(fb||'').substring(0,120)}${fb && fb.length > 120 ? '...' : ''}</td>
+        </tr>`;
+      }).join('');
+
+      const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
+        <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">
+          <div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>
+          <div style="font-size:14px;opacity:.85">🎙 Mock Interview Results</div>
+        </div>
+        <div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07);margin-bottom:20px">
+          <p style="font-size:18px;font-weight:700;margin-bottom:6px">Hi ${firstName}! 👋</p>
+          <p style="color:#6b6b8a;margin-bottom:20px">Here's your mock interview summary for today's ${type} session.</p>
+          <div style="text-align:center;background:#f8f9ff;border-radius:12px;padding:24px;margin-bottom:20px">
+            <div style="font-size:0.72rem;letter-spacing:2px;color:#9999bb;margin-bottom:8px">OVERALL SCORE</div>
+            <div style="font-size:4rem;font-weight:900;color:${scoreColor};line-height:1">${score}</div>
+            <div style="font-size:0.75rem;color:#9999bb;margin-top:4px">out of 100 &middot; ${numQuestions} questions &middot; ${durationMins} min</div>
+            <div style="margin-top:12px;font-size:0.88rem;font-weight:600;color:#333">${verdict}</div>
+          </div>
+          ${qRows ? `<div style="font-size:0.72rem;letter-spacing:2px;color:#9999bb;margin-bottom:12px">PER-QUESTION BREAKDOWN</div>
+          <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif">
+            <tr style="background:#f8f9ff"><th style="padding:8px 12px;text-align:left;font-size:0.72rem;color:#9999bb;letter-spacing:1px">QUESTION</th><th style="padding:8px 12px;font-size:0.72rem;color:#9999bb;letter-spacing:1px">SCORE</th><th style="padding:8px 12px;text-align:left;font-size:0.72rem;color:#9999bb;letter-spacing:1px">FEEDBACK</th></tr>
+            ${qRows}
+          </table>` : ''}
+        </div>
+        <a href="${process.env.APP_URL||'https://www.rolekraft.com'}/app" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">Practice Again on RoleKraft →</a>
+        <p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Keep practising — consistency is the key to interview success.</p>
+      </div>`;
+
+      await sendBrevoEmail(email, name || firstName, `Your Mock Interview Score: ${score}/100 — ${type} Session`, emailHtml);
+      console.log(`📧 Score email sent to ${email}`);
+    } catch(emailErr) {
+      console.error('Score email failed (non-fatal):', emailErr.message);
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Mock save error:', err.message, err.stack);

@@ -2100,28 +2100,66 @@ Scoring:
 // POST /api/mock/save — persist completed session to MockSessions sheet
 app.post('/api/mock/save', requireLogin, async (req, res) => {
   try {
-    const { date, type, difficulty, score, numQuestions, durationMins, questions, scores, feedbacks } = req.body;
+    const { date, type, difficulty, score, numQuestions, durationMins, questions, scores, feedbacks, interviewerRating } = req.body;
     const { email, name } = req.session.user;
     const tier = (req.session.user.tier || 'free').toLowerCase();
     const sheets = getSheetsClient();
 
-    // Ensure MockSessions sheet exists
+    // ── Build header row: fixed cols + Q1..Q10 triplets + SavedAt ──
+    const MAX_Q = 10;
+    const fixedHeaders = ['Email','Name','Tier','Date','Type','Difficulty','OverallScore','NumQuestions','DurationMins','InterviewerRating'];
+    const qHeaders = [];
+    for (let i = 1; i <= MAX_Q; i++) {
+      qHeaders.push(`Q${i}_Question`, `Q${i}_Score`, `Q${i}_Feedback`);
+    }
+    const allHeaders = [...fixedHeaders, ...qHeaders, 'SavedAt'];
+
+    // Ensure MockSessions sheet exists with correct headers
     const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-    const exists = meta.data.sheets.some(s => s.properties.title === 'MockSessions');
-    if (!exists) {
-      await sheets.spreadsheets.batchUpdate({
+    const existingSheet = meta.data.sheets.find(s => s.properties.title === 'MockSessions');
+
+    if (!existingSheet) {
+      // Create sheet with 50 columns explicitly (default is only 26)
+      const addRes = await sheets.spreadsheets.batchUpdate({
         spreadsheetId: SHEET_ID,
-        requestBody: { requests: [{ addSheet: { properties: { title: 'MockSessions' } } }] }
+        requestBody: { requests: [{ addSheet: { properties: { title: 'MockSessions', gridProperties: { columnCount: 50, rowCount: 1000 } } } }] }
       });
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID, range: 'MockSessions!A1',
         valueInputOption: 'RAW',
-        requestBody: { values: [['Email','Name','Tier','Date','Type','Difficulty','Score','NumQuestions','DurationMins','Questions','Scores','Feedbacks','SavedAt']] }
+        requestBody: { values: [allHeaders] }
       });
-      console.log('✅ Created MockSessions sheet');
+      console.log('✅ Created MockSessions sheet with 50 columns');
+    } else {
+      // Expand columns if sheet exists but has fewer than 50
+      const currentCols = existingSheet.properties.gridProperties.columnCount || 26;
+      if (currentCols < 50) {
+        const sheetId = existingSheet.properties.sheetId;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SHEET_ID,
+          requestBody: { requests: [{ updateSheetProperties: {
+            properties: { sheetId, gridProperties: { columnCount: 50 } },
+            fields: 'gridProperties.columnCount'
+          }}] }
+        });
+        console.log(`✅ Expanded MockSessions from ${currentCols} to 50 columns`);
+      }
+
+      // Check if existing sheet has old schema (no Q1_Question column) — update header if so
+      const existingHdr = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'MockSessions!A1:AX1' });
+      const firstRow = (existingHdr.data.values || [[]])[0] || [];
+      if (!firstRow.includes('Q1_Question')) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID, range: 'MockSessions!A1',
+          valueInputOption: 'RAW',
+          requestBody: { values: [allHeaders] }
+        });
+        console.log('✅ Updated MockSessions header to new schema');
+      }
     }
 
-    const row = [
+    // ── Build data row ──
+    const fixedCols = [
       email,
       name || '',
       tier,
@@ -2131,11 +2169,19 @@ app.post('/api/mock/save', requireLogin, async (req, res) => {
       String(score || 0),
       String(numQuestions || 0),
       String(durationMins || 0),
-      (questions || []).filter(Boolean).join(' | '),
-      (scores || []).join(','),
-      (feedbacks || []).filter(Boolean).map(f => f.substring(0, 200)).join(' | '),
-      new Date().toISOString()
+      String(interviewerRating || '')
     ];
+
+    const qCols = [];
+    for (let i = 0; i < MAX_Q; i++) {
+      qCols.push(
+        (questions || [])[i] ? (questions[i] || '').substring(0, 300) : '',
+        String((scores || [])[i] !== undefined ? (scores[i] || 0) : ''),
+        (feedbacks || [])[i] ? (feedbacks[i] || '').substring(0, 250) : ''
+      );
+    }
+
+    const row = [...fixedCols, ...qCols, new Date().toISOString()];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
@@ -2145,7 +2191,7 @@ app.post('/api/mock/save', requireLogin, async (req, res) => {
       requestBody: { values: [row] }
     });
 
-    console.log(`✅ Mock session saved to sheet: ${email} | tier=${tier} | score=${score} | type=${type} | mins=${durationMins}`);
+    console.log(`✅ Mock session saved: ${email} | tier=${tier} | score=${score} | type=${type} | mins=${durationMins} | rating=${interviewerRating||'none'}`);
 
     // Send score summary email (non-blocking)
     try {
@@ -2202,8 +2248,52 @@ app.post('/api/mock/save', requireLogin, async (req, res) => {
   }
 });
 
+// GET /api/mock/free-status — returns total minutes used from sheet (source of truth for free trial)
+app.get('/api/mock/free-status', requireLogin, async (req, res) => {
+  try {
+    const { email } = req.session.user;
+    const tier = (req.session.user.tier || 'free').toLowerCase();
+
+    // Pro/premium users are never limited
+    if (tier === 'pro' || tier === 'premium') {
+      return res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false, unlimited: true });
+    }
+
+    const sheets = getSheetsClient();
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const exists = meta.data.sheets.some(s => s.properties.title === 'MockSessions');
+    if (!exists) return res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false });
+
+    const raw = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'MockSessions!A:M'
+    });
+
+    const values = raw.data.values || [];
+    if (values.length < 2) return res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false });
+
+    const [headers, ...rows] = values;
+    const eIdx = headers.indexOf('Email');
+    const mIdx = headers.indexOf('DurationMins');
+
+    const totalMins = rows
+      .filter(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase())
+      .reduce((sum, r) => sum + (parseInt(r[mIdx]) || 0), 0);
+
+    res.json({
+      usedMins: totalMins,
+      usedSecs: totalMins * 60,
+      limitMins: 10,
+      exhausted: totalMins >= 10
+    });
+  } catch (err) {
+    console.error('Free status error:', err.message);
+    // On error, don't block the user — return safe defaults
+    res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false });
+  }
+});
+
 // GET /api/mock/history — fetch past sessions for logged-in user
-app.get('/api/mock/history', requireLogin, requirePremium, async (req, res) => {
+app.get('/api/mock/history', requireLogin, async (req, res) => {
   try {
     const { email } = req.session.user;
     const sheets = getSheetsClient();
@@ -2213,26 +2303,43 @@ app.get('/api/mock/history', requireLogin, requirePremium, async (req, res) => {
     if (!exists) return res.json({ sessions: [] });
 
     const raw = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: 'MockSessions!A:K'
+      spreadsheetId: SHEET_ID, range: 'MockSessions!A:AO'  // covers all 41 columns
     });
 
     const values = raw.data.values || [];
     if (values.length < 2) return res.json({ sessions: [] });
 
     const [headers, ...rows] = values;
-    const eIdx = headers.indexOf('Email');
+    const h = (col) => headers.indexOf(col);
+
     const sessions = rows
-      .filter(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase())
+      .filter(r => (r[h('Email')]||'').toLowerCase() === email.toLowerCase())
       .reverse()
       .slice(0, 20)
-      .map(r => ({
-        date:  r[headers.indexOf('Date')]        || '',
-        type:  r[headers.indexOf('Type')]        || '',
-        diff:  r[headers.indexOf('Difficulty')]  || '',
-        score: parseInt(r[headers.indexOf('Score')])        || 0,
-        numQ:  parseInt(r[headers.indexOf('NumQuestions')]) || 0,
-        mins:  parseInt(r[headers.indexOf('DurationMins')]) || 0,
-      }));
+      .map(r => {
+        // Extract per-question data from Q1_Question, Q1_Score, Q1_Feedback ... Q10_*
+        const questions = [], scores = [], feedbacks = [];
+        for (let i = 1; i <= 10; i++) {
+          const q  = r[h(`Q${i}_Question`)] || '';
+          const sc = r[h(`Q${i}_Score`)]    || '';
+          const fb = r[h(`Q${i}_Feedback`)] || '';
+          if (q || sc) {
+            questions.push(q);
+            scores.push(parseInt(sc) || 0);
+            feedbacks.push(fb);
+          }
+        }
+        return {
+          date:             r[h('Date')]              || '',
+          type:             r[h('Type')]              || '',
+          diff:             r[h('Difficulty')]        || '',
+          score:            parseInt(r[h('OverallScore')]) || 0,
+          numQ:             parseInt(r[h('NumQuestions')]) || 0,
+          mins:             parseInt(r[h('DurationMins')]) || 0,
+          interviewerRating: r[h('InterviewerRating')] || '',
+          questions, scores, feedbacks
+        };
+      });
 
     res.json({ sessions });
   } catch (err) {

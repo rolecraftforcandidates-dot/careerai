@@ -1976,7 +1976,16 @@ STRICT OUTPUT RULES
 - No "they/their/the candidate" — always "you/your"
 - The [SCORE:{...}] block (if needed) must be on its own line at the very end`;
 
-    const messages = history.map(m => ({ role: m.role, content: m.content }));
+    const messages = history.map(m => ({
+      role: m.role,
+      // Strip any leaked SCORE blocks from history so model doesn't see them again
+      content: (m.content || '')
+        .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')
+        .replace(/\[SCORE:\{[\s\S]*/g, '')
+        .replace(/\{"score"\s*:[\s\S]*?\}/g, '')
+        .replace(/\{"technical_competency"[\s\S]*?\}/g, '')
+        .trim()
+    }));
     if (action === 'start' || messages.length === 0) {
       messages.push({ role: 'user', content: `Start the interview. My name is ${firstName}.` });
     }
@@ -1990,18 +1999,31 @@ STRICT OUTPUT RULES
 
     let fullText = msg.content[0].text.trim();
 
-    // Extract score JSON if present
+    // Extract score JSON if present - try multiple patterns
     let score = null, feedback = null, nextDifficulty = 'same';
-    const scoreMatch = fullText.match(/\[SCORE:(\{[\s\S]*?\})\]/);
+    // Pattern 1: [SCORE:{...}]
+    let scoreMatch = fullText.match(/\[SCORE:(\{[\s\S]*?\})\]/);
+    // Pattern 2: bare JSON block with score key (fallback if model forgot brackets)
+    if (!scoreMatch) scoreMatch = fullText.match(/(\{"score"\s*:\s*\d+[\s\S]*?\})/);
+
     if (scoreMatch) {
       try {
         const parsed = JSON.parse(scoreMatch[1]);
         score = Math.min(100, Math.max(0, parseInt(parsed.score) || 60));
-        feedback = parsed.feedback || '';
+        feedback = parsed.feedback || parsed.overall_assessment || '';
         nextDifficulty = parsed.nextDifficulty || 'same';
-      } catch(e) { /* ignore */ }
-      fullText = fullText.replace(/\[SCORE:\{[\s\S]*?\}\]/, '').trim();
+      } catch(e) { /* ignore parse errors */ }
     }
+
+    // Aggressively strip ALL score/JSON artifacts from the displayed response
+    fullText = fullText
+      .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')       // [SCORE:{...}]
+      .replace(/\[SCORE:\{[\s\S]*/g, '')              // unclosed [SCORE:{
+      .replace(/\{"score"\s*:[\s\S]*?\}/g, '')        // bare {"score":...}
+      .replace(/\{"technical_competency"[\s\S]*?\}/g, '') // alternate JSON format
+      .replace(/\{[\s\S]*?"overall_assessment"[\s\S]*?\}/g, '')
+      .replace(/\n{3,}/g, '\n\n')                    // collapse excess blank lines
+      .trim();
 
     res.json({
       response: fullText,
@@ -2066,10 +2088,11 @@ Scoring:
 });
 
 // POST /api/mock/save — persist completed session to MockSessions sheet
-app.post('/api/mock/save', requireLogin, requirePremium, async (req, res) => {
+app.post('/api/mock/save', requireLogin, async (req, res) => {
   try {
     const { date, type, difficulty, score, numQuestions, durationMins, questions, scores, feedbacks } = req.body;
-    const { email } = req.session.user;
+    const { email, name } = req.session.user;
+    const tier = (req.session.user.tier || 'free').toLowerCase();
     const sheets = getSheetsClient();
 
     // Ensure MockSessions sheet exists
@@ -2083,22 +2106,24 @@ app.post('/api/mock/save', requireLogin, requirePremium, async (req, res) => {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID, range: 'MockSessions!A1',
         valueInputOption: 'RAW',
-        requestBody: { values: [['Email','Date','Type','Difficulty','Score','NumQuestions','DurationMins','Questions','Scores','Feedbacks','SavedAt']] }
+        requestBody: { values: [['Email','Name','Tier','Date','Type','Difficulty','Score','NumQuestions','DurationMins','Questions','Scores','Feedbacks','SavedAt']] }
       });
       console.log('✅ Created MockSessions sheet');
     }
 
     const row = [
       email,
+      name || '',
+      tier,
       date || new Date().toISOString().split('T')[0],
       type || '',
       difficulty || '',
       String(score || 0),
       String(numQuestions || 0),
       String(durationMins || 0),
-      (questions || []).join(' | '),
+      (questions || []).filter(Boolean).join(' | '),
       (scores || []).join(','),
-      (feedbacks || []).join(' | '),
+      (feedbacks || []).filter(Boolean).map(f => f.substring(0, 200)).join(' | '),
       new Date().toISOString()
     ];
 
@@ -2110,10 +2135,10 @@ app.post('/api/mock/save', requireLogin, requirePremium, async (req, res) => {
       requestBody: { values: [row] }
     });
 
-    console.log(`✅ Mock session saved: ${email} score=${score} type=${type}`);
+    console.log(`✅ Mock session saved to sheet: ${email} | tier=${tier} | score=${score} | type=${type} | mins=${durationMins}`);
     res.json({ success: true });
   } catch (err) {
-    console.error('Mock save error:', err.message);
+    console.error('❌ Mock save error:', err.message, err.stack);
     res.status(500).json({ error: 'Could not save session: ' + err.message });
   }
 });

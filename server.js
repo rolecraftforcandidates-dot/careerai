@@ -1904,22 +1904,21 @@ function requirePremium(req, res, next) {
   next();
 }
 
-// GET /api/mock/question — generate one interview question
-app.get('/api/mock/question', requireLogin, async (req, res) => {
+// POST /api/mock/chat — stateful conversational mock interview (replaces /question + /score)
+// Handles: opening greeting, resume-based Q1, follow-ups, hints, adaptive difficulty, scoring
+app.post('/api/mock/chat', requireLogin, async (req, res) => {
   try {
-    const { type = 'Technical', difficulty = 'mid', index = 0 } = req.query;
-    const { role = 'Software Engineer', experience = '2' } = req.session.user;
+    const { history = [], type = 'Technical', difficulty = 'mid', numQ = 5, action = 'next' } = req.body;
+    // action: 'start' | 'answer' | 'skip' | 'hint'
+    const { role = 'Software Engineer', name = 'there' } = req.session.user;
     const email = req.session.user.email;
+    const firstName = (name || '').split(' ')[0] || 'there';
 
     const diffLabel = { entry: 'entry-level (0-1 yrs)', mid: 'mid-level (2-4 yrs)', senior: 'senior (5-8 yrs)', staff: 'staff/principal (8+ yrs)' };
-    const Anthropic = require('@anthropic-ai/sdk');
-    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    let prompt;
-
-    if (parseInt(index) === 0) {
-      // First question: pull resume text from sheet and ask about latest project
-      let resumeText = '';
+    // Fetch resume text once (only needed for first message)
+    let resumeText = '';
+    if (action === 'start' || history.length === 0) {
       try {
         const raw = await getSheetsClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:Z' });
         const hdrs = raw.data.values[0];
@@ -1927,61 +1926,100 @@ app.get('/api/mock/question', requireLogin, async (req, res) => {
         const eIdx = hdrs.indexOf('Email');
         const rIdx = hdrs.findIndex(h => h.trim() === 'Resume Text');
         const userRow = rows.find(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase());
-        if (userRow && rIdx !== -1) resumeText = (userRow[rIdx] || '').slice(0, 1200);
+        if (userRow && rIdx !== -1) resumeText = (userRow[rIdx] || '').slice(0, 1500);
       } catch(e) { /* non-fatal */ }
+    }
 
-      if (resumeText) {
-        prompt = `You are an expert interviewer at a top Indian tech company. 
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-The candidate is a ${diffLabel[difficulty]||difficulty} ${role}.
+    const questionCount = history.filter(m => m.role === 'assistant' && m.isQuestion).length;
+    const isLastQuestion = questionCount >= numQ - 1;
 
-Here is a snippet of their resume:
-"""
-${resumeText}
-"""
+    const systemPrompt = `You are an experienced technical interviewer conducting a mock interview with ${firstName}, a ${diffLabel[difficulty]||difficulty} ${role} candidate.
 
-Generate ONE opening interview question that:
-- References their most recent or most impressive project/experience from the resume above
-- Asks them to walk through it (what they built, their specific role, challenges, outcome)
-- Feels natural and personalised, not generic
-- Is 1-2 sentences
+${resumeText ? `Their resume (excerpt):\n"""\n${resumeText}\n"""\n` : ''}
 
-Return ONLY the question text, nothing else.`;
-      } else {
-        // No resume — fall back to a general "tell me about yourself" opener
-        prompt = `You are an expert interviewer. Generate ONE warm opening question for a ${diffLabel[difficulty]||difficulty} ${role} that asks them to briefly introduce themselves and highlight their most recent project or achievement. 1-2 sentences. Return ONLY the question text.`;
-      }
-    } else {
-      // Questions 2+ : standard type-based questions
-      prompt = `You are an expert interviewer at a top Indian tech company. Generate ONE interview question for:
-- Role: ${role}
+INTERVIEW CONTEXT
 - Interview type: ${type}
-- Level: ${diffLabel[difficulty] || difficulty}
-- Question index: ${index} (vary the topic — don't repeat earlier themes)
+- Difficulty level: ${diffLabel[difficulty]||difficulty}
+- Total questions planned: ${numQ}
+- Questions asked so far: ${questionCount}
+- Current action: ${action}
 
-Rules:
-- For Technical: real code/system scenarios specific to ${role}
-- For Behavioral: real-world team/deadline/conflict scenarios using STAR framework
-- For System Design: design a real product or subsystem relevant to India's tech market
-- For Mixed: blend technical context with soft-skill probing
-- Be specific, not generic — reference real tools/patterns used by ${role}s
-- 1-2 sentences maximum
+YOUR PERSONA
+- You are a warm, professional human interviewer — not an AI
+- Speak naturally and conversationally
+- Use the candidate's name (${firstName}) occasionally
+- Keep responses short and voice-friendly (2-4 sentences max)
+- Never mention that you are an AI or Claude
 
-Return ONLY the question text, nothing else.`;
+INTERVIEW FLOW
+${history.length === 0 ? `Start with: a warm 1-sentence greeting using their name, then immediately ask your first question about their most recent project from the resume above (or their background if no resume). The greeting and first question in the same short message.` : ''}
+
+${action === 'answer' ? `The candidate just answered. Do ALL of the following in your response:
+1. Give a brief natural acknowledgement (1 sentence: "Good point.", "Interesting.", "That makes sense.", etc.)
+2. ${isLastQuestion ? 'This was the last question. Conclude the interview warmly and thank them.' : 'Ask ONE follow-up question if their answer was good (go deeper), OR ask a simpler clarifying question if their answer was weak. Base next question difficulty on answer quality.'}
+3. Include a JSON block at the END of your message (hidden from display) in this exact format:
+[SCORE:{"score":<0-100>,"feedback":"<2-3 sentences: strength + gap + tip>","nextDifficulty":"<easier|same|harder>"}]` : ''}
+
+${action === 'hint' ? `The candidate is struggling. Give them a small, encouraging hint (1-2 sentences). Start with "That's okay, take a moment to think." then give one specific conceptual nudge without giving away the answer.` : ''}
+
+${action === 'skip' ? `The candidate skipped. Acknowledge briefly (1 sentence), then move to the next question naturally.` : ''}
+
+${action === 'start' || history.length === 0 ? '' : `Ask only ONE question at a time. Never list multiple questions.`}
+
+STRICT OUTPUT RULES
+- Output only what you would say aloud as an interviewer
+- No markdown, no asterisks, no bold, no bullet points
+- No meta-commentary like "here is the question" or "I notice the resume..."
+- No "they/their/the candidate" — always "you/your"
+- The [SCORE:{...}] block (if needed) must be on its own line at the very end`;
+
+    const messages = history.map(m => ({ role: m.role, content: m.content }));
+    if (action === 'start' || messages.length === 0) {
+      messages.push({ role: 'user', content: `Start the interview. My name is ${firstName}.` });
     }
 
     const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }],
+      model: 'claude-sonnet-4-20250514', // Use Sonnet for better instruction-following
+      max_tokens: 400,
+      system: systemPrompt,
+      messages,
     });
 
-    const question = msg.content[0].text.trim().replace(/^["']|["']$/g, '');
-    res.json({ question });
+    let fullText = msg.content[0].text.trim();
+
+    // Extract score JSON if present
+    let score = null, feedback = null, nextDifficulty = 'same';
+    const scoreMatch = fullText.match(/\[SCORE:(\{[\s\S]*?\})\]/);
+    if (scoreMatch) {
+      try {
+        const parsed = JSON.parse(scoreMatch[1]);
+        score = Math.min(100, Math.max(0, parseInt(parsed.score) || 60));
+        feedback = parsed.feedback || '';
+        nextDifficulty = parsed.nextDifficulty || 'same';
+      } catch(e) { /* ignore */ }
+      fullText = fullText.replace(/\[SCORE:\{[\s\S]*?\}\]/, '').trim();
+    }
+
+    res.json({
+      response: fullText,
+      score,
+      feedback,
+      nextDifficulty,
+      isLastQuestion,
+      questionCount: questionCount + (action === 'answer' && !isLastQuestion ? 1 : 0)
+    });
   } catch (err) {
-    console.error('Mock question error:', err.message);
-    res.status(500).json({ error: 'Could not generate question', question: 'Tell me about a challenging project you worked on recently.' });
+    console.error('Mock chat error:', err.message);
+    res.status(500).json({ error: 'Chat failed', response: 'Sorry, I had a connection issue. Please try again.' });
   }
+});
+
+// GET /api/mock/question — legacy endpoint kept for fallback compatibility
+app.get('/api/mock/question', requireLogin, async (req, res) => {
+  res.json({ question: 'Tell me about your most recent project — what did you build and what was your role?' });
 });
 
 // POST /api/mock/score — score a candidate's answer

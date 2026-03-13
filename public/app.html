@@ -1002,6 +1002,19 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             <div class="card-title">&#128161; Top 3 Tips to Improve</div>
             <div id="mockResultTips"></div>
           </div>
+          <!-- Interviewer Rating -->
+          <div class="card" style="margin-bottom:18px;text-align:center" id="mockRatingCard">
+            <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:10px">RATE THIS SESSION</div>
+            <div style="font-size:0.88rem;color:var(--text);margin-bottom:14px">How was the quality of questions and feedback?</div>
+            <div id="mockStarRow" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
+              <span class="mock-star" data-v="1" onclick="setMockRating(1)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="2" onclick="setMockRating(2)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="3" onclick="setMockRating(3)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="4" onclick="setMockRating(4)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="5" onclick="setMockRating(5)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+            </div>
+            <div id="mockRatingLabel" style="font-size:0.8rem;color:var(--muted);min-height:18px"></div>
+          </div>
           <div style="display:flex;gap:12px">
             <button class="mock-start-btn" onclick="showMockHome()" style="flex:1">&#8617; Back to Mock Home</button>
             <button onclick="startMockInterview()" style="flex:1;padding:14px;border:2px solid var(--teal);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;color:var(--teal)">Try Again &#8635;</button>
@@ -3017,48 +3030,15 @@ var _mockSelectedDate = null;
 var _mockSelectedTime = null;
 
 function showMockInterviewPanel(navEl) {
-  // Free users get a 10-minute cumulative trial, then locked
   showPanel('mock', navEl || document.getElementById('mockNavBtn'));
   buildMockDateGrid();
   renderMockHistory();
   renderMockUpcoming();
 
-  // Show/hide free trial banner
-  var trialBanner = document.getElementById('mockFreeTrialBanner');
-  if (trialBanner) {
-    if (_userTier === 'free') {
-      var usedSecs = getMockFreeUsed();
-      var remainMins = Math.max(0, Math.ceil((_FREE_LIMIT_SECS - usedSecs) / 60));
-      trialBanner.style.display = 'flex';
-      var bannerDesc = trialBanner.querySelector('.mock-trial-desc');
-      if (bannerDesc) {
-        if (remainMins <= 0) {
-          bannerDesc.textContent = 'Your free trial has ended. Upgrade to Pro for unlimited practice.';
-        } else {
-          bannerDesc.textContent = remainMins + ' minute' + (remainMins !== 1 ? 's' : '') + ' remaining. Upgrade to Pro for unlimited sessions.';
-        }
-      }
-      // Lock or unlock the Start button
-      var startBtn = document.getElementById('mockStartBtn');
-      if (startBtn) {
-        if (remainMins <= 0) {
-          startBtn.disabled = true;
-          startBtn.style.opacity = '0.5';
-          startBtn.style.cursor = 'not-allowed';
-          startBtn.innerHTML = '&#128274; Trial Ended &mdash; Upgrade to Start';
-          startBtn.onclick = function() { showUpgradeModal(); };
-        } else {
-          startBtn.disabled = false;
-          startBtn.style.opacity = '';
-          startBtn.style.cursor = '';
-          startBtn.innerHTML = '&#9889; Start Interview Now';
-          startBtn.onclick = function() { startMockInterview(); };
-        }
-      }
-    } else {
-      trialBanner.style.display = 'none';
-    }
-  }
+  // Sync free-trial status from server (sheet = source of truth), then refresh banner
+  syncMockFreeStatus(function() {
+    refreshMockFreeUI();
+  });
 
   // Disable schedule tab for free users
   var schedMode = document.getElementById('mockModeSched');
@@ -3068,6 +3048,42 @@ function showMockInterviewPanel(navEl) {
     schedMode.onclick = function() {
       showProGate('&#128197; Pro Feature', 'Schedule mock interviews and get reminder emails with RoleKraft Pro.');
     };
+  }
+}
+
+function refreshMockFreeUI() {
+  var trialBanner = document.getElementById('mockFreeTrialBanner');
+  if (!trialBanner) return;
+
+  if (_userTier === 'free') {
+    var usedSecs   = getMockFreeUsed();
+    var remainMins = Math.max(0, Math.ceil((_FREE_LIMIT_SECS - usedSecs) / 60));
+    trialBanner.style.display = 'flex';
+    var bannerDesc = trialBanner.querySelector('.mock-trial-desc');
+    if (bannerDesc) {
+      bannerDesc.textContent = remainMins <= 0
+        ? 'Your free trial has ended. Upgrade to Pro for unlimited practice.'
+        : remainMins + ' minute' + (remainMins !== 1 ? 's' : '') + ' remaining. Upgrade to Pro for unlimited sessions.';
+    }
+    // Lock / unlock Start button
+    var startBtn = document.getElementById('mockStartBtn');
+    if (startBtn) {
+      if (remainMins <= 0) {
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.5';
+        startBtn.style.cursor = 'not-allowed';
+        startBtn.innerHTML = '&#128274; Trial Ended &mdash; Upgrade to Start';
+        startBtn.onclick = function() { showUpgradeModal(); };
+      } else {
+        startBtn.disabled = false;
+        startBtn.style.opacity = '';
+        startBtn.style.cursor = '';
+        startBtn.innerHTML = '&#9889; Start Interview Now';
+        startBtn.onclick = function() { startMockInterview(); };
+      }
+    }
+  } else {
+    trialBanner.style.display = 'none';
   }
 }
 
@@ -3092,6 +3108,8 @@ function showMockHome() {
   document.querySelectorAll('.mock-mode-btn').forEach(function(b){b.classList.remove('active');});
   document.getElementById('mockModeNow').classList.add('active');
   renderMockHistory();
+  // Re-sync free status from server so banner reflects latest usage
+  syncMockFreeStatus(function() { refreshMockFreeUI(); });
 }
 
 // ── DATE GRID ──
@@ -3642,34 +3660,30 @@ function endMockSession() {
     numQ: s.numQ, mins: mins, id: Date.now()
   };
 
+  // Reset star rating for new session
+  _mockRating = 0;
+  setMockRating(0, true);
+
   // 1. Save to localStorage immediately (instant)
   var history = JSON.parse(localStorage.getItem('mockHistory')||'[]');
   history.unshift(sessionRecord);
   localStorage.setItem('mockHistory', JSON.stringify(history.slice(0,20)));
 
-  // 2. Save to Google Sheets — log errors clearly
-  fetch('/api/mock/save', {
-    method: 'POST', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      date: sessionRecord.isoDate,
-      type: s.type,
-      difficulty: s.diff,
-      score: avg,
-      numQuestions: s.numQ,
-      durationMins: mins,
-      questions: (s.questions || []).slice(0, s.numQ),
-      scores: (s.scores || []).slice(0, s.numQ),
-      feedbacks: (s.feedbacks || []).slice(0, s.numQ)
-    })
-  })
-  .then(function(r) {
-    return r.json().then(function(d) {
-      if (!d.success) console.error('❌ Mock save failed:', d.error);
-      else console.log('✅ Mock session saved to sheet');
-    });
-  })
-  .catch(function(e) { console.error('❌ Mock save network error:', e.message); });
+  // Store save payload so rating can be re-sent if user rates after viewing results
+  _mockPendingSave = {
+    date: sessionRecord.isoDate,
+    type: s.type,
+    difficulty: s.diff,
+    score: avg,
+    numQuestions: s.numQ,
+    durationMins: mins,
+    questions: (s.questions || []).slice(0, s.numQ),
+    scores: (s.scores || []).slice(0, s.numQ),
+    feedbacks: (s.feedbacks || []).slice(0, s.numQ)
+  };
+
+  // 2. Save to Google Sheets immediately (without rating — rating updates separately)
+  saveMockToSheet(_mockPendingSave);
 
   // Show results
   var scoreEl = document.getElementById('mockResultScore');
@@ -3765,15 +3779,83 @@ function renderMockHistoryHtml(el, history) {
 }
 
 // ── TIMER ──
-var _FREE_LIMIT_SECS = 600; // 10 minutes total across all free sessions
+var _FREE_LIMIT_SECS = 600; // 10 minutes total
+var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
+var _mockRating = 0;        // 1-5 stars, 0 = not rated
+var _mockPendingSave = null; // last save payload, updated when rating is set
+
+function saveMockToSheet(payload) {
+  fetch('/api/mock/save', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.success) console.error('❌ Mock save failed:', d.error);
+    else console.log('✅ Mock session saved | rating=' + (payload.interviewerRating || 'none'));
+  })
+  .catch(function(e) { console.error('❌ Mock save network error:', e.message); });
+}
+
+var _mockRatingLabels = ['','Poor — questions felt off','Fair — some issues','Good — decent session','Great — very helpful','Excellent — loved it!'];
+
+function setMockRating(val, silent) {
+  _mockRating = val;
+  var stars = document.querySelectorAll('.mock-star');
+  stars.forEach(function(s) {
+    var sv = parseInt(s.getAttribute('data-v'));
+    s.style.opacity = sv <= val ? '1' : '0.25';
+    s.style.color   = sv <= val ? 'var(--teal)' : '';
+  });
+  var label = document.getElementById('mockRatingLabel');
+  if (label) label.textContent = val > 0 ? _mockRatingLabels[val] : '';
+
+  if (!silent && val > 0 && _mockPendingSave) {
+    // Re-save with rating included
+    _mockPendingSave.interviewerRating = String(val);
+    saveMockToSheet(_mockPendingSave);
+  }
+}
 
 function getMockFreeUsed() {
-  return parseInt(localStorage.getItem('mockFreeUsedSecs') || '0', 10);
+  return _mockFreeUsedSecs;
 }
 function addMockFreeUsed(secs) {
-  var total = getMockFreeUsed() + secs;
-  localStorage.setItem('mockFreeUsedSecs', String(total));
-  return total;
+  _mockFreeUsedSecs += secs;
+  // Also keep localStorage as offline backup
+  localStorage.setItem('mockFreeUsedSecs', String(_mockFreeUsedSecs));
+}
+
+// Fetch free-trial status from server (source of truth = MockSessions sheet)
+function syncMockFreeStatus(callback) {
+  if (_userTier !== 'free') {
+    _mockFreeUsedSecs = 0;
+    if (callback) callback();
+    return;
+  }
+  // Use localStorage instantly while server responds
+  _mockFreeUsedSecs = parseInt(localStorage.getItem('mockFreeUsedSecs') || '0', 10);
+
+  fetch('/api/mock/free-status', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.unlimited) {
+        _mockFreeUsedSecs = 0;
+      } else {
+        // Server is source of truth — use whichever is higher
+        // (localStorage may have in-session seconds not yet saved to sheet)
+        var serverSecs = (d.usedMins || 0) * 60;
+        var localSecs  = parseInt(localStorage.getItem('mockFreeUsedSecs') || '0', 10);
+        _mockFreeUsedSecs = Math.max(serverSecs, localSecs);
+        localStorage.setItem('mockFreeUsedSecs', String(_mockFreeUsedSecs));
+      }
+      if (callback) callback();
+    })
+    .catch(function() {
+      // On error keep localStorage value
+      if (callback) callback();
+    });
 }
 
 function startMockTimer() {

@@ -969,8 +969,9 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
               </div>
             </div>
             <textarea class="mock-answer-box" id="mockAnswerBox" placeholder="Type your answer here, or use the microphone above to speak..." oninput="updateMockWordCount()"></textarea>
-            <div style="display:flex;gap:10px;margin-top:12px">
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
               <button class="mock-submit-btn" onclick="submitMockAnswer()" id="mockSubmitBtn">Submit Answer &#8594;</button>
+              <button id="mockHintBtn" onclick="requestMockHint()" style="padding:10px 18px;border:1.5px solid var(--teal);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--teal);cursor:pointer;font-weight:600">&#128161; Hint</button>
               <button onclick="skipMockQuestion()" style="padding:10px 18px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--muted);cursor:pointer">Skip</button>
             </div>
           </div>
@@ -980,7 +981,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             <div class="mock-score-pill" id="mockFeedbackPill">&#129302; Score: -</div>
             <div style="font-size:0.88rem;line-height:1.65;color:var(--text)" id="mockFeedbackText"></div>
             <div style="margin-top:12px">
-              <button class="mock-submit-btn" onclick="nextMockQuestion()" id="mockNextBtn">Next Question &#8594;</button>
+              <button class="mock-submit-btn" onclick="nextMockQuestion()" id="mockNextBtn" style="display:none">Next Question &#8594;</button>
             </div>
           </div>
         </div>
@@ -3176,9 +3177,16 @@ function startMockInterview() {
   var diff    = document.getElementById('mockDifficulty').value;
   var numQ    = parseInt(document.getElementById('mockNumQ').value);
   var useVoice = document.getElementById('mockVoice').value === 'on';
+  var candidateName = ((document.getElementById('userName')||{}).textContent||'there').trim().split(' ')[0]||'there';
 
   _mockSession = { type:type, diff:diff, numQ:numQ, useVoice:useVoice,
-    questions:[], answers:[], scores:[], feedbacks:[], currentQ:0, elapsed:0 };
+    questions:[], answers:[], scores:[], feedbacks:[],
+    history: [], candidateName: candidateName,
+    currentQ:0, elapsed:0 };
+
+  // Remove any leftover free overlay
+  var overlay = document.getElementById('mockFreeOverlay');
+  if (overlay) overlay.remove();
 
   // Show live section
   document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
@@ -3195,6 +3203,38 @@ function startMockInterview() {
 
   startMockTimer();
   loadMockQuestion(0);
+}
+
+function toggleMockMic() {
+  var btn = document.getElementById('mockMicBtn');
+  if (_mockRecognition) {
+    _mockRecognition.stop(); _mockRecognition = null;
+    btn.classList.remove('recording');
+    btn.innerHTML = '&#127908; Start Speaking';
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Your browser does not support voice input. Please type your answer.'); return; }
+  var r = new SR();
+  r.continuous = true; r.interimResults = true; r.lang = 'en-IN';
+  var finalText = document.getElementById('mockAnswerBox').value;
+  r.onresult = function(e) {
+    var interim = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += ' ' + e.results[i][0].transcript;
+      else interim = e.results[i][0].transcript;
+    }
+    document.getElementById('mockAnswerBox').value = (finalText + ' ' + interim).trim();
+    updateMockWordCount();
+  };
+  r.onend = function() {
+    btn.classList.remove('recording');
+    btn.innerHTML = '&#127908; Start Speaking';
+    _mockRecognition = null;
+  };
+  r.start(); _mockRecognition = r;
+  btn.classList.add('recording');
+  btn.innerHTML = '&#9632; Stop Recording';
 }
 
 // Fallback question banks if API fails
@@ -3249,6 +3289,27 @@ function getMockFallbackQuestion(type, idx) {
   return bank[idx % bank.length];
 }
 
+// ── CHAT-BASED MOCK INTERVIEW ENGINE ──
+// _mockSession.history = [{role:'assistant',content:'...',isQuestion:true}, {role:'user',content:'...'}]
+
+function callMockChat(action, userContent) {
+  var s = _mockSession;
+  if (userContent) {
+    s.history.push({ role: 'user', content: userContent });
+  }
+  return fetch('/api/mock/chat', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      history: s.history,
+      type: s.type,
+      diff: s.diff,
+      numQ: s.numQ,
+      action: action
+    })
+  }).then(function(r) { return r.json(); });
+}
+
 function loadMockQuestion(idx) {
   var s = _mockSession;
   document.getElementById('mockAnswerBox').value = '';
@@ -3256,41 +3317,62 @@ function loadMockQuestion(idx) {
   document.getElementById('mockFeedbackBox').style.display = 'none';
   document.getElementById('mockSubmitBtn').disabled = false;
   document.getElementById('mockSubmitBtn').innerHTML = 'Submit Answer &#8594;';
+  document.getElementById('mockNextBtn').style.display = 'none';
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
 
-  // If we already fetched this question, use cached
-  if (s.questions[idx]) {
-    setMockQuestion(s.questions[idx]);
-    return;
-  }
+  var action = (idx === 0) ? 'start' : 'next';
+  setMockQuestionLoading();
 
-  document.getElementById('mockQText').textContent = 'Loading question...';
-
-  fetch('/api/mock/question?type='+encodeURIComponent(s.type)+'&difficulty='+encodeURIComponent(s.diff)+'&index='+idx, {
-    credentials:'include'
-  })
-  .then(function(r){
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  })
-  .then(function(d){
-    var q = d.question || (idx === 0 ? 'Walk me through your most recent project — what did you build, what was your role, and what was the outcome?' : getMockFallbackQuestion(s.type, idx));
-    s.questions[idx] = q;
-    setMockQuestion(q);
-  })
-  .catch(function(err){
-    console.warn('Question API failed, using fallback:', err.message);
-    var q = idx === 0 ? 'Walk me through your most recent project — what did you build, what was your role, and what was the outcome?' : getMockFallbackQuestion(s.type, idx);
-    s.questions[idx] = q;
-    setMockQuestion(q);
-  });
+  callMockChat(action, null)
+    .then(function(d) {
+      var text = d.response || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
+      s.history.push({ role: 'assistant', content: text, isQuestion: true });
+      s.questions[idx] = text;
+      setMockQuestion(text, idx);
+    })
+    .catch(function(err) {
+      console.warn('Mock chat failed, using fallback:', err.message);
+      var q = idx === 0
+        ? 'Hi ' + (_mockSession.candidateName || 'there') + '! Great to have you here. To start — could you walk me through your most recent project? What did you build, what was your role, and what was the outcome?'
+        : getMockFallbackQuestion(s.type, idx);
+      s.history.push({ role: 'assistant', content: q, isQuestion: true });
+      s.questions[idx] = q;
+      setMockQuestion(q, idx);
+    });
 }
 
-function setMockQuestion(q) {
-  document.getElementById('mockQText').textContent = q;
-  // TTS: speak question aloud
-  if (window.speechSynthesis) {
+function setMockQuestionLoading() {
+  document.getElementById('mockQText').textContent = 'Loading...';
+  document.getElementById('mockInterviewerBubble') && (document.getElementById('mockInterviewerBubble').style.display = 'none');
+}
+
+function setMockQuestion(text, idx) {
+  // Show interviewer chat bubble
+  var bubble = document.getElementById('mockInterviewerBubble');
+  if (!bubble) {
+    // Create bubble if not already in DOM
+    var liveSection = document.getElementById('mockSectionLive');
+    var qCard = document.getElementById('mockQCard');
+    if (qCard) {
+      bubble = document.createElement('div');
+      bubble.id = 'mockInterviewerBubble';
+      bubble.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:12px;font-size:0.88rem;line-height:1.65;color:var(--text);position:relative';
+      bubble.innerHTML = '<div style="font-size:0.68rem;font-family:\'DM Mono\',monospace;letter-spacing:1.5px;color:var(--teal);margin-bottom:6px;font-weight:700">&#127908; INTERVIEWER</div><div id="mockBubbleText"></div>';
+      qCard.parentNode.insertBefore(bubble, qCard);
+    }
+  }
+  if (bubble) {
+    bubble.style.display = 'block';
+    document.getElementById('mockBubbleText').textContent = text;
+  }
+
+  // Also update legacy question display
+  document.getElementById('mockQText').textContent = text;
+
+  // TTS
+  if (window.speechSynthesis && _mockSession && _mockSession.useVoice) {
     speechSynthesis.cancel();
-    var utt = new SpeechSynthesisUtterance(q);
+    var utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.92; utt.lang = 'en-IN';
     speechSynthesis.speak(utt);
   }
@@ -3300,40 +3382,6 @@ function updateMockWordCount() {
   var txt = document.getElementById('mockAnswerBox').value.trim();
   var wc  = txt ? txt.split(/\s+/).filter(Boolean).length : 0;
   document.getElementById('mockWordCount').textContent = wc + ' word' + (wc!==1?'s':'');
-}
-
-function toggleMockMic() {
-  var btn = document.getElementById('mockMicBtn');
-  if (_mockRecognition) {
-    _mockRecognition.stop();
-    _mockRecognition = null;
-    btn.classList.remove('recording');
-    btn.innerHTML = '&#127908; Start Speaking';
-    return;
-  }
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('Your browser does not support voice input. Please type your answer.'); return; }
-  var r = new SR();
-  r.continuous = true; r.interimResults = true; r.lang = 'en-IN';
-  var final = document.getElementById('mockAnswerBox').value;
-  r.onresult = function(e) {
-    var interim = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += ' ' + e.results[i][0].transcript;
-      else interim = e.results[i][0].transcript;
-    }
-    document.getElementById('mockAnswerBox').value = (final + ' ' + interim).trim();
-    updateMockWordCount();
-  };
-  r.onend = function() {
-    btn.classList.remove('recording');
-    btn.innerHTML = '&#127908; Start Speaking';
-    _mockRecognition = null;
-  };
-  r.start();
-  _mockRecognition = r;
-  btn.classList.add('recording');
-  btn.innerHTML = '&#9632; Stop Recording';
 }
 
 function submitMockAnswer() {
@@ -3349,44 +3397,79 @@ function submitMockAnswer() {
 
   s.answers[s.currentQ] = ans;
 
-  fetch('/api/mock/score', {
-    method:'POST', credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      question: s.questions[s.currentQ] || '',
-      answer:   ans,
-      type:     s.type,
-      difficulty: s.diff
+  callMockChat('answer', ans)
+    .then(function(d) {
+      var score    = d.score !== null ? d.score : null;
+      var feedback = d.feedback || '';
+      var response = d.response || '';
+
+      // Show interviewer's follow-up/acknowledgement in bubble
+      if (response) {
+        var bubble = document.getElementById('mockInterviewerBubble');
+        if (bubble) {
+          document.getElementById('mockBubbleText').textContent = response;
+          s.history.push({ role: 'assistant', content: response, isQuestion: !d.isLastQuestion });
+        }
+      }
+
+      // Show score + feedback if returned
+      if (score !== null) {
+        s.scores[s.currentQ]   = score;
+        s.feedbacks[s.currentQ]= feedback;
+
+        var pillCls = score >= 80 ? 'great' : score >= 60 ? 'ok' : 'weak';
+        var pillTxt = score >= 80 ? '&#129395; Excellent' : score >= 60 ? '&#128077; Good' : '&#128197; Needs Work';
+
+        var pill = document.getElementById('mockFeedbackPill');
+        pill.className = 'mock-score-pill ' + pillCls;
+        pill.innerHTML = pillTxt + ' &mdash; ' + score + '/100';
+        document.getElementById('mockFeedbackText').innerHTML = feedback.replace(/\n/g,'<br>');
+        document.getElementById('mockFeedbackBox').style.display = 'block';
+      }
+
+      btn.innerHTML = 'Submit Answer &#8594;';
+
+      var isLast = d.isLastQuestion || (s.currentQ + 1) >= s.numQ;
+      var nBtn = document.getElementById('mockNextBtn');
+      if (nBtn) {
+        nBtn.innerHTML = isLast ? 'See Results &#127942;' : 'Next Question &#8594;';
+        nBtn.style.display = 'inline-flex';
+      }
+      // Hide hint button after answer submitted
+      document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'none');
     })
-  })
-  .then(function(r){return r.json();})
-  .then(function(d){
-    var score    = d.score || 0;
-    var feedback = d.feedback || 'Good effort. Keep practising!';
-    s.scores[s.currentQ]   = score;
-    s.feedbacks[s.currentQ]= feedback;
+    .catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = 'Submit Answer &#8594;';
+      alert('Could not get feedback. Please try again.');
+    });
+}
 
-    var pillCls = score >= 80 ? 'great' : score >= 60 ? 'ok' : 'weak';
-    var pillTxt = score >= 80 ? '&#129395; Excellent' : score >= 60 ? '&#128077; Good' : '&#128197; Needs Work';
+function requestMockHint() {
+  var s = _mockSession;
+  var btn = document.getElementById('mockHintBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '&#128161; Getting hint...'; }
 
-    var pill = document.getElementById('mockFeedbackPill');
-    pill.className = 'mock-score-pill ' + pillCls;
-    pill.innerHTML = pillTxt + ' &mdash; ' + score + '/100';
-
-    document.getElementById('mockFeedbackText').innerHTML = feedback.replace(/\n/g,'<br>');
-    document.getElementById('mockFeedbackBox').style.display = 'block';
-
-    var isLast = (s.currentQ + 1) >= s.numQ;
-    var nBtn   = document.getElementById('mockNextBtn');
-    nBtn.innerHTML = isLast ? 'See Results &#127942;' : 'Next Question &#8594;';
-
-    btn.innerHTML = 'Submit Answer &#8594;';
-  })
-  .catch(function(){
-    btn.disabled = false;
-    btn.innerHTML = 'Submit Answer &#8594;';
-    alert('Could not score your answer. Please try again.');
-  });
+  callMockChat('hint', 'I need a hint')
+    .then(function(d) {
+      if (d.response) {
+        var bubble = document.getElementById('mockInterviewerBubble');
+        if (bubble) {
+          document.getElementById('mockBubbleText').textContent = d.response;
+          s.history.push({ role: 'assistant', content: d.response, isQuestion: false });
+        }
+        if (window.speechSynthesis && s.useVoice) {
+          speechSynthesis.cancel();
+          var utt = new SpeechSynthesisUtterance(d.response);
+          utt.rate = 0.92; utt.lang = 'en-IN';
+          speechSynthesis.speak(utt);
+        }
+      }
+      if (btn) { btn.disabled = false; btn.innerHTML = '&#128161; Hint'; }
+    })
+    .catch(function() {
+      if (btn) { btn.disabled = false; btn.innerHTML = '&#128161; Hint'; }
+    });
 }
 
 function skipMockQuestion() {
@@ -3395,6 +3478,7 @@ function skipMockQuestion() {
   s.answers[s.currentQ]   = '(skipped)';
   s.scores[s.currentQ]    = 0;
   s.feedbacks[s.currentQ] = 'Question skipped.';
+  callMockChat('skip', 'I want to skip this question').catch(function(){});
   nextMockQuestion();
 }
 
@@ -3409,7 +3493,24 @@ function nextMockQuestion() {
   document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
   document.getElementById('mockFeedbackBox').style.display = 'none';
   document.getElementById('mockSubmitBtn').disabled = false;
-  loadMockQuestion(s.currentQ);
+
+  // For Q2+: the follow-up question was already delivered in the previous callMockChat response
+  // Just reset the answer box and re-speak the last interviewer message
+  document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockWordCount').textContent = '0 words';
+  document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
+
+  // If no new question was pushed into history by the last chat response, fetch one
+  var lastMsg = s.history[s.history.length - 1];
+  if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isQuestion) {
+    var q = lastMsg.content;
+    s.questions[s.currentQ] = q;
+    document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
+    setMockQuestion(q, s.currentQ);
+  } else {
+    loadMockQuestion(s.currentQ);
+  }
 }
 
 function endMockEarly() {

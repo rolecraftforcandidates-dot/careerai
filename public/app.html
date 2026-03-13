@@ -803,7 +803,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             <span style="font-size:1.3rem">&#9200;</span>
             <div>
               <div style="font-size:0.85rem;font-weight:700;color:var(--teal-dark)">Free Trial &mdash; 10 Minutes</div>
-              <div style="font-size:0.76rem;color:var(--muted)">Try one session free. Upgrade to Pro for unlimited practice, scheduling &amp; history.</div>
+              <div class="mock-trial-desc" style="font-size:0.76rem;color:var(--muted)">Try one session free. Upgrade to Pro for unlimited practice, scheduling &amp; history.</div>
             </div>
           </div>
           <button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 16px;border:none;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">Upgrade &#x26A1;</button>
@@ -3017,7 +3017,7 @@ var _mockSelectedDate = null;
 var _mockSelectedTime = null;
 
 function showMockInterviewPanel(navEl) {
-  // Free users get a 10-minute trial (enforced via timer), Pro/Premium get full access
+  // Free users get a 10-minute cumulative trial, then locked
   showPanel('mock', navEl || document.getElementById('mockNavBtn'));
   buildMockDateGrid();
   renderMockHistory();
@@ -3025,7 +3025,23 @@ function showMockInterviewPanel(navEl) {
 
   // Show/hide free trial banner
   var trialBanner = document.getElementById('mockFreeTrialBanner');
-  if (trialBanner) trialBanner.style.display = _userTier === 'free' ? 'block' : 'none';
+  if (trialBanner) {
+    if (_userTier === 'free') {
+      var usedSecs = getMockFreeUsed();
+      var remainMins = Math.max(0, Math.ceil((_FREE_LIMIT_SECS - usedSecs) / 60));
+      trialBanner.style.display = 'flex';
+      var bannerDesc = trialBanner.querySelector('.mock-trial-desc');
+      if (bannerDesc) {
+        if (remainMins <= 0) {
+          bannerDesc.textContent = 'Your free trial has ended. Upgrade to Pro for unlimited practice.';
+        } else {
+          bannerDesc.textContent = remainMins + ' minute' + (remainMins !== 1 ? 's' : '') + ' remaining. Upgrade to Pro for unlimited sessions.';
+        }
+      }
+    } else {
+      trialBanner.style.display = 'none';
+    }
+  }
 
   // Disable schedule tab for free users
   var schedMode = document.getElementById('mockModeSched');
@@ -3325,7 +3341,7 @@ function loadMockQuestion(idx) {
 
   callMockChat(action, null)
     .then(function(d) {
-      var text = d.response || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
+      var text = cleanMockText(d.response) || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
       s.history.push({ role: 'assistant', content: text, isQuestion: true });
       s.questions[idx] = text;
       setMockQuestion(text, idx);
@@ -3347,6 +3363,7 @@ function setMockQuestionLoading() {
 }
 
 function setMockQuestion(text, idx) {
+  text = cleanMockText(text); // final safety strip
   // Show interviewer chat bubble
   var bubble = document.getElementById('mockInterviewerBubble');
   if (!bubble) {
@@ -3378,6 +3395,17 @@ function setMockQuestion(text, idx) {
   }
 }
 
+// Strip any [SCORE:{...}] or raw JSON that leaked into display text
+function cleanMockText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')   // strip [SCORE:{...}]
+    .replace(/\[SCORE:\{[\s\S]*/g, '')         // strip unclosed [SCORE:{
+    .replace(/\{"technical_competency"[\s\S]*/g, '') // strip raw JSON bleed
+    .replace(/\{[\s\S]*?"overall_assessment"[\s\S]*?\}/g, '') // strip assessment JSON
+    .trim();
+}
+
 function updateMockWordCount() {
   var txt = document.getElementById('mockAnswerBox').value.trim();
   var wc  = txt ? txt.split(/\s+/).filter(Boolean).length : 0;
@@ -3405,10 +3433,11 @@ function submitMockAnswer() {
 
       // Show interviewer's follow-up/acknowledgement in bubble
       if (response) {
+        var cleanResponse = cleanMockText(response);
         var bubble = document.getElementById('mockInterviewerBubble');
-        if (bubble) {
-          document.getElementById('mockBubbleText').textContent = response;
-          s.history.push({ role: 'assistant', content: response, isQuestion: !d.isLastQuestion });
+        if (bubble && cleanResponse) {
+          document.getElementById('mockBubbleText').textContent = cleanResponse;
+          s.history.push({ role: 'assistant', content: cleanResponse, isQuestion: !d.isLastQuestion });
         }
       }
 
@@ -3453,10 +3482,11 @@ function requestMockHint() {
   callMockChat('hint', 'I need a hint')
     .then(function(d) {
       if (d.response) {
+        var cleanHint = cleanMockText(d.response);
         var bubble = document.getElementById('mockInterviewerBubble');
-        if (bubble) {
-          document.getElementById('mockBubbleText').textContent = d.response;
-          s.history.push({ role: 'assistant', content: d.response, isQuestion: false });
+        if (bubble && cleanHint) {
+          document.getElementById('mockBubbleText').textContent = cleanHint;
+          s.history.push({ role: 'assistant', content: cleanHint, isQuestion: false });
         }
         if (window.speechSynthesis && s.useVoice) {
           speechSynthesis.cancel();
@@ -3519,11 +3549,16 @@ function endMockEarly() {
 }
 
 function endMockSession() {
-  stopMockTimer();
   var s = _mockSession;
+
+  // Capture elapsed BEFORE stopMockTimer (which resets it for free users)
+  var elapsedSecs = s ? (s.elapsed || 0) : 0;
+  stopMockTimer();
+  // For free users stopMockTimer resets elapsed to 0 — use what we captured above
+  var mins = Math.max(1, Math.round(elapsedSecs / 60)); // at least 1 min
+
   var scores = s.scores.filter(function(sc){return typeof sc === 'number';});
   var avg    = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
-  var mins   = Math.floor(s.elapsed / 60);
 
   var sessionRecord = {
     date: new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),
@@ -3537,7 +3572,7 @@ function endMockSession() {
   history.unshift(sessionRecord);
   localStorage.setItem('mockHistory', JSON.stringify(history.slice(0,20)));
 
-  // 2. Save to Google Sheets in background (non-blocking)
+  // 2. Save to Google Sheets — log errors clearly
   fetch('/api/mock/save', {
     method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -3548,11 +3583,18 @@ function endMockSession() {
       score: avg,
       numQuestions: s.numQ,
       durationMins: mins,
-      questions: s.questions.slice(0, s.numQ),
-      scores: s.scores.slice(0, s.numQ),
-      feedbacks: s.feedbacks.slice(0, s.numQ)
+      questions: (s.questions || []).slice(0, s.numQ),
+      scores: (s.scores || []).slice(0, s.numQ),
+      feedbacks: (s.feedbacks || []).slice(0, s.numQ)
     })
-  }).catch(function(e){ console.warn('Mock save to Sheets failed (non-fatal):', e.message); });
+  })
+  .then(function(r) {
+    return r.json().then(function(d) {
+      if (!d.success) console.error('❌ Mock save failed:', d.error);
+      else console.log('✅ Mock session saved to sheet');
+    });
+  })
+  .catch(function(e) { console.error('❌ Mock save network error:', e.message); });
 
   // Show results
   var scoreEl = document.getElementById('mockResultScore');
@@ -3648,9 +3690,32 @@ function renderMockHistoryHtml(el, history) {
 }
 
 // ── TIMER ──
+var _FREE_LIMIT_SECS = 600; // 10 minutes total across all free sessions
+
+function getMockFreeUsed() {
+  return parseInt(localStorage.getItem('mockFreeUsedSecs') || '0', 10);
+}
+function addMockFreeUsed(secs) {
+  var total = getMockFreeUsed() + secs;
+  localStorage.setItem('mockFreeUsedSecs', String(total));
+  return total;
+}
+
 function startMockTimer() {
   stopMockTimer();
   if (_mockSession) _mockSession.elapsed = 0;
+
+  // For free users, warn if they're close to limit
+  if (_userTier === 'free') {
+    var alreadyUsed = getMockFreeUsed();
+    var remaining = _FREE_LIMIT_SECS - alreadyUsed;
+    if (remaining <= 0) {
+      // Already used up — show gate immediately
+      showMockFreeGate();
+      return;
+    }
+  }
+
   _mockTimerInt = setInterval(function(){
     if (_mockSession) _mockSession.elapsed++;
     var e = _mockSession ? _mockSession.elapsed : 0;
@@ -3659,35 +3724,50 @@ function startMockTimer() {
     var el = document.getElementById('mockTimer');
     if (el) el.textContent = m + ':' + s;
 
-    // Free users: lock after 10 minutes
-    if (_userTier === 'free' && e >= 600) {
-      stopMockTimer();
-      // Disable answer input and submit
-      var box = document.getElementById('mockAnswerBox');
-      var btn = document.getElementById('mockSubmitBtn');
-      if (box) { box.disabled = true; box.placeholder = 'Upgrade to Pro to continue practising...'; }
-      if (btn) { btn.disabled = true; }
-      // Show upgrade prompt overlay inside live view
-      var liveSection = document.getElementById('mockSectionLive');
-      if (liveSection) {
-        var overlay = document.createElement('div');
-        overlay.id = 'mockFreeOverlay';
-        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(248,249,255,0.96);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;z-index:10';
-        overlay.innerHTML =
-          '<div style="font-size:2.5rem;margin-bottom:12px">&#9200;</div>'+
-          '<div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">Free Trial Ended</div>'+
-          '<div style="font-size:0.88rem;color:var(--muted);line-height:1.6;max-width:320px;margin-bottom:22px">You\'ve used your free 10-minute mock interview. Upgrade to Pro for unlimited sessions, scheduling, and detailed history.</div>'+
-          '<button onclick="hideProGate();showUpgradeModal()" style="padding:12px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:\'DM Sans\',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;margin-bottom:10px">&#x26A1; Upgrade to Pro</button>'+
-          '<button onclick="showMockHome()" style="padding:9px 20px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:\'DM Sans\',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Back to Home</button>';
-        liveSection.style.position = 'relative';
-        liveSection.appendChild(overlay);
+    // Free users: lock when cumulative time hits 10 minutes
+    if (_userTier === 'free') {
+      var totalUsed = getMockFreeUsed() + e;
+      if (totalUsed >= _FREE_LIMIT_SECS) {
+        stopMockTimer(); // this saves elapsed via addMockFreeUsed
+        showMockFreeGate();
       }
     }
   }, 1000);
 }
 
+function showMockFreeGate() {
+  // Disable answer input and submit
+  var box = document.getElementById('mockAnswerBox');
+  var btn = document.getElementById('mockSubmitBtn');
+  if (box) { box.disabled = true; box.placeholder = 'Upgrade to Pro to continue practising...'; }
+  if (btn) { btn.disabled = true; }
+  // Show upgrade overlay inside live section
+  var liveSection = document.getElementById('mockSectionLive');
+  if (liveSection && !document.getElementById('mockFreeOverlay')) {
+    var overlay = document.createElement('div');
+    overlay.id = 'mockFreeOverlay';
+    overlay.style.cssText = 'position:absolute;inset:0;background:rgba(248,249,255,0.96);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;z-index:10';
+    overlay.innerHTML =
+      '<div style="font-size:2.5rem;margin-bottom:12px">&#9200;</div>'+
+      '<div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">Free Trial Ended</div>'+
+      '<div style="font-size:0.88rem;color:var(--muted);line-height:1.6;max-width:320px;margin-bottom:22px">You\'ve used your free 10-minute mock interview. Upgrade to Pro for unlimited sessions, scheduling, and detailed history.</div>'+
+      '<button onclick="hideProGate();showUpgradeModal()" style="padding:12px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:\'DM Sans\',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;margin-bottom:10px">&#x26A1; Upgrade to Pro</button>'+
+      '<button onclick="showMockHome()" style="padding:9px 20px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:\'DM Sans\',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Back to Home</button>';
+    liveSection.style.position = 'relative';
+    liveSection.appendChild(overlay);
+  }
+}
+
 function stopMockTimer() {
-  if (_mockTimerInt) { clearInterval(_mockTimerInt); _mockTimerInt = null; }
+  if (_mockTimerInt) {
+    // Save elapsed to cumulative store for free users (but don't reset elapsed here —
+    // endMockSession reads it first, then it gets discarded with the session)
+    if (_userTier === 'free' && _mockSession && _mockSession.elapsed > 0) {
+      addMockFreeUsed(_mockSession.elapsed);
+    }
+    clearInterval(_mockTimerInt);
+    _mockTimerInt = null;
+  }
 }
 </script>
 

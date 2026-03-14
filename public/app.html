@@ -3283,6 +3283,11 @@ function startMockInterview() {
     history: [], candidateName: candidateName,
     currentQ:0, elapsed:0 };
 
+  // Reset TTS and audio state for fresh session
+  _ttsAborted = false;
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src=''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+
   // Remove any leftover free overlay
   var overlay = document.getElementById('mockFreeOverlay');
   if (overlay) overlay.remove();
@@ -3514,11 +3519,10 @@ function loadMockQuestion(idx) {
 
   callMockChat(action, null)
     .then(function(d) {
-      if (_ttsAborted) return; // session ended while waiting
+      if (_ttsAborted) return;
       var text = cleanMockText(d.response) || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
       s.history.push({ role: 'assistant', content: text, isQuestion: true });
       s.questions[idx] = text;
-      // Prefetch TTS immediately when text arrives — play when setMockQuestion is called
       var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(text) : null;
       setMockQuestion(text, idx, blobP);
     })
@@ -3635,21 +3639,23 @@ function submitMockAnswer() {
         document.getElementById('mockFeedbackBox').style.display = 'block';
       }
 
+      btn.disabled = false;
       btn.innerHTML = 'Submit Answer &#8594;';
 
-      var isLast = d.isLastQuestion || (s.currentQ + 1) >= s.numQ;
-      var nBtn = document.getElementById('mockNextBtn');
-      if (nBtn) {
-        nBtn.innerHTML = isLast ? 'See Results &#127942;' : 'Next Question &#8594;';
-        nBtn.style.display = 'inline-flex';
-      }
-      // Hide hint button after answer submitted
-      document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'none');
+      // isLast: use server flag OR check if this was the final question
+      var isLast = d.isLastQuestion || s.currentQ >= s.numQ - 1;
+      showMockNextBtn(isLast);
     })
     .catch(function() {
       btn.disabled = false;
       btn.innerHTML = 'Submit Answer &#8594;';
-      alert('Could not get feedback. Please try again.');
+      // Still show Next/Results so user isn't stuck — mark current Q with fallback score
+      if (!s.scores[s.currentQ] && s.scores[s.currentQ] !== 0) {
+        s.scores[s.currentQ] = 0;
+        s.feedbacks[s.currentQ] = 'Could not get feedback for this answer.';
+      }
+      var isLast = s.currentQ >= s.numQ - 1;
+      showMockNextBtn(isLast);
     });
 }
 
@@ -3677,6 +3683,16 @@ function requestMockHint() {
     .catch(function() {
       if (btn) { btn.disabled = false; btn.innerHTML = '&#128161; Hint'; }
     });
+}
+
+function showMockNextBtn(isLast) {
+  var nBtn = document.getElementById('mockNextBtn');
+  if (nBtn) {
+    nBtn.innerHTML = isLast ? 'See Results &#127942;' : 'Next Question &#8594;';
+    nBtn.style.display = 'inline-flex';
+    nBtn.onclick = isLast ? function() { endMockSession(); } : function() { nextMockQuestion(); };
+  }
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'none');
 }
 
 function skipMockQuestion() {

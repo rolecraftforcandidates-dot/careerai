@@ -3888,7 +3888,12 @@ function speakMockText(text) {
     })
     .then(function(r) {
       if (r.status === 503) { _ttsEnabled = false; throw new Error('not_configured'); }
-      if (!r.ok) throw new Error('upstream_' + r.status);
+      if (!r.ok) {
+        return r.json().then(function(d) {
+          console.warn('TTS error:', d.status, d.detail || d.error);
+          throw new Error('upstream_' + r.status);
+        }).catch(function() { throw new Error('upstream_' + r.status); });
+      }
       return r.blob();
     })
     .then(function(blob) {
@@ -3897,10 +3902,10 @@ function speakMockText(text) {
       _ttsAudio = audio;
       audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
       audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; browserTTS(clean); };
-      audio.play().catch(function() { browserTTS(clean); });
+      audio.play().catch(function(e) { console.warn('Audio play failed:', e.message); browserTTS(clean); });
     })
     .catch(function(e) {
-      // ElevenLabs failed or not configured — fall back to browser TTS silently
+      console.warn('TTS fallback to browser:', e.message);
       browserTTS(clean);
     });
   } else {

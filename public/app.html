@@ -354,6 +354,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .mock-live-bar{background:linear-gradient(135deg,#0d1a2e,#0f2040);border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border:1px solid rgba(0,179,138,0.2)}
 .mock-live-dot{width:9px;height:9px;border-radius:50%;background:#e84040;box-shadow:0 0 8px #e84040;animation:mockPulse 1.4s ease-in-out infinite;flex-shrink:0}
 @keyframes mockPulse{0%,100%{opacity:0.5;transform:scale(0.85)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes mockDotPulse{0%,80%,100%{opacity:0.25;transform:scale(0.7)}40%{opacity:1;transform:scale(1)}}
 .mock-timer{font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:700;color:#00e5a0;letter-spacing:3px}
 .mock-q-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px;border-left:4px solid var(--teal)}
 .mock-q-num{font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--teal);margin-bottom:8px}
@@ -3497,7 +3498,7 @@ function callMockChat(action, userContent) {
       diff: s.diff,
       numQ: s.numQ,
       action: action,
-      // Pass exact Q+A for clean per-question scoring (not polluted by history)
+      currentQIndex: s.currentQ,  // 0-based, reliable — don't count history
       currentQuestion: (action === 'answer') ? (s.questions[s.currentQ] || '') : '',
       currentAnswer:   (action === 'answer') ? (userContent || '') : ''
     })
@@ -3549,27 +3550,40 @@ function setMockQuestion(text, idx, blobPromise) {
   // Show interviewer chat bubble
   var bubble = document.getElementById('mockInterviewerBubble');
   if (!bubble) {
-    // Create bubble if not already in DOM
-    var liveSection = document.getElementById('mockSectionLive');
     var qCard = document.getElementById('mockQCard');
     if (qCard) {
       bubble = document.createElement('div');
       bubble.id = 'mockInterviewerBubble';
       bubble.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:12px;font-size:0.88rem;line-height:1.65;color:var(--text);position:relative';
-      bubble.innerHTML = '<div style="font-size:0.68rem;font-family:\'DM Mono\',monospace;letter-spacing:1.5px;color:var(--teal);margin-bottom:6px;font-weight:700">&#127908; INTERVIEWER</div><div id="mockBubbleText"></div>';
+      bubble.innerHTML = '<div style="font-size:0.68rem;font-family:\'DM Mono\',monospace;letter-spacing:1.5px;color:var(--teal);margin-bottom:6px;font-weight:700;display:flex;align-items:center;gap:6px"><span id="mockBubbleLabel">&#127908; INTERVIEWER</span><span id="mockSpeakingDots" style="display:none;gap:3px;align-items:center"></span></div><div id="mockBubbleText"></div>';
       qCard.parentNode.insertBefore(bubble, qCard);
     }
   }
   if (bubble) {
     bubble.style.display = 'block';
     document.getElementById('mockBubbleText').textContent = text;
+
+    // Show pulsing dots while audio is loading (if voice is on)
+    if (_mockSession && _mockSession.useVoice) {
+      var dots = document.getElementById('mockSpeakingDots');
+      if (dots) {
+        dots.style.display = 'inline-flex';
+        dots.innerHTML =
+          '<span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0s"></span>' +
+          '<span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.4s"></span>' +
+          '<span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.8s"></span>';
+      }
+    }
   }
 
   // Also update legacy question display
   document.getElementById('mockQText').textContent = text;
 
-  // Speak via ElevenLabs (falls back to browser TTS if not configured)
-  speakMockText(text, blobPromise || null);
+  // Speak — hide dots when audio actually starts playing
+  speakMockText(text, blobPromise || null, function onPlay() {
+    var dots = document.getElementById('mockSpeakingDots');
+    if (dots) dots.style.display = 'none';
+  });
 }
 
 // Strip any [SCORE:{...}] or raw JSON that leaked into display text
@@ -3929,9 +3943,9 @@ function prefetchTTS(text) {
 }
 
 // ── speakMockText — accepts optional pre-fetched blob promise to eliminate lag ──
-function speakMockText(text, blobPromise) {
+function speakMockText(text, blobPromise, onPlay) {
   if (!_mockSession || !_mockSession.useVoice || !text) return;
-  _ttsAborted = false; // reset on each new utterance
+  _ttsAborted = false;
 
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
@@ -3942,15 +3956,16 @@ function speakMockText(text, blobPromise) {
   var promise = blobPromise || prefetchTTS(clean);
 
   promise.then(function(blob) {
-    if (_ttsAborted) return; // session ended while fetching — don't play
-    if (!blob) { browserTTS(clean); return; }
+    if (_ttsAborted) return;
+    if (!blob) { if (onPlay) onPlay(); browserTTS(clean); return; }
     var url = URL.createObjectURL(blob);
     var audio = new Audio(url);
     _ttsAudio = audio;
+    audio.onplay  = function() { if (onPlay) onPlay(); };
     audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
-    audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; if (!_ttsAborted) browserTTS(clean); };
+    audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; if (!_ttsAborted) { if (onPlay) onPlay(); browserTTS(clean); } };
     if (_ttsAborted) { URL.revokeObjectURL(url); return; }
-    audio.play().catch(function(e) { if (!_ttsAborted) browserTTS(clean); });
+    audio.play().catch(function(e) { if (!_ttsAborted) { if (onPlay) onPlay(); browserTTS(clean); } });
   });
 }
 

@@ -1359,6 +1359,11 @@ function doLogout() {
       var el = document.getElementById(id);
       if (el) el.textContent = '';
     });
+    // Reset mock interview in-memory state so next user starts clean
+    _mockFreeUsedSecs = 0;
+    _mockRating = 0;
+    _mockPendingSave = null;
+    _mockSession = null;
     // Reset login button and form before showing page
     var btn = document.getElementById('loginBtn');
     btn.disabled = false;
@@ -3818,13 +3823,19 @@ function setMockRating(val, silent) {
   }
 }
 
+function getMockFreeKey() {
+  // Per-user key so different users on same browser don't share trial state
+  var email = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : 'guest';
+  return 'mockFreeUsedSecs_' + email;
+}
+
 function getMockFreeUsed() {
   return _mockFreeUsedSecs;
 }
 function addMockFreeUsed(secs) {
   _mockFreeUsedSecs += secs;
-  // Also keep localStorage as offline backup
-  localStorage.setItem('mockFreeUsedSecs', String(_mockFreeUsedSecs));
+  // Also keep localStorage as offline backup (per-user key)
+  localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
 }
 
 // Fetch free-trial status from server (source of truth = MockSessions sheet)
@@ -3834,8 +3845,8 @@ function syncMockFreeStatus(callback) {
     if (callback) callback();
     return;
   }
-  // Use localStorage instantly while server responds
-  _mockFreeUsedSecs = parseInt(localStorage.getItem('mockFreeUsedSecs') || '0', 10);
+  // Use per-user localStorage key instantly while server responds
+  _mockFreeUsedSecs = parseInt(localStorage.getItem(getMockFreeKey()) || '0', 10);
 
   fetch('/api/mock/free-status', { credentials: 'include' })
     .then(function(r) { return r.json(); })
@@ -3843,17 +3854,14 @@ function syncMockFreeStatus(callback) {
       if (d.unlimited) {
         _mockFreeUsedSecs = 0;
       } else {
-        // Server is source of truth — use whichever is higher
-        // (localStorage may have in-session seconds not yet saved to sheet)
         var serverSecs = (d.usedMins || 0) * 60;
-        var localSecs  = parseInt(localStorage.getItem('mockFreeUsedSecs') || '0', 10);
+        var localSecs  = parseInt(localStorage.getItem(getMockFreeKey()) || '0', 10);
         _mockFreeUsedSecs = Math.max(serverSecs, localSecs);
-        localStorage.setItem('mockFreeUsedSecs', String(_mockFreeUsedSecs));
+        localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
       }
       if (callback) callback();
     })
     .catch(function() {
-      // On error keep localStorage value
       if (callback) callback();
     });
 }

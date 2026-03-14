@@ -3271,6 +3271,9 @@ function startMockInterview() {
     speechSynthesis.speak(unlock);
   }
 
+  // Pre-load ElevenLabs config (key + voice ID) from server so first question is ready
+  if (useVoice) loadTTSConfig();
+
   _mockSession = { type:type, diff:diff, numQ:numQ, useVoice:useVoice,
     questions:[], answers:[], scores:[], feedbacks:[],
     history: [], candidateName: candidateName,
@@ -3866,9 +3869,28 @@ var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
 var _mockRating = 0;        // 1-5 stars, 0 = not rated
 var _mockPendingSave = null; // last save payload, updated when rating is set
 var _ttsAudio = null;        // current ElevenLabs audio element
-var _ttsEnabled = true;      // set false if ElevenLabs not configured
+var _ttsConfig = null;       // { configured, apiKey, voiceId, model } — loaded once on interview start
+var _ttsConfigLoaded = false;
 
-// ── speakMockText — ElevenLabs first, browser TTS fallback ──
+// Load ElevenLabs config once (on interview start) — stays in memory for session
+function loadTTSConfig(callback) {
+  if (_ttsConfigLoaded) { if (callback) callback(); return; }
+  fetch('/api/tts/config', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      _ttsConfig = d;
+      _ttsConfigLoaded = true;
+      if (callback) callback();
+    })
+    .catch(function() {
+      _ttsConfig = { configured: false };
+      _ttsConfigLoaded = true;
+      if (callback) callback();
+    });
+}
+
+// ── speakMockText — calls ElevenLabs directly from browser (avoids server IP flagging)
+// Falls back to browser TTS if ElevenLabs not configured or fails
 function speakMockText(text) {
   if (!_mockSession || !_mockSession.useVoice || !text) return;
 
@@ -3876,41 +3898,57 @@ function speakMockText(text) {
   if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
 
-  // Clean text for speech (strip markdown-like chars)
-  var clean = text.replace(/[*_`#]/g, '').trim();
+  var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
   if (!clean) return;
 
-  if (_ttsEnabled) {
-    fetch('/api/tts', {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: clean })
-    })
-    .then(function(r) {
-      if (r.status === 503) { _ttsEnabled = false; throw new Error('not_configured'); }
-      if (!r.ok) {
-        return r.json().then(function(d) {
-          console.warn('TTS error:', d.status, d.detail || d.error);
-          throw new Error('upstream_' + r.status);
-        }).catch(function() { throw new Error('upstream_' + r.status); });
-      }
-      return r.blob();
-    })
-    .then(function(blob) {
-      var url = URL.createObjectURL(blob);
-      var audio = new Audio(url);
-      _ttsAudio = audio;
-      audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
-      audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; browserTTS(clean); };
-      audio.play().catch(function(e) { console.warn('Audio play failed:', e.message); browserTTS(clean); });
-    })
-    .catch(function(e) {
-      console.warn('TTS fallback to browser:', e.message);
-      browserTTS(clean);
-    });
-  } else {
+  if (!_ttsConfigLoaded) {
+    // Config not loaded yet — fall back to browser TTS
     browserTTS(clean);
+    return;
   }
+
+  if (!_ttsConfig || !_ttsConfig.configured) {
+    browserTTS(clean);
+    return;
+  }
+
+  // Call ElevenLabs directly from the browser — user's real IP, no proxy detection
+  var cfg = _ttsConfig;
+  fetch('https://api.elevenlabs.io/v1/text-to-speech/' + cfg.voiceId, {
+    method: 'POST',
+    headers: {
+      'xi-api-key':   cfg.apiKey,
+      'Content-Type': 'application/json',
+      'Accept':       'audio/mpeg'
+    },
+    body: JSON.stringify({
+      text: clean,
+      model_id: cfg.model || 'eleven_multilingual_v2',
+      output_format: 'mp3_44100_128',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true }
+    })
+  })
+  .then(function(r) {
+    if (!r.ok) {
+      return r.json().then(function(d) {
+        console.warn('ElevenLabs error:', r.status, JSON.stringify(d).slice(0, 150));
+        throw new Error('el_' + r.status);
+      }).catch(function() { throw new Error('el_' + r.status); });
+    }
+    return r.blob();
+  })
+  .then(function(blob) {
+    var url = URL.createObjectURL(blob);
+    var audio = new Audio(url);
+    _ttsAudio = audio;
+    audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
+    audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; browserTTS(clean); };
+    audio.play().catch(function(e) { console.warn('Audio play failed:', e.message); browserTTS(clean); });
+  })
+  .catch(function(e) {
+    console.warn('TTS fallback to browser:', e.message);
+    browserTTS(clean);
+  });
 }
 
 function browserTTS(text) {

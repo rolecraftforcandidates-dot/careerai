@@ -3301,6 +3301,7 @@ function startMockInterview() {
 
   // Reset TTS and audio state for fresh session
   _ttsAborted = false;
+  _ttsGeneration = 0;
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src=''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
@@ -3970,7 +3971,8 @@ var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
 var _mockRating = 0;
 var _mockPendingSave = null;
 var _ttsAudio = null;
-var _ttsAborted = false; // set true when session ends / user navigates away
+var _ttsAborted = false;
+var _ttsGeneration = 0; // increments on every speakMockText call — old promises self-cancel
 var _ttsConfigLoaded = true;
 
 function loadTTSConfig(callback) { if (callback) callback(); }
@@ -3978,8 +3980,8 @@ function loadTTSConfig(callback) { if (callback) callback(); }
 // ── stopAllAudio — call on end session, sign out, nav away ──
 function stopAllAudio() {
   _ttsAborted = true;
+  _ttsGeneration++; // invalidate any in-flight fetch promise
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
-  // Show full text immediately if typewriter was mid-way
   var el = document.getElementById('mockQText');
   if (el && _mockSession && _mockSession.questions && _mockSession.questions[_mockSession.currentQ]) {
     el.textContent = _mockSession.questions[_mockSession.currentQ];
@@ -3988,7 +3990,7 @@ function stopAllAudio() {
   if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
 }
 
-// ── prefetchTTS — start fetching audio immediately, returns a Promise<blob|null> ──
+// ── prefetchTTS — start fetching audio immediately, returns Promise<blob|null> ──
 function prefetchTTS(text) {
   if (!text) return Promise.resolve(null);
   var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
@@ -4003,78 +4005,62 @@ function prefetchTTS(text) {
     return r.blob();
   })
   .catch(function(e) {
-    console.warn('TTS prefetch failed:', e.message);
-    return null; // null = use browser TTS
+    console.warn('TTS fetch failed:', e.message);
+    return null;
   });
 }
 
-// ── speakMockText — accepts optional pre-fetched blob promise to eliminate lag ──
+// ── speakMockText — generation-guarded so skip/next never overlaps previous audio ──
+// Browser TTS fallback removed — ElevenLabs only. On failure, typewriter still runs.
 function speakMockText(text, blobPromise, onPlay) {
-  if (!_mockSession || !_mockSession.useVoice || !text) return;
-  _ttsAborted = false;
+  if (!_mockSession || !_mockSession.useVoice || !text) {
+    if (onPlay) onPlay(); // no voice — still trigger typewriter
+    return;
+  }
 
+  // Stop anything currently playing
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+
+  // Tag this call with a generation number — if a newer call arrives before this
+  // promise resolves, myGeneration !== _ttsGeneration and we discard silently
+  _ttsAborted = false;
+  _ttsGeneration++;
+  var myGeneration = _ttsGeneration;
 
   var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
-  if (!clean) return;
+  if (!clean) { if (onPlay) onPlay(); return; }
 
   var promise = blobPromise || prefetchTTS(clean);
 
   promise.then(function(blob) {
-    if (_ttsAborted) return;
-    if (!blob) { if (onPlay) onPlay(); browserTTS(clean); return; }
+    // Stale — a newer question was requested while this was fetching
+    if (_ttsAborted || _ttsGeneration !== myGeneration) return;
+
+    if (!blob) {
+      // ElevenLabs failed — start typewriter silently, no robotic fallback
+      if (onPlay) onPlay();
+      return;
+    }
+
     var url = URL.createObjectURL(blob);
     var audio = new Audio(url);
     _ttsAudio = audio;
+
     audio.onplay  = function() { if (onPlay) onPlay(); };
     audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
-    audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; if (!_ttsAborted) { if (onPlay) onPlay(); browserTTS(clean); } };
-    if (_ttsAborted) { URL.revokeObjectURL(url); return; }
-    audio.play().catch(function(e) { if (!_ttsAborted) { if (onPlay) onPlay(); browserTTS(clean); } });
-  });
-}
-
-function browserTTS(text) {
-  if (!window.speechSynthesis) return;
-
-  function speak(voices) {
-    var utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.9;
-    utt.pitch = 1.0;
-
-    // Pick best available English voice — prefer neural/natural sounding ones
-    var preferred = [
-      'Google UK English Female', 'Google UK English Male',
-      'Google US English',        'Microsoft Aria Online',
-      'Microsoft Guy Online',     'Samantha',
-      'Karen',                    'Daniel',
-      'Moira',                    'Rishi'
-    ];
-    var picked = null;
-    for (var i = 0; i < preferred.length; i++) {
-      picked = voices.find(function(v) { return v.name === preferred[i]; });
-      if (picked) break;
-    }
-    // Fallback: any en-GB or en-US voice
-    if (!picked) picked = voices.find(function(v) { return /en-(GB|US|AU)/.test(v.lang); });
-    if (!picked) picked = voices.find(function(v) { return v.lang.startsWith('en'); });
-
-    if (picked) utt.voice = picked;
-    utt.lang = picked ? picked.lang : 'en-US';
-    speechSynthesis.speak(utt);
-  }
-
-  var voices = speechSynthesis.getVoices();
-  if (voices.length) {
-    speak(voices);
-  } else {
-    // Voices not loaded yet — wait for them
-    speechSynthesis.onvoiceschanged = function() {
-      speak(speechSynthesis.getVoices());
-      speechSynthesis.onvoiceschanged = null;
+    audio.onerror = function() {
+      URL.revokeObjectURL(url); _ttsAudio = null;
+      if (onPlay) onPlay(); // audio failed — still start typewriter
     };
-  }
+
+    // One final stale check before playing
+    if (_ttsAborted || _ttsGeneration !== myGeneration) { URL.revokeObjectURL(url); return; }
+
+    audio.play().catch(function() {
+      if (onPlay) onPlay(); // autoplay blocked — still show typewriter
+    });
+  });
 }
 
 function saveMockToSheet(payload) {

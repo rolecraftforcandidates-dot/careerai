@@ -3866,69 +3866,30 @@ function renderMockHistoryHtml(el, history) {
 // ── TIMER ──
 var _FREE_LIMIT_SECS = 600; // 10 minutes total
 var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
-var _mockRating = 0;        // 1-5 stars, 0 = not rated
-var _mockPendingSave = null; // last save payload, updated when rating is set
-var _ttsAudio = null;        // current ElevenLabs audio element
-var _ttsConfig = null;       // { configured, apiKey, voiceId, model } — loaded once on interview start
-var _ttsConfigLoaded = false;
+var _mockRating = 0;
+var _mockPendingSave = null;
+var _ttsAudio = null;
+var _ttsConfigLoaded = true; // server-side mode — no config fetch needed
 
-// Load ElevenLabs config once (on interview start) — stays in memory for session
-function loadTTSConfig(callback) {
-  if (_ttsConfigLoaded) { if (callback) callback(); return; }
-  fetch('/api/tts/config', { credentials: 'include' })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      _ttsConfig = d;
-      _ttsConfigLoaded = true;
-      if (callback) callback();
-    })
-    .catch(function() {
-      _ttsConfig = { configured: false };
-      _ttsConfigLoaded = true;
-      if (callback) callback();
-    });
-}
+function loadTTSConfig(callback) { if (callback) callback(); } // no-op in server-side mode
 
-// ── speakMockText — calls ElevenLabs directly from browser (avoids server IP flagging)
-// Falls back to browser TTS if ElevenLabs not configured or fails
+// ── speakMockText — calls server TTS proxy → ElevenLabs, falls back to browser TTS ──
 function speakMockText(text) {
   if (!_mockSession || !_mockSession.useVoice || !text) return;
 
-  // Stop any currently playing audio
   if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
 
   var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
   if (!clean) return;
 
-  if (!_ttsConfigLoaded) {
-    // Config not loaded yet — fall back to browser TTS
-    browserTTS(clean);
-    return;
-  }
-
-  if (!_ttsConfig || !_ttsConfig.configured) {
-    browserTTS(clean);
-    return;
-  }
-
-  // Call ElevenLabs directly from the browser — user's real IP, no proxy detection
-  var cfg = _ttsConfig;
-  fetch('https://api.elevenlabs.io/v1/text-to-speech/' + cfg.voiceId, {
-    method: 'POST',
-    headers: {
-      'xi-api-key':   cfg.apiKey,
-      'Content-Type': 'application/json',
-      'Accept':       'audio/mpeg'
-    },
-    body: JSON.stringify({
-      text: clean,
-      model_id: cfg.model || 'eleven_multilingual_v2',
-      output_format: 'mp3_44100_128',
-      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true }
-    })
+  fetch('/api/tts', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: clean })
   })
   .then(function(r) {
+    if (r.status === 503) throw new Error('not_configured');
     if (!r.ok) {
       return r.json().then(function(d) {
         console.warn('ElevenLabs error:', r.status, JSON.stringify(d).slice(0, 150));
@@ -3953,10 +3914,44 @@ function speakMockText(text) {
 
 function browserTTS(text) {
   if (!window.speechSynthesis) return;
-  var utt = new SpeechSynthesisUtterance(text);
-  utt.rate = 0.92;
-  utt.lang = 'en-IN';
-  speechSynthesis.speak(utt);
+
+  function speak(voices) {
+    var utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 0.9;
+    utt.pitch = 1.0;
+
+    // Pick best available English voice — prefer neural/natural sounding ones
+    var preferred = [
+      'Google UK English Female', 'Google UK English Male',
+      'Google US English',        'Microsoft Aria Online',
+      'Microsoft Guy Online',     'Samantha',
+      'Karen',                    'Daniel',
+      'Moira',                    'Rishi'
+    ];
+    var picked = null;
+    for (var i = 0; i < preferred.length; i++) {
+      picked = voices.find(function(v) { return v.name === preferred[i]; });
+      if (picked) break;
+    }
+    // Fallback: any en-GB or en-US voice
+    if (!picked) picked = voices.find(function(v) { return /en-(GB|US|AU)/.test(v.lang); });
+    if (!picked) picked = voices.find(function(v) { return v.lang.startsWith('en'); });
+
+    if (picked) utt.voice = picked;
+    utt.lang = picked ? picked.lang : 'en-US';
+    speechSynthesis.speak(utt);
+  }
+
+  var voices = speechSynthesis.getVoices();
+  if (voices.length) {
+    speak(voices);
+  } else {
+    // Voices not loaded yet — wait for them
+    speechSynthesis.onvoiceschanged = function() {
+      speak(speechSynthesis.getVoices());
+      speechSynthesis.onvoiceschanged = null;
+    };
+  }
 }
 
 function saveMockToSheet(payload) {

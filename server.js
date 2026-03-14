@@ -1407,6 +1407,27 @@ async function preloadWeek1Resources(email, role, experience) {
   console.log(`✅ Week 1 preload done for ${email}: ${succeeded} succeeded, ${failed} failed`);
 }
 
+// GET /api/resources/preload-free — trigger Days 1-3 preload for free users on login
+// Fast: checks cache first, only generates what's missing
+app.get('/api/resources/preload-free', requireLogin, async (req, res) => {
+  const { email, role, experience } = req.session.user;
+  const tier = (req.session.user.tier || 'free').toLowerCase();
+
+  // Only needed for free users
+  if (tier !== 'free') return res.json({ ok: true, skipped: true });
+
+  // Respond immediately — preload runs in background
+  res.json({ ok: true, started: true });
+
+  setImmediate(async () => {
+    try {
+      await preloadFreeResources(email, role || '', experience || 'Mid');
+    } catch(e) {
+      console.error('Login preload-free failed (non-fatal):', e.message);
+    }
+  });
+});
+
 // POST /api/resources — generate cheatsheet + curated links (uses shared generateAndCacheResource)
 app.post('/api/resources', requireLogin, async (req, res) => {
   try {

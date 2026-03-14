@@ -1283,6 +1283,11 @@ function showDashboard(user, initialPanel) {
   setUserInfo(user);
   initTier(user.tier || 'free');
 
+  // Pre-warm Days 1-3 study resources for free users (background, non-blocking)
+  if ((user.tier || 'free') === 'free') {
+    fetch('/api/resources/preload-free', { credentials: 'include' }).catch(function(){});
+  }
+
   // Server now redirects unregistered Google users to Tally before they reach here
   // This is a safety net only &mdash; should never fire in normal flow
   if (!user.role) {
@@ -1867,7 +1872,7 @@ function loadPlan() {
               var isFreeUnlocked = (_userTier !== 'free') || (parseInt(t.Week) === 1 && parseInt(t.Day) <= 3);
               var studyBtn = isFreeUnlocked
                 ? '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="&#x1F4DA; Study this topic">&#x1F4DA; Study</button>'
-                : '<button class="study-btn" onclick="showUpgradeModal()" style="opacity:0.55;background:var(--bg);border:1px solid var(--border);color:var(--muted)" title="Upgrade to Pro to unlock">&#128274; Study</button>';
+                : '<button class="study-btn" onclick="showUpgradeModal()" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="Upgrade to Pro to unlock">&#128274; Study</button>';
               return '<div class="task-item" data-task="'+taskKey+'">'+
                 '<div onclick="toggleTask(this.parentNode)" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">'+
                   '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+

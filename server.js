@@ -2078,7 +2078,7 @@ function requirePremium(req, res, next) {
 // Handles: opening greeting, resume-based Q1, follow-ups, hints, adaptive difficulty, scoring
 app.post('/api/mock/chat', requireLogin, async (req, res) => {
   try {
-    const { history = [], type = 'Technical', difficulty = 'mid', numQ = 5, action = 'next', currentQuestion = '', currentAnswer = '' } = req.body;
+    const { history = [], type = 'Technical', difficulty = 'mid', numQ = 5, action = 'next', currentQuestion = '', currentAnswer = '', currentQIndex = null } = req.body;
     // action: 'start' | 'answer' | 'skip' | 'hint'
     const { role = 'Software Engineer', name = 'there' } = req.session.user;
     const email = req.session.user.email;
@@ -2103,8 +2103,10 @@ app.post('/api/mock/chat', requireLogin, async (req, res) => {
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const questionCount = history.filter(m => m.role === 'assistant' && m.isQuestion).length;
-    const isLastQuestion = questionCount >= numQ - 1;
+    // Use explicit currentQIndex from frontend (0-based) — more reliable than counting history
+    const questionCount = currentQIndex !== null ? parseInt(currentQIndex) : history.filter(m => m.role === 'assistant' && m.isQuestion).length;
+    const questionsAnswered = action === 'answer' ? questionCount + 1 : questionCount; // how many Q&As are complete
+    const isLastQuestion = questionCount >= numQ - 1; // currentQIndex is 0-based, numQ is total
 
     // ── STEP 1: Score the answer separately (clean, focused, no conversation noise) ──
     let score = null, feedback = null, nextDifficulty = 'same';
@@ -2151,7 +2153,9 @@ ${resumeText ? `Their resume (excerpt):\n"""\n${resumeText}\n"""\n` : ''}
 INTERVIEW CONTEXT
 - Interview type: ${type}
 - Total questions planned: ${numQ}
-- Questions asked so far: ${questionCount}
+- Current question number: ${questionCount + 1} of ${numQ}
+- Questions completed so far: ${questionsAnswered} of ${numQ}
+- Is this the final question: ${isLastQuestion ? 'YES — wrap up after this' : 'NO — continue interview'}
 - Current action: ${action}
 ${action === 'answer' && score !== null ? `- Candidate just scored ${score}/100 on their answer` : ''}
 
@@ -2165,14 +2169,16 @@ YOUR PERSONA
 INTERVIEW FLOW
 ${history.length === 0 ? `Start with: a warm 1-sentence greeting using their name, then immediately ask your first question about their most recent project from the resume (or their background if no resume). Keep it to 2-3 sentences total.` : ''}
 
-${action === 'answer' ? `The candidate just answered a question.
+${action === 'answer' ? `The candidate just answered question ${questionCount + 1} of ${numQ}.
 ${isLastQuestion
-  ? 'This was the LAST question. Give a brief warm acknowledgement (1 sentence) then conclude the interview gracefully. Thank them by name.'
-  : score !== null && score >= 75
-    ? 'Their answer was good. Acknowledge briefly (1 sentence), then ask ONE deeper follow-up question on the same topic.'
-    : score !== null && score < 50
-      ? 'Their answer was weak. Acknowledge encouragingly (1 sentence), then move to a slightly easier or different question to rebuild confidence.'
-      : 'Acknowledge their answer briefly (1 sentence), then ask ONE natural follow-up or next question.'}` : ''}
+  ? `This IS question ${numQ} of ${numQ} — the FINAL question. Acknowledge briefly then close the interview warmly.`
+  : `This is NOT the last question (${questionCount + 1} of ${numQ} done). Do NOT close the interview. ${
+      score !== null && score >= 75
+        ? 'Their answer was good. Acknowledge briefly (1 sentence), then ask ONE deeper follow-up or next question.'
+        : score !== null && score < 50
+          ? 'Their answer was weak. Acknowledge encouragingly (1 sentence), then ask a slightly easier next question.'
+          : 'Acknowledge briefly (1 sentence), then ask ONE natural next question.'
+    }`}` : ''}
 
 ${action === 'hint' ? `The candidate is struggling. Give a small encouraging hint (1-2 sentences). Start with "That's okay, take a moment." then give one specific conceptual nudge without giving the answer.` : ''}
 

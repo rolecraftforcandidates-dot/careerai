@@ -3309,6 +3309,10 @@ function toggleMockMic() {
     return;
   }
 
+  // Stop any playing TTS so mic doesn't pick it up
+  if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   // iOS Chrome doesn't expose SpeechRecognition even though it's WebKit-based.
@@ -3548,13 +3552,8 @@ function setMockQuestion(text, idx) {
   // Also update legacy question display
   document.getElementById('mockQText').textContent = text;
 
-  // TTS
-  if (window.speechSynthesis && _mockSession && _mockSession.useVoice) {
-    speechSynthesis.cancel();
-    var utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.92; utt.lang = 'en-IN';
-    speechSynthesis.speak(utt);
-  }
+  // Speak via ElevenLabs (falls back to browser TTS if not configured)
+  speakMockText(text);
 }
 
 // Strip any [SCORE:{...}] or raw JSON that leaked into display text
@@ -3658,10 +3657,8 @@ function requestMockHint() {
         }
         if (window.speechSynthesis && s.useVoice) {
           speechSynthesis.cancel();
-          var utt = new SpeechSynthesisUtterance(d.response);
-          utt.rate = 0.92; utt.lang = 'en-IN';
-          speechSynthesis.speak(utt);
         }
+        speakMockText(cleanHint);
       }
       if (btn) { btn.disabled = false; btn.innerHTML = '&#128161; Hint'; }
     })
@@ -3868,6 +3865,56 @@ var _FREE_LIMIT_SECS = 600; // 10 minutes total
 var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
 var _mockRating = 0;        // 1-5 stars, 0 = not rated
 var _mockPendingSave = null; // last save payload, updated when rating is set
+var _ttsAudio = null;        // current ElevenLabs audio element
+var _ttsEnabled = true;      // set false if ElevenLabs not configured
+
+// ── speakMockText — ElevenLabs first, browser TTS fallback ──
+function speakMockText(text) {
+  if (!_mockSession || !_mockSession.useVoice || !text) return;
+
+  // Stop any currently playing audio
+  if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+
+  // Clean text for speech (strip markdown-like chars)
+  var clean = text.replace(/[*_`#]/g, '').trim();
+  if (!clean) return;
+
+  if (_ttsEnabled) {
+    fetch('/api/tts', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: clean })
+    })
+    .then(function(r) {
+      if (r.status === 503) { _ttsEnabled = false; throw new Error('not_configured'); }
+      if (!r.ok) throw new Error('upstream_' + r.status);
+      return r.blob();
+    })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      var audio = new Audio(url);
+      _ttsAudio = audio;
+      audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
+      audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; browserTTS(clean); };
+      audio.play().catch(function() { browserTTS(clean); });
+    })
+    .catch(function(e) {
+      // ElevenLabs failed or not configured — fall back to browser TTS silently
+      browserTTS(clean);
+    });
+  } else {
+    browserTTS(clean);
+  }
+}
+
+function browserTTS(text) {
+  if (!window.speechSynthesis) return;
+  var utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.92;
+  utt.lang = 'en-IN';
+  speechSynthesis.speak(utt);
+}
 
 function saveMockToSheet(payload) {
   fetch('/api/mock/save', {

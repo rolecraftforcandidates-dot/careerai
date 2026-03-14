@@ -2146,6 +2146,158 @@ Return ONLY valid JSON (no markdown, no extra text):
     }
 
     // ── STEP 2: Generate conversational interviewer response ──
+
+    // Generate a session-unique random seed to vary question selection each run
+    const sessionSeed = Math.floor(Math.random() * 1000);
+    const sessionVariant = ['A','B','C','D','E'][sessionSeed % 5];
+
+    // Pull tech stack and role from session for personalised coding questions
+    const techStack = req.session.user.techStack || '';
+    const experienceYears = req.session.user.experienceYears || null;
+
+    // Infer coding question domain from role + tech stack
+    // This ensures a Data Engineer gets SQL/Python questions, not LeetCode tree problems
+    function getCodingDomain(role, techStack, difficulty) {
+      const r = (role || '').toLowerCase();
+      const t = (techStack || '').toLowerCase();
+      const combined = r + ' ' + t;
+
+      // Data roles
+      if (/data engineer|etl|pipeline|spark|airflow|redshift|snowflake|databricks|glue/.test(combined)) {
+        return {
+          domain: 'Data Engineering',
+          codingTypes: [
+            'SQL query optimisation (window functions, CTEs, aggregations)',
+            'Python data processing (pandas, handling large datasets, transformations)',
+            'ETL pipeline design (handling failures, idempotency, schema changes)',
+            'Writing a PySpark transformation for a given dataset problem',
+            'Optimising a slow SQL query with proper indexing strategy',
+            'Python function to clean and validate incoming data records'
+          ]
+        };
+      }
+      // Data science / ML
+      if (/data scientist|machine learning|ml engineer|ai engineer|nlp|deep learning/.test(combined)) {
+        return {
+          domain: 'Data Science / ML',
+          codingTypes: [
+            'Python: implement a function to calculate precision/recall/F1',
+            'SQL: write a query to find feature correlations from a dataset',
+            'Python: write a data preprocessing pipeline for missing values',
+            'Implement k-means clustering logic step by step in pseudocode',
+            'Python: write a function to split data and evaluate a model',
+            'SQL: aggregate and pivot data for a reporting dashboard'
+          ]
+        };
+      }
+      // Frontend
+      if (/frontend|front-end|react|vue|angular|ui engineer|javascript|typescript/.test(combined)) {
+        return {
+          domain: 'Frontend',
+          codingTypes: [
+            'JavaScript: implement a debounce or throttle function',
+            'Write a React hook that handles API fetching with loading/error state',
+            'JavaScript: implement a deep clone function without using JSON',
+            'CSS/JS: explain how you would build an infinite scroll component',
+            'JavaScript: write a function to flatten a nested array',
+            'React: implement a custom useLocalStorage hook'
+          ]
+        };
+      }
+      // Backend / general SWE
+      if (/backend|back-end|node|java|python|golang|django|spring|rails|api/.test(combined)) {
+        return {
+          domain: 'Backend / API',
+          codingTypes: [
+            'Design and implement a rate limiter for an API endpoint',
+            'Write a function to implement LRU cache with get/put operations',
+            'Implement a middleware that logs request duration and errors',
+            'Write a function to parse and validate a complex nested JSON input',
+            'Design a retry mechanism with exponential backoff',
+            'Write a function to find duplicate records in a large dataset efficiently'
+          ]
+        };
+      }
+      // DevOps / SRE / Cloud
+      if (/devops|sre|platform|infrastructure|cloud|kubernetes|docker|terraform|aws|gcp|azure/.test(combined)) {
+        return {
+          domain: 'DevOps / Cloud',
+          codingTypes: [
+            'Write a bash script to monitor disk usage and alert when above threshold',
+            'Design a Terraform module structure for a multi-env deployment',
+            'Write a Python script to rotate AWS credentials across services',
+            'Explain and sketch a CI/CD pipeline for a microservice deployment',
+            'Write a Docker health check script for a web service',
+            'Design a rollback strategy for a failed Kubernetes deployment'
+          ]
+        };
+      }
+      // Mobile
+      if (/mobile|ios|android|swift|kotlin|flutter|react native/.test(combined)) {
+        return {
+          domain: 'Mobile',
+          codingTypes: [
+            'Implement a local caching strategy for offline-first mobile app',
+            'Write a function to handle pagination in a mobile list view',
+            'Design a push notification handling flow with deep linking',
+            'Implement a retry mechanism for failed network requests on mobile',
+            'Write a function to parse and display dynamic JSON-driven UI'
+          ]
+        };
+      }
+      // Default — general SWE with moderate DS&A
+      return {
+        domain: 'General Software Engineering',
+        codingTypes: [
+          'Array/string manipulation relevant to your tech stack',
+          'HashMap-based problem (frequency count, grouping, lookup)',
+          'Write a function to validate and parse structured input data',
+          'Implement a simple queue or stack using available data structures',
+          'Design a function with proper error handling and edge cases',
+          'String parsing: extract structured data from a log or text format'
+        ]
+      };
+    }
+
+    const codingDomain = getCodingDomain(role, techStack, difficulty);
+
+    // Topic pools per interview type — rotate so each session covers different areas
+    const topicPools = {
+      Technical: [
+        ['system design','databases','APIs','caching','scalability','security','testing','cloud services','concurrency','networking'],
+        ['microservices','message queues','indexing','error handling','code review','CI/CD','monitoring','authentication','performance optimisation'],
+        ['distributed systems','REST vs GraphQL','containerisation','design patterns','load balancing','event-driven architecture','debugging','observability']
+      ],
+      Behavioral: [
+        ['conflict resolution','leadership','ownership','failure and learning','collaboration','time management','prioritisation','feedback','communication','ambiguity'],
+        ['influence without authority','cross-team work','difficult stakeholders','delivering bad news','process improvement','mentoring','deadline pressure','self-motivation','career growth'],
+        ['problem solving','initiative','adaptability','technical decision-making','trade-offs','project management','retrospectives','recognition','team dynamics']
+      ],
+      'System Design': [
+        ['scalability','availability','consistency','partitioning','caching strategies','CDN','load balancing','database sharding','event sourcing','API design'],
+        ['real-time systems','search infrastructure','notification systems','rate limiting','data pipelines','microservices decomposition','service mesh','observability','disaster recovery'],
+        ['authentication systems','recommendation engines','distributed storage','write-heavy systems','read-heavy systems','global distribution','cost optimisation','capacity planning']
+      ],
+      Mixed: [
+        ['technical depth','system design','leadership','ownership','conflict','scalability','feedback','databases','communication'],
+        ['microservices','initiative','caching','collaboration','API design','failure learning','distributed systems','prioritisation','security','influence'],
+        ['concurrency','cross-team work','indexing','deadline pressure','REST design','problem solving','event-driven','adaptability','performance','mentoring']
+      ]
+    };
+
+    const pool = topicPools[type] || topicPools['Technical'];
+    const poolIndex = sessionSeed % pool.length;
+    const sessionTopics = pool[poolIndex];
+
+    // Extract questions already asked from history to prevent repetition
+    const askedQuestions = history
+      .filter(m => m.role === 'assistant' && m.isQuestion)
+      .map(m => (m.content || '').slice(0, 80))
+      .join(' | ');
+
+    // Pick which coding type to use for this session (rotates per variant)
+    const codingTypeForSession = codingDomain.codingTypes[sessionSeed % codingDomain.codingTypes.length];
+
     const systemPrompt = `You are an experienced technical interviewer conducting a mock interview with ${firstName}, a ${diffLabel[difficulty]||difficulty} ${role} candidate.
 
 ${resumeText ? `Their resume (excerpt):\n"""\n${resumeText}\n"""\n` : ''}
@@ -2157,6 +2309,7 @@ INTERVIEW CONTEXT
 - Questions completed so far: ${questionsAnswered} of ${numQ}
 - Is this the final question: ${isLastQuestion ? 'YES — wrap up after this' : 'NO — continue interview'}
 - Current action: ${action}
+- Session variant: ${sessionVariant} (use this to vary your question style and topic selection)
 ${action === 'answer' && score !== null ? `- Candidate just scored ${score}/100 on their answer` : ''}
 
 YOUR PERSONA
@@ -2166,6 +2319,15 @@ YOUR PERSONA
 - Keep responses short and voice-friendly (2-4 sentences max)
 - Never mention that you are an AI or Claude
 
+QUESTION VARIETY — CRITICAL
+This session's topic sequence: ${sessionTopics.slice(0, numQ).join(' → ')}
+- Follow this topic sequence for non-coding questions — cover different areas each question
+- NEVER repeat a topic or concept already covered in this session
+- NEVER ask a question similar to one already asked
+- Questions already asked (do not repeat these topics): ${askedQuestions || 'none yet'}
+- Each question must feel like it comes from a DIFFERENT part of the interview — vary between: technical concepts, real experience, trade-offs, problem solving, and past projects
+- Mix difficulty within the session — don't ask all hard or all easy questions in a row
+
 INTERVIEW FLOW
 ${history.length === 0 ? `Start with: a warm 1-sentence greeting using their name, then immediately ask your first question about their most recent project from the resume (or their background if no resume). Keep it to 2-3 sentences total.` : ''}
 
@@ -2174,18 +2336,35 @@ ${isLastQuestion
   ? `This IS question ${numQ} of ${numQ} — the FINAL question. Acknowledge briefly then close the interview warmly.`
   : `This is NOT the last question (${questionCount + 1} of ${numQ} done). Do NOT close the interview. ${
       score !== null && score >= 75
-        ? 'Their answer was good. Acknowledge briefly (1 sentence), then ask ONE deeper follow-up or next question.'
+        ? 'Their answer was good. Acknowledge briefly (1 sentence), then ask ONE deeper follow-up or next question on a DIFFERENT topic.'
         : score !== null && score < 50
-          ? 'Their answer was weak. Acknowledge encouragingly (1 sentence), then ask a slightly easier next question.'
-          : 'Acknowledge briefly (1 sentence), then ask ONE natural next question.'
+          ? 'Their answer was weak. Acknowledge encouragingly (1 sentence), then move to a DIFFERENT topic for the next question.'
+          : 'Acknowledge briefly (1 sentence), then ask ONE question on the next topic in the sequence.'
     }`}` : ''}
 
 ${action === 'hint' ? `The candidate is struggling. Give a small encouraging hint (1-2 sentences). Start with "That's okay, take a moment." then give one specific conceptual nudge without giving the answer.` : ''}
 
-${action === 'skip' ? `The candidate skipped. Acknowledge briefly in one sentence, then move on with the next question.` : ''}
+${action === 'skip' ? `The candidate skipped. Acknowledge briefly in one sentence, then move on with the next topic.` : ''}
 
 CODING QUESTION RULE
-${type === 'Technical' || type === 'Mixed' ? `Around question ${Math.floor(numQ * 0.6) + 1} onwards, you may ask a coding or algorithm question — describe the problem clearly and ask the candidate to walk through their approach and logic (not write actual code, just explain it).` : ''}
+${type === 'Technical' || type === 'Mixed' ? `You MUST include coding/algorithm questions distributed through the interview:
+- Coding question positions for this ${numQ}-question session: ${
+  numQ <= 5  ? 'questions 3 and 5' :
+  numQ <= 8  ? 'questions 3, 6, and 8' :
+  numQ <= 12 ? 'questions 3, 6, 9, and 12' :
+               'questions 3, 6, 9, 12, and 15'
+}
+- Current question is ${questionCount + 1} of ${numQ}. ${
+  (() => {
+    const codingQs = numQ <= 5 ? [3,5] : numQ <= 8 ? [3,6,8] : numQ <= 12 ? [3,6,9,12] : [3,6,9,12,15];
+    return codingQs.includes(questionCount + 1)
+      ? `THIS IS A CODING QUESTION. IMPORTANT: This candidate is a ${role}${techStack ? ` working with ${techStack}` : ''}. Ask a ${codingDomain.domain} coding question — specifically around: ${codingTypeForSession}. Do NOT ask generic LeetCode-style algorithm puzzles unless they are directly relevant to this role. The question should feel like something asked in a real ${role} interview.`
+      : 'This is NOT a coding question — ask a conceptual, experience-based, or system design question from the topic sequence.';
+  })()
+}
+- For coding questions: describe a realistic scenario clearly, ask the candidate to walk through their approach and logic — they do not need to write actual code, just explain it conversationally.
+- Keep the difficulty appropriate to ${diffLabel[difficulty]||difficulty} level
+- Each coding question in this session should test a DIFFERENT skill — do not repeat the same type` : ''}
 
 STRICT OUTPUT RULES
 - Output ONLY the spoken words of the interviewer

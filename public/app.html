@@ -861,6 +861,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
                   <option value="on">&#127908; Microphone + Text</option>
                   <option value="off">&#9000;&#65039; Text Only</option>
                 </select>
+                <div id="mockIosVoiceHint" style="display:none;font-size:0.72rem;color:var(--orange,#f5a623);margin-top:5px;line-height:1.4">&#9888; Voice works on Safari only on iPhone. Use text input or open in Safari.</div>
               </div>
             </div>
             <button class="mock-start-btn" onclick="startMockInterview()" id="mockStartBtn">
@@ -3051,6 +3052,12 @@ function showMockInterviewPanel(navEl) {
   renderMockHistory();
   renderMockUpcoming();
 
+  // Show warning for iOS Chrome users (no SpeechRecognition support)
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var isChrome = /CriOS/.test(navigator.userAgent);
+  var hint = document.getElementById('mockIosVoiceHint');
+  if (hint) hint.style.display = (isIOS && isChrome) ? 'block' : 'none';
+
   // Sync free-trial status from server (sheet = source of truth), then refresh banner
   syncMockFreeStatus(function() {
     refreshMockFreeUI();
@@ -3245,7 +3252,7 @@ function startMockInterview() {
     var usedSecs = getMockFreeUsed();
     if (usedSecs >= _FREE_LIMIT_SECS) {
       showUpgradeModal();
-      return; // stop here — no session init, no API call
+      return;
     }
   }
 
@@ -3254,6 +3261,15 @@ function startMockInterview() {
   var numQ    = parseInt(document.getElementById('mockNumQ').value);
   var useVoice = document.getElementById('mockVoice').value === 'on';
   var candidateName = ((document.getElementById('userName')||{}).textContent||'there').trim().split(' ')[0]||'there';
+
+  // ── iOS TTS unlock: iOS blocks speechSynthesis unless triggered by a direct user tap.
+  // Speaking an empty utterance here (inside the button click handler) unlocks it for
+  // all subsequent calls in this session.
+  if (useVoice && window.speechSynthesis) {
+    var unlock = new SpeechSynthesisUtterance('');
+    unlock.volume = 0;
+    speechSynthesis.speak(unlock);
+  }
 
   _mockSession = { type:type, diff:diff, numQ:numQ, useVoice:useVoice,
     questions:[], answers:[], scores:[], feedbacks:[],
@@ -3292,8 +3308,23 @@ function toggleMockMic() {
     btn.innerHTML = '&#127908; Start Speaking';
     return;
   }
+
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('Your browser does not support voice input. Please type your answer.'); return; }
+
+  // iOS Chrome doesn't expose SpeechRecognition even though it's WebKit-based.
+  // Detect it and show a clear message pointing to Safari.
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var isChrome = /CriOS/.test(navigator.userAgent); // Chrome on iOS user-agent contains CriOS
+  if (isIOS && isChrome) {
+    btn.innerHTML = '&#127908; Start Speaking';
+    showMockMicToast('Voice input isn\'t supported in Chrome on iPhone. Please open RoleKraft in Safari to use your microphone.');
+    return;
+  }
+
+  if (!SR) {
+    showMockMicToast('Voice input isn\'t supported in this browser. Please use Chrome on desktop or Safari on iPhone.');
+    return;
+  }
 
   function startRecognition() {
     var r = new SR();
@@ -3303,7 +3334,6 @@ function toggleMockMic() {
     r.maxAlternatives = 1;
     r._manualStop = false;
 
-    // Build on top of whatever is already in the box
     var baseText = document.getElementById('mockAnswerBox').value;
 
     r.onresult = function(e) {
@@ -3322,21 +3352,25 @@ function toggleMockMic() {
     };
 
     r.onerror = function(e) {
-      if (e.error === 'no-speech') return; // ignore, will auto-restart
-      if (e.error === 'aborted') return;   // manual stop
+      if (e.error === 'no-speech') return;
+      if (e.error === 'aborted') return;
+      if (e.error === 'not-allowed') {
+        showMockMicToast('Microphone access was denied. Please allow microphone permission in your browser settings and try again.');
+        btn.classList.remove('recording');
+        btn.innerHTML = '&#127908; Start Speaking';
+        _mockRecognition = null;
+        return;
+      }
       console.warn('Speech error:', e.error);
     };
 
     r.onend = function() {
-      if (r._manualStop) return; // user clicked Stop
-      // Auto-restart if still in recording mode (browser cuts off after silence)
+      if (r._manualStop) return;
       if (_mockRecognition === r) {
         try {
-          // Update base from current box before restart
           baseText = document.getElementById('mockAnswerBox').value;
           r.start();
         } catch(err) {
-          // If restart fails, show as stopped
           btn.classList.remove('recording');
           btn.innerHTML = '&#127908; Start Speaking';
           _mockRecognition = null;
@@ -3350,7 +3384,32 @@ function toggleMockMic() {
     btn.innerHTML = '&#9632; Stop Recording';
   }
 
-  startRecognition();
+  // On iOS Safari, request mic permission explicitly first so the user sees
+  // the native permission prompt rather than a silent failure
+  if (isIOS && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function(stream) {
+        // Permission granted — stop the stream (SR will open its own) and start
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        startRecognition();
+      })
+      .catch(function(err) {
+        showMockMicToast('Microphone access denied. Go to Settings → Safari → Microphone and allow access, then try again.');
+      });
+  } else {
+    startRecognition();
+  }
+}
+
+function showMockMicToast(msg) {
+  var existing = document.getElementById('mockMicToast');
+  if (existing) existing.remove();
+  var toast = document.createElement('div');
+  toast.id = 'mockMicToast';
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:12px 18px;border-radius:10px;font-size:0.82rem;line-height:1.5;max-width:320px;text-align:center;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.3)';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(function() { if (toast.parentNode) toast.remove(); }, 6000);
 }
 
 // Fallback question banks if API fails

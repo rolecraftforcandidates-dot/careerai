@@ -1981,6 +1981,86 @@ app.get('/api/session-test', (req, res) => {
 
 
 // ══════════════════════════════════════════════════════
+// ELEVENLABS TTS PROXY
+// ══════════════════════════════════════════════════════
+// Config — set these in your .env file:
+//   ELEVENLABS_API_KEY=your_key_here
+//   ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM   (Rachel — calm professional)
+//   ELEVENLABS_MODEL=eleven_turbo_v2_5          (fastest + cheapest, good quality)
+//
+// Voice ID options to try:
+//   21m00Tcm4TlvDq8ikWAM — Rachel (calm, professional female)
+//   TxGEqnHWrfWFTfGW9XjX — Josh   (friendly, clear male)
+//   ErXwobaYiN019PkySvjV — Antoni (warm male)
+//   Find more at: https://elevenlabs.io/voice-library
+
+app.post('/api/tts', requireLogin, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
+
+    const apiKey  = process.env.ELEVENLABS_API_KEY;
+    const voiceId = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+    const model   = process.env.ELEVENLABS_MODEL    || 'eleven_turbo_v2_5';
+
+    // If no API key configured, return a flag so frontend falls back to browser TTS
+    if (!apiKey) {
+      return res.status(503).json({ error: 'tts_not_configured' });
+    }
+
+    const https = require('https');
+    const body  = JSON.stringify({
+      text: text.trim().slice(0, 500), // cap at 500 chars to control cost
+      model_id: model,
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true }
+    });
+
+    const options = {
+      hostname: 'api.elevenlabs.io',
+      path:     `/v1/text-to-speech/${voiceId}`,
+      method:   'POST',
+      headers:  {
+        'xi-api-key':   apiKey,
+        'Content-Type': 'application/json',
+        'Accept':       'audio/mpeg',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+
+    const chunks = [];
+    const proxyReq = https.request(options, (proxyRes) => {
+      if (proxyRes.statusCode !== 200) {
+        let errBody = '';
+        proxyRes.on('data', c => errBody += c);
+        proxyRes.on('end', () => {
+          console.error(`ElevenLabs error ${proxyRes.statusCode}:`, errBody.slice(0, 200));
+          res.status(502).json({ error: 'tts_upstream_error', status: proxyRes.statusCode });
+        });
+        return;
+      }
+      proxyRes.on('data', chunk => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const audio = Buffer.concat(chunks);
+        res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': audio.length, 'Cache-Control': 'no-store' });
+        res.send(audio);
+      });
+    });
+
+    proxyReq.on('error', (e) => {
+      console.error('ElevenLabs request error:', e.message);
+      res.status(502).json({ error: 'tts_network_error' });
+    });
+
+    proxyReq.write(body);
+    proxyReq.end();
+
+  } catch (err) {
+    console.error('TTS route error:', err.message);
+    res.status(500).json({ error: 'tts_failed' });
+  }
+});
+
+// ══════════════════════════════════════════════════════
 // MOCK INTERVIEW ROUTES  (Pro + Premium)
 // ══════════════════════════════════════════════════════
 

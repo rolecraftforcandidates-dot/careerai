@@ -1981,89 +1981,26 @@ app.get('/api/session-test', (req, res) => {
 
 
 // ══════════════════════════════════════════════════════
-// ELEVENLABS TTS PROXY
+// ELEVENLABS TTS — CLIENT-SIDE APPROACH
 // ══════════════════════════════════════════════════════
-// Config — set these in your .env / Railway variables:
+// The browser calls ElevenLabs directly using the user's real IP.
+// This avoids Railway's shared IPs being flagged as proxy/VPN by ElevenLabs.
+// The API key is only served to logged-in users, never in page HTML.
+//
+// Config in Railway env vars:
 //   ELEVENLABS_API_KEY=your_key_here
-//   ELEVENLABS_VOICE_ID=ecp3DWciuUyW7BYM7II1   ← your chosen voice
-//   ELEVENLABS_MODEL=eleven_multilingual_v2     ← or eleven_turbo_v2_5
+//   ELEVENLABS_VOICE_ID=ecp3DWciuUyW7BYM7II1
+//   ELEVENLABS_MODEL=eleven_multilingual_v2     (or eleven_turbo_v2_5)
 
-app.post('/api/tts', requireLogin, async (req, res) => {
-  try {
-    const { text } = req.body;
-    if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
+app.get('/api/tts/config', requireLogin, (req, res) => {
+  const apiKey  = process.env.ELEVENLABS_API_KEY;
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'ecp3DWciuUyW7BYM7II1';
+  const model   = process.env.ELEVENLABS_MODEL    || 'eleven_multilingual_v2';
 
-    const apiKey  = process.env.ELEVENLABS_API_KEY;
-    const voiceId = process.env.ELEVENLABS_VOICE_ID || 'ecp3DWciuUyW7BYM7II1';
-    const model   = process.env.ELEVENLABS_MODEL    || 'eleven_multilingual_v2';
-
-    if (!apiKey) {
-      console.log('ℹ️  ElevenLabs not configured — browser TTS will be used');
-      return res.status(503).json({ error: 'tts_not_configured' });
-    }
-
-    const cleanText = text.trim().slice(0, 500);
-    console.log(`🔊 TTS: voice=${voiceId} model=${model} chars=${cleanText.length}`);
-
-    // Match exact format from ElevenLabs API docs
-    const bodyObj = {
-      text: cleanText,
-      model_id: model,
-      output_format: 'mp3_44100_128',
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.0,
-        use_speaker_boost: true
-      }
-    };
-    const body = JSON.stringify(bodyObj);
-
-    const https = require('https');
-    const options = {
-      hostname: 'api.elevenlabs.io',
-      path:     `/v1/text-to-speech/${voiceId}`,
-      method:   'POST',
-      headers:  {
-        'xi-api-key':     apiKey,
-        'Content-Type':   'application/json',
-        'Accept':         'audio/mpeg',
-        'Content-Length': Buffer.byteLength(body)
-      }
-    };
-
-    const chunks = [];
-    const proxyReq = https.request(options, (proxyRes) => {
-      if (proxyRes.statusCode !== 200) {
-        let errBody = '';
-        proxyRes.on('data', c => errBody += c);
-        proxyRes.on('end', () => {
-          console.error(`❌ ElevenLabs ${proxyRes.statusCode}: ${errBody.slice(0, 300)}`);
-          res.status(502).json({ error: 'tts_upstream_error', status: proxyRes.statusCode, detail: errBody.slice(0, 200) });
-        });
-        return;
-      }
-      proxyRes.on('data', chunk => chunks.push(chunk));
-      proxyRes.on('end', () => {
-        const audio = Buffer.concat(chunks);
-        console.log(`✅ TTS audio: ${audio.length} bytes`);
-        res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': audio.length, 'Cache-Control': 'no-store' });
-        res.send(audio);
-      });
-    });
-
-    proxyReq.on('error', (e) => {
-      console.error('ElevenLabs network error:', e.message);
-      res.status(502).json({ error: 'tts_network_error', detail: e.message });
-    });
-
-    proxyReq.write(body);
-    proxyReq.end();
-
-  } catch (err) {
-    console.error('TTS route error:', err.message);
-    res.status(500).json({ error: 'tts_failed', detail: err.message });
+  if (!apiKey) {
+    return res.json({ configured: false });
   }
+  res.json({ configured: true, apiKey, voiceId, model });
 });
 
 // ══════════════════════════════════════════════════════

@@ -955,10 +955,23 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
             </div>
           </div>
 
-          <!-- Question card -->
+          <!-- Question card — single source of truth, typewriter reveal -->
           <div class="mock-q-card" id="mockQCard">
-            <div class="mock-q-num" id="mockQNum">QUESTION 1 OF 5</div>
-            <div class="mock-q-text" id="mockQText">Loading question...</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--teal);font-weight:700" id="mockQNum">QUESTION 1 OF 5</span>
+              <span id="mockThinkingDots" style="display:none;gap:3px;align-items:center;margin-left:4px">
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0s;display:inline-block"></span>
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.4s;display:inline-block"></span>
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.8s;display:inline-block"></span>
+              </span>
+            </div>
+            <div class="mock-q-text" id="mockQText" style="min-height:2.5rem"></div>
+          </div>
+
+          <!-- Hint card — hidden, slides in on request -->
+          <div id="mockHintCard" style="display:none;background:var(--purple-light,#f3f0ff);border:1px solid rgba(80,72,229,0.2);border-radius:14px;padding:14px 18px;margin-bottom:12px">
+            <div style="font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--purple,#5048e5);margin-bottom:6px;font-weight:700">💡 HINT</div>
+            <div id="mockHintText" style="font-size:0.87rem;line-height:1.65;color:var(--text)"></div>
           </div>
 
           <!-- Answer area -->
@@ -3286,6 +3299,7 @@ function startMockInterview() {
 
   // Reset TTS and audio state for fresh session
   _ttsAborted = false;
+  if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src=''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
 
@@ -3541,49 +3555,54 @@ function loadMockQuestion(idx) {
 }
 
 function setMockQuestionLoading() {
-  document.getElementById('mockQText').textContent = 'Loading...';
-  document.getElementById('mockInterviewerBubble') && (document.getElementById('mockInterviewerBubble').style.display = 'none');
+  document.getElementById('mockQText').textContent = '';
+  var dots = document.getElementById('mockThinkingDots');
+  if (dots) dots.style.display = 'inline-flex';
+  var hintCard = document.getElementById('mockHintCard');
+  if (hintCard) hintCard.style.display = 'none';
 }
+
+var _typewriterTimer = null;
 
 function setMockQuestion(text, idx, blobPromise) {
   text = cleanMockText(text);
-  // Show interviewer chat bubble
-  var bubble = document.getElementById('mockInterviewerBubble');
-  if (!bubble) {
-    var qCard = document.getElementById('mockQCard');
-    if (qCard) {
-      bubble = document.createElement('div');
-      bubble.id = 'mockInterviewerBubble';
-      bubble.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:12px;font-size:0.88rem;line-height:1.65;color:var(--text);position:relative';
-      bubble.innerHTML = '<div style="font-size:0.68rem;font-family:\'DM Mono\',monospace;letter-spacing:1.5px;color:var(--teal);margin-bottom:6px;font-weight:700;display:flex;align-items:center;gap:6px"><span id="mockBubbleLabel">&#127908; INTERVIEWER</span><span id="mockSpeakingDots" style="display:none;gap:3px;align-items:center"></span></div><div id="mockBubbleText"></div>';
-      qCard.parentNode.insertBefore(bubble, qCard);
-    }
-  }
-  if (bubble) {
-    bubble.style.display = 'block';
-    document.getElementById('mockBubbleText').textContent = text;
 
-    // Show pulsing dots while audio is loading (if voice is on)
-    if (_mockSession && _mockSession.useVoice) {
-      var dots = document.getElementById('mockSpeakingDots');
-      if (dots) {
-        dots.style.display = 'inline-flex';
-        dots.innerHTML =
-          '<span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0s"></span>' +
-          '<span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.4s"></span>' +
-          '<span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.8s"></span>';
+  var dots = document.getElementById('mockThinkingDots');
+  var hintCard = document.getElementById('mockHintCard');
+  if (hintCard) hintCard.style.display = 'none';
+
+  // Clear any running typewriter
+  if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  document.getElementById('mockQText').textContent = '';
+
+  function startTypewriter() {
+    var el = document.getElementById('mockQText');
+    if (!el) return;
+    var i = 0;
+    // Adapt speed to length — longer questions type faster so they finish around same time as audio
+    var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
+    function tick() {
+      if (_ttsAborted) { if (el) el.textContent = text; return; }
+      if (i <= text.length) {
+        el.textContent = text.slice(0, i);
+        i++;
+        _typewriterTimer = setTimeout(tick, speed);
       }
     }
+    tick();
   }
 
-  // Also update legacy question display
-  document.getElementById('mockQText').textContent = text;
-
-  // Speak — hide dots when audio actually starts playing
-  speakMockText(text, blobPromise || null, function onPlay() {
-    var dots = document.getElementById('mockSpeakingDots');
+  var useVoice = _mockSession && _mockSession.useVoice;
+  if (useVoice) {
+    if (dots) dots.style.display = 'inline-flex';
+    speakMockText(text, blobPromise || null, function onPlay() {
+      if (dots) dots.style.display = 'none';
+      startTypewriter();
+    });
+  } else {
     if (dots) dots.style.display = 'none';
-  });
+    startTypewriter();
+  }
 }
 
 // Strip any [SCORE:{...}] or raw JSON that leaked into display text
@@ -3628,12 +3647,11 @@ function submitMockAnswer() {
       var feedback = d.feedback || '';
       var response = d.response || '';
 
-      // Show interviewer's follow-up/acknowledgement in bubble
+      // After answer, the interviewer's follow-up is the next question — handled by nextMockQuestion
+      // Just push to history so the conversation context is maintained
       if (response) {
         var cleanResponse = cleanMockText(response);
-        var bubble = document.getElementById('mockInterviewerBubble');
-        if (bubble && cleanResponse) {
-          document.getElementById('mockBubbleText').textContent = cleanResponse;
+        if (cleanResponse) {
           s.history.push({ role: 'assistant', content: cleanResponse, isQuestion: !d.isLastQuestion });
         }
       }
@@ -3682,13 +3700,20 @@ function requestMockHint() {
     .then(function(d) {
       if (d.response) {
         var cleanHint = cleanMockText(d.response);
-        var bubble = document.getElementById('mockInterviewerBubble');
-        if (bubble && cleanHint) {
-          document.getElementById('mockBubbleText').textContent = cleanHint;
+        // Show in the hint card below the question
+        var hintCard = document.getElementById('mockHintCard');
+        var hintText = document.getElementById('mockHintText');
+        if (hintCard && hintText && cleanHint) {
+          hintText.textContent = '';
+          hintCard.style.display = 'block';
+          // Typewrite hint text
+          var i = 0;
+          var speed = Math.max(18, Math.min(40, Math.round(3000 / Math.max(cleanHint.length, 1))));
+          function typeTick() {
+            if (i <= cleanHint.length) { hintText.textContent = cleanHint.slice(0, i); i++; setTimeout(typeTick, speed); }
+          }
+          typeTick();
           s.history.push({ role: 'assistant', content: cleanHint, isQuestion: false });
-        }
-        if (window.speechSynthesis && s.useVoice) {
-          speechSynthesis.cancel();
         }
         speakMockText(cleanHint);
       }
@@ -3918,6 +3943,12 @@ function loadTTSConfig(callback) { if (callback) callback(); }
 // ── stopAllAudio — call on end session, sign out, nav away ──
 function stopAllAudio() {
   _ttsAborted = true;
+  if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  // Show full text immediately if typewriter was mid-way
+  var el = document.getElementById('mockQText');
+  if (el && _mockSession && _mockSession.questions && _mockSession.questions[_mockSession.currentQ]) {
+    el.textContent = _mockSession.questions[_mockSession.currentQ];
+  }
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
 }

@@ -1366,6 +1366,7 @@ function doLogout() {
       if (el) el.textContent = '';
     });
     // Reset mock interview in-memory state so next user starts clean
+    stopAllAudio();
     _mockFreeUsedSecs = 0;
     _mockRating = 0;
     _mockPendingSave = null;
@@ -1383,6 +1384,8 @@ function doLogout() {
 
 // NAV
 function showPanel(id, btn, skipHistory) {
+  // Stop TTS if navigating away from mock interview
+  if (id !== 'mock' && _ttsAudio) stopAllAudio();
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('panel-'+id).classList.add('active');
@@ -3123,6 +3126,7 @@ function setMockMode(mode, btn) {
 
 function showMockHome() {
   stopMockTimer();
+  stopAllAudio();
   // Remove free trial overlay if present
   var overlay = document.getElementById('mockFreeOverlay');
   if (overlay) overlay.remove();
@@ -3510,19 +3514,24 @@ function loadMockQuestion(idx) {
 
   callMockChat(action, null)
     .then(function(d) {
+      if (_ttsAborted) return; // session ended while waiting
       var text = cleanMockText(d.response) || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
       s.history.push({ role: 'assistant', content: text, isQuestion: true });
       s.questions[idx] = text;
-      setMockQuestion(text, idx);
+      // Prefetch TTS immediately when text arrives — play when setMockQuestion is called
+      var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(text) : null;
+      setMockQuestion(text, idx, blobP);
     })
     .catch(function(err) {
+      if (_ttsAborted) return;
       console.warn('Mock chat failed, using fallback:', err.message);
       var q = idx === 0
         ? 'Hi ' + (_mockSession.candidateName || 'there') + '! Great to have you here. To start — could you walk me through your most recent project? What did you build, what was your role, and what was the outcome?'
         : getMockFallbackQuestion(s.type, idx);
       s.history.push({ role: 'assistant', content: q, isQuestion: true });
       s.questions[idx] = q;
-      setMockQuestion(q, idx);
+      var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
+      setMockQuestion(q, idx, blobP);
     });
 }
 
@@ -3531,8 +3540,8 @@ function setMockQuestionLoading() {
   document.getElementById('mockInterviewerBubble') && (document.getElementById('mockInterviewerBubble').style.display = 'none');
 }
 
-function setMockQuestion(text, idx) {
-  text = cleanMockText(text); // final safety strip
+function setMockQuestion(text, idx, blobPromise) {
+  text = cleanMockText(text);
   // Show interviewer chat bubble
   var bubble = document.getElementById('mockInterviewerBubble');
   if (!bubble) {
@@ -3556,7 +3565,7 @@ function setMockQuestion(text, idx) {
   document.getElementById('mockQText').textContent = text;
 
   // Speak via ElevenLabs (falls back to browser TTS if not configured)
-  speakMockText(text);
+  speakMockText(text, blobPromise || null);
 }
 
 // Strip any [SCORE:{...}] or raw JSON that leaked into display text
@@ -3705,7 +3714,8 @@ function nextMockQuestion() {
     var q = lastMsg.content;
     s.questions[s.currentQ] = q;
     document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
-    setMockQuestion(q, s.currentQ);
+    var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
+    setMockQuestion(q, s.currentQ, blobP);
   } else {
     loadMockQuestion(s.currentQ);
   }
@@ -3718,6 +3728,7 @@ function endMockEarly() {
 
 function endMockSession() {
   var s = _mockSession;
+  stopAllAudio(); // stop any playing TTS immediately
 
   // Capture elapsed BEFORE stopMockTimer (which resets it for free users)
   var elapsedSecs = s ? (s.elapsed || 0) : 0;
@@ -3869,46 +3880,61 @@ var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
 var _mockRating = 0;
 var _mockPendingSave = null;
 var _ttsAudio = null;
-var _ttsConfigLoaded = true; // server-side mode — no config fetch needed
+var _ttsAborted = false; // set true when session ends / user navigates away
+var _ttsConfigLoaded = true;
 
-function loadTTSConfig(callback) { if (callback) callback(); } // no-op in server-side mode
+function loadTTSConfig(callback) { if (callback) callback(); }
 
-// ── speakMockText — calls server TTS proxy → ElevenLabs, falls back to browser TTS ──
-function speakMockText(text) {
-  if (!_mockSession || !_mockSession.useVoice || !text) return;
+// ── stopAllAudio — call on end session, sign out, nav away ──
+function stopAllAudio() {
+  _ttsAborted = true;
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+}
 
-  if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} _ttsAudio = null; }
-  if (window.speechSynthesis) speechSynthesis.cancel();
-
+// ── prefetchTTS — start fetching audio immediately, returns a Promise<blob|null> ──
+function prefetchTTS(text) {
+  if (!text) return Promise.resolve(null);
   var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
-  if (!clean) return;
-
-  fetch('/api/tts', {
+  if (!clean) return Promise.resolve(null);
+  return fetch('/api/tts', {
     method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: clean })
   })
   .then(function(r) {
-    if (r.status === 503) throw new Error('not_configured');
-    if (!r.ok) {
-      return r.json().then(function(d) {
-        console.warn('ElevenLabs error:', r.status, JSON.stringify(d).slice(0, 150));
-        throw new Error('el_' + r.status);
-      }).catch(function() { throw new Error('el_' + r.status); });
-    }
+    if (!r.ok) throw new Error('el_' + r.status);
     return r.blob();
   })
-  .then(function(blob) {
+  .catch(function(e) {
+    console.warn('TTS prefetch failed:', e.message);
+    return null; // null = use browser TTS
+  });
+}
+
+// ── speakMockText — accepts optional pre-fetched blob promise to eliminate lag ──
+function speakMockText(text, blobPromise) {
+  if (!_mockSession || !_mockSession.useVoice || !text) return;
+  _ttsAborted = false; // reset on each new utterance
+
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+
+  var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
+  if (!clean) return;
+
+  var promise = blobPromise || prefetchTTS(clean);
+
+  promise.then(function(blob) {
+    if (_ttsAborted) return; // session ended while fetching — don't play
+    if (!blob) { browserTTS(clean); return; }
     var url = URL.createObjectURL(blob);
     var audio = new Audio(url);
     _ttsAudio = audio;
     audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
-    audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; browserTTS(clean); };
-    audio.play().catch(function(e) { console.warn('Audio play failed:', e.message); browserTTS(clean); });
-  })
-  .catch(function(e) {
-    console.warn('TTS fallback to browser:', e.message);
-    browserTTS(clean);
+    audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; if (!_ttsAborted) browserTTS(clean); };
+    if (_ttsAborted) { URL.revokeObjectURL(url); return; }
+    audio.play().catch(function(e) { if (!_ttsAborted) browserTTS(clean); });
   });
 }
 

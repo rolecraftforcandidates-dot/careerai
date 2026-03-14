@@ -3655,6 +3655,13 @@ function endMockSession() {
   // For free users stopMockTimer resets elapsed to 0 — use what we captured above
   var mins = Math.max(1, Math.round(elapsedSecs / 60)); // at least 1 min
 
+  // Update in-memory free usage immediately so banner reflects it right now
+  // (don't wait for server sync — we know exactly how long this session was)
+  if (_userTier === 'free') {
+    _mockFreeUsedSecs += elapsedSecs;
+    localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
+  }
+
   var scores = s.scores.filter(function(sc){return typeof sc === 'number';});
   var avg    = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
 
@@ -3730,6 +3737,9 @@ function endMockSession() {
   // Switch view
   document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
   document.getElementById('mockSectionResults').classList.add('active');
+
+  // Immediately update the free trial banner with new usage (no need to wait for Back click)
+  refreshMockFreeUI();
 }
 
 function renderMockHistory(fromSheets) {
@@ -3893,7 +3903,10 @@ function startMockTimer() {
     if (_userTier === 'free') {
       var totalUsed = getMockFreeUsed() + e;
       if (totalUsed >= _FREE_LIMIT_SECS) {
-        stopMockTimer(); // this saves elapsed via addMockFreeUsed
+        // Save elapsed before stopping timer
+        _mockFreeUsedSecs += e;
+        localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
+        stopMockTimer();
         showMockFreeGate();
       }
     }
@@ -3925,11 +3938,6 @@ function showMockFreeGate() {
 
 function stopMockTimer() {
   if (_mockTimerInt) {
-    // Save elapsed to cumulative store for free users (but don't reset elapsed here —
-    // endMockSession reads it first, then it gets discarded with the session)
-    if (_userTier === 'free' && _mockSession && _mockSession.elapsed > 0) {
-      addMockFreeUsed(_mockSession.elapsed);
-    }
     clearInterval(_mockTimerInt);
     _mockTimerInt = null;
   }

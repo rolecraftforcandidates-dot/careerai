@@ -3060,6 +3060,8 @@ function changePassword() {
 var _mockSession = null; // current live session state
 var _mockTimerInt = null;
 var _mockRecognition = null;
+var _srFinalText = '';    // accumulated final transcript across restarts
+var _srRestarting = false; // guard against double-start during restart gap
 var _mockSelectedDate = null;
 var _mockSelectedTime = null;
 
@@ -3326,9 +3328,15 @@ function startMockInterview() {
 
 function toggleMockMic() {
   var btn = document.getElementById('mockMicBtn');
+
   if (_mockRecognition) {
-    // User manually stopped
+    // User manually stopped — capture any pending interim before stopping
     _mockRecognition._manualStop = true;
+    // Flush current interim to final text
+    var box = document.getElementById('mockAnswerBox');
+    if (box && box.value) {
+      _srFinalText = box.value.trim(); // save what's visible (includes interim)
+    }
     _mockRecognition.stop();
     _mockRecognition = null;
     btn.classList.remove('recording');
@@ -3342,93 +3350,118 @@ function toggleMockMic() {
 
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  // iOS Chrome doesn't expose SpeechRecognition even though it's WebKit-based.
-  // Detect it and show a clear message pointing to Safari.
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  var isChrome = /CriOS/.test(navigator.userAgent); // Chrome on iOS user-agent contains CriOS
-  if (isIOS && isChrome) {
-    btn.innerHTML = '&#127908; Start Speaking';
+  var isChromeiOS = /CriOS/.test(navigator.userAgent);
+  if (isIOS && isChromeiOS) {
     showMockMicToast('Voice input isn\'t supported in Chrome on iPhone. Please open RoleKraft in Safari to use your microphone.');
     return;
   }
-
   if (!SR) {
     showMockMicToast('Voice input isn\'t supported in this browser. Please use Chrome on desktop or Safari on iPhone.');
     return;
   }
 
-  function startRecognition() {
+  // Seed final text from whatever is already typed in the box
+  _srFinalText = (document.getElementById('mockAnswerBox').value || '').trim();
+  _srRestarting = false;
+
+  function createAndStart() {
+    if (_srRestarting) return; // prevent double-start
     var r = new SR();
     r.continuous = true;
     r.interimResults = true;
     r.lang = 'en-IN';
-    r.maxAlternatives = 1;
+    r.maxAlternatives = 3; // get alternatives so we can pick best
     r._manualStop = false;
 
-    var baseText = document.getElementById('mockAnswerBox').value;
-
     r.onresult = function(e) {
-      var finalChunk = '';
+      var newFinal = '';
       var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
-          finalChunk += e.results[i][0].transcript + ' ';
+          // Pick the best alternative (highest confidence)
+          var best = e.results[i][0].transcript;
+          var bestConf = e.results[i][0].confidence || 0;
+          for (var j = 1; j < e.results[i].length; j++) {
+            if ((e.results[i][j].confidence || 0) > bestConf) {
+              best = e.results[i][j].transcript;
+              bestConf = e.results[i][j].confidence;
+            }
+          }
+          newFinal += best + ' ';
         } else {
           interim = e.results[i][0].transcript;
         }
       }
-      if (finalChunk) baseText = (baseText + ' ' + finalChunk).trim();
-      document.getElementById('mockAnswerBox').value = interim ? (baseText + ' ' + interim).trim() : baseText;
-      updateMockWordCount();
+      if (newFinal) {
+        _srFinalText = (_srFinalText + ' ' + newFinal).trim();
+      }
+      var box = document.getElementById('mockAnswerBox');
+      if (box) {
+        box.value = interim ? (_srFinalText + ' ' + interim).trim() : _srFinalText;
+        updateMockWordCount();
+      }
     };
 
     r.onerror = function(e) {
-      if (e.error === 'no-speech') return;
+      if (e.error === 'no-speech') {
+        // Silence — don't restart immediately, wait a beat then restart
+        return;
+      }
       if (e.error === 'aborted') return;
       if (e.error === 'not-allowed') {
-        showMockMicToast('Microphone access was denied. Please allow microphone permission in your browser settings and try again.');
+        showMockMicToast('Microphone access was denied. Please allow microphone in browser settings.');
         btn.classList.remove('recording');
         btn.innerHTML = '&#127908; Start Speaking';
         _mockRecognition = null;
         return;
       }
-      console.warn('Speech error:', e.error);
+      console.warn('Speech recognition error:', e.error);
     };
 
     r.onend = function() {
-      if (r._manualStop) return;
-      if (_mockRecognition === r) {
-        try {
-          baseText = document.getElementById('mockAnswerBox').value;
-          r.start();
-        } catch(err) {
-          btn.classList.remove('recording');
-          btn.innerHTML = '&#127908; Start Speaking';
-          _mockRecognition = null;
-        }
+      if (r._manualStop || _mockRecognition !== r) return;
+      // Before restarting, flush whatever is in the box as final
+      // (in case the last words were interim and got dropped)
+      var box = document.getElementById('mockAnswerBox');
+      if (box && box.value.trim()) {
+        _srFinalText = box.value.trim();
       }
+      // Restart with a fresh instance — never call .start() on ended instance
+      _srRestarting = true;
+      _mockRecognition = null;
+      setTimeout(function() {
+        _srRestarting = false;
+        if (btn.classList.contains('recording')) {
+          createAndStart();
+        }
+      }, 120); // 120ms gap prevents "already started" errors
     };
 
-    r.start();
-    _mockRecognition = r;
-    btn.classList.add('recording');
-    btn.innerHTML = '&#9632; Stop Recording';
+    try {
+      r.start();
+      _mockRecognition = r;
+      btn.classList.add('recording');
+      btn.innerHTML = '&#9632; Stop Recording';
+    } catch(err) {
+      console.warn('Could not start recognition:', err.message);
+      btn.classList.remove('recording');
+      btn.innerHTML = '&#127908; Start Speaking';
+      _mockRecognition = null;
+    }
   }
 
-  // On iOS Safari, request mic permission explicitly first so the user sees
-  // the native permission prompt rather than a silent failure
   if (isIOS && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(function(stream) {
-        // Permission granted — stop the stream (SR will open its own) and start
         stream.getTracks().forEach(function(t) { t.stop(); });
-        startRecognition();
+        createAndStart();
       })
-      .catch(function(err) {
-        showMockMicToast('Microphone access denied. Go to Settings → Safari → Microphone and allow access, then try again.');
+      .catch(function() {
+        showMockMicToast('Microphone access denied. Go to Settings → Safari → Microphone and allow access.');
       });
   } else {
-    startRecognition();
+    createAndStart();
   }
 }
 
@@ -3523,6 +3556,7 @@ function loadMockQuestion(idx) {
   var s = _mockSession;
   document.getElementById('mockAnswerBox').value = '';
   document.getElementById('mockWordCount').textContent = '0 words';
+  _srFinalText = '';
   document.getElementById('mockFeedbackBox').style.display = 'none';
   document.getElementById('mockSubmitBtn').disabled = false;
   document.getElementById('mockSubmitBtn').innerHTML = 'Submit Answer &#8594;';
@@ -3760,6 +3794,7 @@ function nextMockQuestion() {
   // Just reset the answer box and re-speak the last interviewer message
   document.getElementById('mockAnswerBox').value = '';
   document.getElementById('mockWordCount').textContent = '0 words';
+  _srFinalText = '';
   document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
   document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
 

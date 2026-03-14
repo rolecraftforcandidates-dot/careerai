@@ -1335,6 +1335,36 @@ Rules:
   return payload;
 }
 
+// ── Pre-generate Week 1 Days 1–3 study resources for FREE users (runs after plan generation) ──
+async function preloadFreeResources(email, role, experience) {
+  console.log(`🎁 Preloading free resources (W1 D1-3) for ${email}`);
+  try {
+    const allPlans = await readSheet('Plans');
+    const freeTasks = allPlans.filter(r =>
+      (r.Email || '').toLowerCase() === email.toLowerCase() &&
+      String(r.Week) === '1' &&
+      parseInt(r.Day) <= 3
+    );
+    if (freeTasks.length === 0) {
+      console.warn(`⚠️  preloadFreeResources: no W1 D1-3 tasks for ${email}`);
+      return;
+    }
+    await Promise.allSettled(
+      freeTasks.map(task =>
+        generateAndCacheResource(
+          email, role, experience, 1,
+          parseInt(task.Day) || 1,
+          task.Task || task.Title || task.TaskTitle || task['Task Title'] || '',
+          task.Type || task.TaskType || 'Theory'
+        )
+      )
+    );
+    console.log(`✅ Free resource preload done for ${email} (${freeTasks.length} tasks)`);
+  } catch(e) {
+    console.error('preloadFreeResources failed (non-fatal):', e.message);
+  }
+}
+
 // ── Pre-generate all 7 Week 1 study materials for a user (runs in background after payment) ──
 async function preloadWeek1Resources(email, role, experience) {
   console.log(`🚀 Preloading Week 1 resources for ${email} (${role} — ${experience})`);
@@ -1378,14 +1408,21 @@ async function preloadWeek1Resources(email, role, experience) {
 }
 
 // POST /api/resources — generate cheatsheet + curated links (uses shared generateAndCacheResource)
-app.post('/api/resources', requirePro, async (req, res) => {
+app.post('/api/resources', requireLogin, async (req, res) => {
   try {
     const { week, day, taskTitle, taskType } = req.body;
     const { email, role, experience } = req.session.user;
+    const tier = (req.session.user.tier || 'free').toLowerCase();
 
     if (!taskTitle) return res.status(400).json({ error: 'Task title required' });
 
-    console.log(`🔨 Resource request: ${email} W${week}D${day} "${taskTitle}"`);
+    // Free users can only access Week 1, Days 1–3
+    const isFreeAllowed = (parseInt(week) === 1 && parseInt(day) <= 3);
+    if (tier === 'free' && !isFreeAllowed) {
+      return res.status(403).json({ error: 'upgrade_required', message: 'Upgrade to Pro to unlock all study resources.' });
+    }
+
+    console.log(`🔨 Resource request: ${email} W${week}D${day} "${taskTitle}" [${tier}]`);
     const payload = await generateAndCacheResource(email, role, experience, week, day, taskTitle, taskType);
     res.json(payload);
   } catch (err) {
@@ -1772,7 +1809,19 @@ app.post('/api/trigger-plan', async (req, res) => {
   // Run Phase 2 in background
   const { triggerPhase2 } = require('./onboarding');
   triggerPhase2(email, getSheetsClient, SHEET_ID)
-    .then(() => console.log(`✅ Phase 2 complete for ${email}`))
+    .then(async () => {
+      console.log(`✅ Phase 2 complete for ${email}`);
+      // Pre-generate free Days 1–3 resources right after plan is ready
+      try {
+        const userRows = await readSheet('Users');
+        const uRow = userRows.find(r => (r.Email||'').toLowerCase() === email.toLowerCase());
+        const uRole = uRow?.Role || req.session.user?.role || '';
+        const uExp  = uRow?.Experience || req.session.user?.experience || 'Mid';
+        if (uRole) await preloadFreeResources(email, uRole, uExp);
+      } catch(e) {
+        console.error('Free resource preload after phase2 failed (non-fatal):', e.message);
+      }
+    })
     .catch(e => console.error(`❌ Phase 2 failed for ${email}:`, e.message));
 });
 
@@ -1876,6 +1925,23 @@ app.post('/api/onboard', async (req, res) => {
     }
   } else {
     console.error(`❌ Onboarding failed: ${result.error}`);
+  }
+
+  // Pre-generate Days 1–3 resources for the new free user in background
+  if (result.success && result.email) {
+    setImmediate(async () => {
+      try {
+        // Wait a moment to let the plan finish writing to the sheet
+        await new Promise(r => setTimeout(r, 8000));
+        const userRows = await readSheet('Users');
+        const uRow = userRows.find(r => (r.Email||'').toLowerCase() === result.email.toLowerCase());
+        const uRole = uRow?.Role || '';
+        const uExp  = uRow?.Experience || 'Mid';
+        if (uRole) await preloadFreeResources(result.email, uRole, uExp);
+      } catch(e) {
+        console.error('Free preload after onboard failed (non-fatal):', e.message);
+      }
+    });
   }
 });
 

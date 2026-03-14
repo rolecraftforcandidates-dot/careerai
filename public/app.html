@@ -3302,6 +3302,7 @@ function startMockInterview() {
   // Reset TTS and audio state for fresh session
   _ttsAborted = false;
   _ttsGeneration = 0;
+  _typewriterGen = 0;
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src=''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
@@ -3598,6 +3599,7 @@ function setMockQuestionLoading() {
 }
 
 var _typewriterTimer = null;
+var _typewriterGen = 0; // separate generation counter just for typewriter
 
 function setMockQuestion(text, idx, blobPromise) {
   text = cleanMockText(text);
@@ -3606,18 +3608,19 @@ function setMockQuestion(text, idx, blobPromise) {
   var hintCard = document.getElementById('mockHintCard');
   if (hintCard) hintCard.style.display = 'none';
 
-  // Clear any running typewriter
+  // Kill any running typewriter and blank the text
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  _typewriterGen++; // invalidate previous typewriter tick chain
   document.getElementById('mockQText').textContent = '';
 
   function startTypewriter() {
     var el = document.getElementById('mockQText');
     if (!el) return;
+    var myGen = _typewriterGen; // capture at start — if incremented, this chain is stale
     var i = 0;
-    // Adapt speed to length — longer questions type faster so they finish around same time as audio
     var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
     function tick() {
-      if (_ttsAborted) { if (el) el.textContent = text; return; }
+      if (_typewriterGen !== myGen) return; // newer question took over — stop silently
       if (i <= text.length) {
         el.textContent = text.slice(0, i);
         i++;
@@ -3770,6 +3773,7 @@ function showMockNextBtn(isLast) {
 }
 
 function skipMockQuestion() {
+  stopAllAudio(); // immediately kill audio + typewriter before doing anything else
   var s = _mockSession;
   s.questions[s.currentQ] = s.questions[s.currentQ] || '(skipped)';
   s.answers[s.currentQ]   = '(skipped)';
@@ -3977,15 +3981,17 @@ var _ttsConfigLoaded = true;
 
 function loadTTSConfig(callback) { if (callback) callback(); }
 
-// ── stopAllAudio — call on end session, sign out, nav away ──
+// ── stopAllAudio — call on end session, sign out, nav away, skip ──
 function stopAllAudio() {
   _ttsAborted = true;
-  _ttsGeneration++; // invalidate any in-flight fetch promise
+  _ttsGeneration++;    // invalidate in-flight TTS fetch
+  _typewriterGen++;    // invalidate active typewriter tick chain
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  // Blank the text immediately — caller will set new content
   var el = document.getElementById('mockQText');
-  if (el && _mockSession && _mockSession.questions && _mockSession.questions[_mockSession.currentQ]) {
-    el.textContent = _mockSession.questions[_mockSession.currentQ];
-  }
+  if (el) el.textContent = '';
+  var dots = document.getElementById('mockThinkingDots');
+  if (dots) dots.style.display = 'none';
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
 }

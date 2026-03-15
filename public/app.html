@@ -4201,10 +4201,32 @@ function startMockTimer() {
     if (_userTier === 'free') {
       var totalUsed = getMockFreeUsed() + e;
       if (totalUsed >= _FREE_LIMIT_SECS) {
-        // Save elapsed before stopping timer
+        // Save elapsed to local + in-memory store
         _mockFreeUsedSecs += e;
         localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
         stopMockTimer();
+
+        // Save partial session to sheet so time is recorded server-side
+        // This ensures the usage is reflected on any device, not just this browser
+        if (_mockSession) {
+          var s = _mockSession;
+          var elapsedMins = Math.max(1, Math.round(e / 60));
+          var scores = (s.scores || []).filter(function(sc){ return typeof sc === 'number'; });
+          var avg = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
+          saveMockToSheet({
+            date: new Date().toISOString().split('T')[0],
+            type: s.type || 'Technical',
+            difficulty: s.diff || 'mid',
+            score: avg,
+            numQuestions: s.numQ || 0,
+            durationMins: elapsedMins,
+            questions: (s.questions || []).slice(0, s.numQ),
+            scores: (s.scores || []).slice(0, s.numQ),
+            feedbacks: (s.feedbacks || []).slice(0, s.numQ),
+            interviewerRating: ''
+          });
+        }
+
         showMockFreeGate();
       }
     }

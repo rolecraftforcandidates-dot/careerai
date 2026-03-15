@@ -230,6 +230,14 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   .today-task-main{width:100%;flex:none}
   .today-task-text{flex:1;min-width:0}
   .today-task-badge{width:auto;margin-left:0;margin-top:8px;display:inline-block}
+
+  /* Mock interview live bar — fix cramped layout on mobile */
+  .mock-live-bar{padding:10px 14px;gap:6px}
+  .mock-live-bar #mockLiveMeta{display:none} /* hide "Technical · mid" on mobile to save space */
+  .mock-live-bar #mockLiveQProg{font-size:0.75rem;white-space:nowrap}
+  .mock-timer{font-size:1.05rem !important;letter-spacing:2px}
+  .mock-live-bar button{padding:4px 10px;font-size:0.72rem}
+  #mockLiveRight{gap:10px !important}
 }
 .drawer-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;color:var(--muted);font-size:0.85rem}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -330,6 +338,61 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
   /* Score cards */
   .score-big{font-size:3rem}
 }
+
+/* ── MOCK INTERVIEW ── */
+.mock-mode-bar{display:flex;gap:10px;margin-bottom:22px}
+.mock-mode-btn{flex:1;padding:13px 16px;border-radius:13px;border:2px solid var(--border);background:var(--card);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;text-align:left}
+.mock-mode-btn:hover{border-color:var(--teal);background:var(--teal-light)}
+.mock-mode-btn.active{border-color:var(--teal);background:var(--teal-light)}
+.mock-mode-btn .mmb-icon{font-size:1.5rem;margin-bottom:6px}
+.mock-mode-btn .mmb-title{font-size:0.94rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.mock-mode-btn .mmb-sub{font-size:0.76rem;color:var(--muted)}
+.mock-section{display:none}.mock-section.active{display:block;animation:fadeUp 0.2s ease}
+.mock-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.mock-select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:var(--card);outline:none;cursor:pointer;transition:border-color 0.2s}
+.mock-select:focus{border-color:var(--teal)}
+.mock-select-label{font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.mock-start-btn{width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(0,179,138,0.25)}
+.mock-start-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,179,138,0.35)}
+.mock-start-btn:disabled{opacity:0.55;cursor:not-allowed;transform:none}
+.mock-history-item{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--bg);border-radius:11px;margin-bottom:9px;transition:background 0.15s;border:1px solid transparent}
+.mock-history-item:hover{background:var(--teal-light);border-color:rgba(0,179,138,0.15)}
+.mock-history-score{font-family:'Bebas Neue',cursive;font-size:1.6rem;letter-spacing:1px}
+.mock-history-score.great{color:var(--green)}.mock-history-score.ok{color:var(--orange)}.mock-history-score.weak{color:var(--red)}
+.mock-live-bar{background:linear-gradient(135deg,#0d1a2e,#0f2040);border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border:1px solid rgba(0,179,138,0.2)}
+.mock-live-dot{width:9px;height:9px;border-radius:50%;background:#e84040;box-shadow:0 0 8px #e84040;animation:mockPulse 1.4s ease-in-out infinite;flex-shrink:0}
+@keyframes mockPulse{0%,100%{opacity:0.5;transform:scale(0.85)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes mockDotPulse{0%,80%,100%{opacity:0.25;transform:scale(0.7)}40%{opacity:1;transform:scale(1)}}
+.mock-timer{font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:700;color:#00e5a0;letter-spacing:3px}
+.mock-q-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px;border-left:4px solid var(--teal)}
+.mock-q-num{font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--teal);margin-bottom:8px}
+.mock-q-text{font-size:1.05rem;font-weight:600;line-height:1.65;color:var(--text)}
+.mock-answer-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px}
+.mock-answer-box{width:100%;min-height:130px;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.92rem;color:var(--text);resize:vertical;outline:none;transition:border-color 0.2s;background:var(--bg);line-height:1.6}
+.mock-answer-box:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,179,138,0.08)}
+.mock-mic-btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);font-family:'DM Sans',sans-serif;font-size:0.84rem;font-weight:600;cursor:pointer;transition:all 0.2s;color:var(--text)}
+.mock-mic-btn:hover{border-color:var(--teal);color:var(--teal)}
+.mock-mic-btn.recording{border-color:#e84040;background:#fff1f0;color:#e84040;animation:mockPulse 1s ease-in-out infinite}
+.mock-submit-btn{padding:10px 24px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.2s}
+.mock-submit-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,179,138,0.3)}
+.mock-submit-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.mock-feedback-box{background:linear-gradient(135deg,rgba(0,179,138,0.06),rgba(80,72,229,0.04));border:1px solid rgba(0,179,138,0.2);border-radius:12px;padding:18px;margin-bottom:16px;animation:fadeUp 0.3s ease}
+.mock-score-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:100px;font-size:0.8rem;font-weight:700;font-family:'DM Mono',monospace;margin-bottom:12px}
+.mock-score-pill.great{background:var(--green-light);color:var(--green)}.mock-score-pill.ok{background:var(--orange-light);color:var(--orange)}.mock-score-pill.weak{background:var(--red-light);color:var(--red)}
+.mock-results-score{font-family:'Bebas Neue',cursive;font-size:4.5rem;letter-spacing:3px;line-height:1}
+.mock-result-tip{display:flex;gap:12px;padding:12px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);margin-bottom:8px;font-size:0.84rem;line-height:1.55}
+.mock-date-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.mock-date-chip{padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--card);text-align:center;cursor:pointer;transition:all 0.15s;font-size:0.78rem}
+.mock-date-chip:hover{border-color:var(--teal);background:var(--teal-light)}
+.mock-date-chip.selected{border-color:var(--teal);background:var(--teal-light);font-weight:700;color:var(--teal-dark)}
+.mock-date-chip .mdc-day{font-size:0.65rem;color:var(--muted);font-family:'DM Mono',monospace}
+.mock-date-chip .mdc-date{font-size:1rem;font-weight:700;color:var(--text)}
+.mock-time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.mock-time-chip{padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--card);text-align:center;cursor:pointer;transition:all 0.15s;font-size:0.8rem;font-family:'DM Mono',monospace}
+.mock-time-chip:hover{border-color:var(--teal);background:var(--teal-light)}
+.mock-time-chip.selected{border-color:var(--teal);background:var(--teal-light);font-weight:700;color:var(--teal-dark)}
+.mock-sched-confirm{background:linear-gradient(135deg,rgba(0,179,138,0.08),rgba(80,72,229,0.06));border:1px solid rgba(0,179,138,0.25);border-radius:14px;padding:22px;text-align:center;display:none}
+@media(max-width:600px){.mock-config-grid,.mock-date-grid,.mock-time-grid{grid-template-columns:1fr 1fr}.mock-mode-bar{flex-direction:column}}
 </style>
 </head>
 <body>
@@ -405,6 +468,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
       <button class="nav-item" onclick="showPanel('resume',this)"><span class="nav-icon">&#128196;</span>Resume Review</button>
       <button class="nav-item" onclick="showPanel('jobmatch',this)"><span class="nav-icon">&#127919;</span>Job Match</button>
       <button class="nav-item" onclick="showPanel('jobs',this)"><span class="nav-icon">&#128188;</span>Jobs For You</button>
+      <button class="nav-item" onclick="showMockInterviewPanel(this)" id="mockNavBtn"><span class="nav-icon">&#127908;</span>Mock Interview <span class="nav-badge" id="mockNavBadge" style="display:none">PRO</span></button>
       <button class="nav-item" onclick="showPanel('settings',this)"><span class="nav-icon">&#9881;&#65039;</span>Settings</button>
     </nav>
     <div class="sidebar-footer">
@@ -737,6 +801,250 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         </div>
       </div>
 
+      <!-- MOCK INTERVIEW -->
+      <div class="panel" id="panel-mock">
+        <div class="panel-title">MOCK INTERVIEW</div>
+        <div class="panel-sub">AI-powered interview practice — get real-time feedback on every answer</div>
+
+        <!-- Free trial banner (hidden for pro/premium) -->
+        <div id="mockFreeTrialBanner" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.08),rgba(80,72,229,0.06));border:1px solid rgba(0,179,138,0.25);border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.3rem">&#9200;</span>
+            <div>
+              <div style="font-size:0.85rem;font-weight:700;color:var(--teal-dark)">Free Trial &mdash; 10 Minutes</div>
+              <div class="mock-trial-desc" style="font-size:0.76rem;color:var(--muted)">Try one session free. Upgrade to Pro for unlimited practice, scheduling &amp; history.</div>
+            </div>
+          </div>
+          <button onclick="showUpgradeModal()" style="flex-shrink:0;padding:7px 16px;border:none;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">Upgrade &#x26A1;</button>
+        </div>
+
+        <!-- Mode selector: Now vs Schedule -->
+        <div class="mock-mode-bar" id="mockModeBar">
+          <button class="mock-mode-btn active" onclick="setMockMode('now',this)" id="mockModeNow">
+            <div class="mmb-icon">&#9889;</div>
+            <div class="mmb-title">Start Now</div>
+            <div class="mmb-sub">Jump into a live session instantly</div>
+          </button>
+          <button class="mock-mode-btn" onclick="setMockMode('schedule',this)" id="mockModeSched">
+            <div class="mmb-icon">&#128197;</div>
+            <div class="mmb-title">Schedule</div>
+            <div class="mmb-sub">Book a session &amp; get a reminder email</div>
+          </button>
+        </div>
+
+        <!-- === START NOW SECTION === -->
+        <div class="mock-section active" id="mockSectionNow">
+          <div class="card" style="margin-bottom:18px">
+            <div class="card-title">&#9881;&#65039; Configure Your Session</div>
+            <div class="mock-config-grid">
+              <div>
+                <div class="mock-select-label">Interview Type</div>
+                <select class="mock-select" id="mockType">
+                  <option value="Technical">Technical</option>
+                  <option value="Behavioral">Behavioural</option>
+                  <option value="System Design">System Design</option>
+                  <option value="Mixed">Mixed</option>
+                </select>
+              </div>
+              <div>
+                <div class="mock-select-label">Difficulty</div>
+                <select class="mock-select" id="mockDifficulty">
+                  <option value="entry">Entry Level</option>
+                  <option value="mid" selected>Mid Level</option>
+                  <option value="senior">Senior</option>
+                  <option value="staff">Staff / Principal</option>
+                </select>
+              </div>
+              <div>
+                <div class="mock-select-label">No. of Questions</div>
+                <select class="mock-select" id="mockNumQ">
+                  <option value="5">5 Questions (~15 min)</option>
+                  <option value="8" selected>8 Questions (~25 min)</option>
+                  <option value="12">12 Questions (~35 min)</option>
+                  <option value="15">15 Questions (~50 min)</option>
+                </select>
+              </div>
+              <div>
+                <div class="mock-select-label">Voice Input</div>
+                <select class="mock-select" id="mockVoice">
+                  <option value="on">&#127908; Microphone + Text</option>
+                  <option value="off">&#9000;&#65039; Text Only</option>
+                </select>
+                <div id="mockIosVoiceHint" style="display:none;font-size:0.72rem;color:var(--orange,#f5a623);margin-top:5px;line-height:1.4">&#9888; Voice works on Safari only on iPhone. Use text input or open in Safari.</div>
+              </div>
+            </div>
+            <button class="mock-start-btn" onclick="startMockInterview()" id="mockStartBtn">
+              &#9889; Start Interview Now
+            </button>
+          </div>
+
+          <!-- Past sessions -->
+          <div class="card">
+            <div class="card-title">&#128337; Past Sessions</div>
+            <div id="mockHistoryList">
+              <div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- === SCHEDULE SECTION === -->
+        <div class="mock-section" id="mockSectionSchedule">
+          <div class="card" style="margin-bottom:18px">
+            <div class="card-title">&#128197; Pick a Date</div>
+            <div class="mock-date-grid" id="mockDateGrid"></div>
+            <div class="card-title" style="margin-top:18px">&#128336; Pick a Time</div>
+            <div class="mock-time-grid" id="mockTimeGrid">
+              <div class="mock-time-chip" onclick="selectMockTime(this,'09:00 AM')">9:00 AM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'10:00 AM')">10:00 AM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'11:00 AM')">11:00 AM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'12:00 PM')">12:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'01:00 PM')">1:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'02:00 PM')">2:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'03:00 PM')">3:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'04:00 PM')">4:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'05:00 PM')">5:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'06:00 PM')">6:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'07:00 PM')">7:00 PM</div>
+              <div class="mock-time-chip" onclick="selectMockTime(this,'08:00 PM')">8:00 PM</div>
+            </div>
+            <div class="mock-config-grid" style="margin-bottom:16px">
+              <div>
+                <div class="mock-select-label">Interview Type</div>
+                <select class="mock-select" id="mockSchedType">
+                  <option value="Technical">Technical</option>
+                  <option value="Behavioral">Behavioural</option>
+                  <option value="System Design">System Design</option>
+                  <option value="Mixed">Mixed</option>
+                </select>
+              </div>
+              <div>
+                <div class="mock-select-label">Difficulty</div>
+                <select class="mock-select" id="mockSchedDiff">
+                  <option value="entry">Entry Level</option>
+                  <option value="mid" selected>Mid Level</option>
+                  <option value="senior">Senior</option>
+                  <option value="staff">Staff / Principal</option>
+                </select>
+              </div>
+            </div>
+            <button class="mock-start-btn" onclick="scheduleMockInterview()" id="mockSchedBtn" disabled>
+              &#128197; Schedule &amp; Send Reminder
+            </button>
+            <div class="mock-sched-confirm" id="mockSchedConfirm">
+              <div style="font-size:2rem;margin-bottom:8px">&#9989;</div>
+              <div style="font-weight:700;font-size:1.05rem;margin-bottom:6px">Session Scheduled!</div>
+              <div style="font-size:0.85rem;color:var(--muted)" id="mockSchedConfirmMsg">We'll send a reminder to your email.</div>
+              <button onclick="setMockMode('schedule',document.getElementById('mockModeSched'));resetScheduleForm()" style="margin-top:16px;padding:9px 22px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:'DM Sans',sans-serif;font-size:0.85rem;cursor:pointer;color:var(--muted)">Schedule Another &#8635;</button>
+            </div>
+          </div>
+
+          <!-- Upcoming scheduled sessions -->
+          <div class="card">
+            <div class="card-title">&#128197; Upcoming Sessions</div>
+            <div id="mockUpcomingList">
+              <div class="empty-state"><div class="empty-icon">&#128197;</div><div class="empty-text">No upcoming sessions</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- === LIVE INTERVIEW VIEW (hidden until started) === -->
+        <div class="mock-section" id="mockSectionLive">
+          <!-- Live bar -->
+          <div class="mock-live-bar">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="mock-live-dot"></div>
+              <span style="color:#e2e8f0;font-size:0.82rem;font-weight:600;letter-spacing:1px">LIVE</span>
+              <span style="background:rgba(255,255,255,0.1);color:#94a3b8;font-size:0.72rem;font-family:'DM Mono',monospace;padding:2px 10px;border-radius:6px" id="mockLiveMeta">Technical · Mid</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:18px" id="mockLiveRight">
+              <span style="color:#94a3b8;font-size:0.8rem;white-space:nowrap" id="mockLiveQProg">Q 1 of 5</span>
+              <div class="mock-timer" id="mockTimer">00:00</div>
+              <button onclick="endMockEarly()" style="padding:5px 13px;border:1px solid rgba(232,64,64,0.4);border-radius:8px;background:rgba(232,64,64,0.1);color:#e84040;font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;transition:all 0.2s;white-space:nowrap">End</button>
+            </div>
+          </div>
+
+          <!-- Question card — single source of truth, typewriter reveal -->
+          <div class="mock-q-card" id="mockQCard">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--teal);font-weight:700" id="mockQNum">QUESTION 1 OF 5</span>
+              <span id="mockThinkingDots" style="display:none;gap:3px;align-items:center;margin-left:4px">
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0s;display:inline-block"></span>
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.4s;display:inline-block"></span>
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);animation:mockDotPulse 1.2s ease-in-out infinite 0.8s;display:inline-block"></span>
+              </span>
+            </div>
+            <div class="mock-q-text" id="mockQText" style="min-height:2.5rem"></div>
+          </div>
+
+          <!-- Hint card — hidden, slides in on request -->
+          <div id="mockHintCard" style="display:none;background:var(--purple-light,#f3f0ff);border:1px solid rgba(80,72,229,0.2);border-radius:14px;padding:14px 18px;margin-bottom:12px">
+            <div style="font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--purple,#5048e5);margin-bottom:6px;font-weight:700">💡 HINT</div>
+            <div id="mockHintText" style="font-size:0.87rem;line-height:1.65;color:var(--text)"></div>
+          </div>
+
+          <!-- Answer area -->
+          <div class="mock-answer-wrap">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="font-size:0.8rem;font-weight:600;color:var(--muted)">Your Answer</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace" id="mockWordCount">0 words</span>
+                <button class="mock-mic-btn" id="mockMicBtn" onclick="toggleMockMic()">&#127908; Start Speaking</button>
+              </div>
+            </div>
+            <textarea class="mock-answer-box" id="mockAnswerBox" placeholder="Type your answer here, or use the microphone above to speak..." oninput="updateMockWordCount()"></textarea>
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+              <button class="mock-submit-btn" onclick="submitMockAnswer()" id="mockSubmitBtn">Submit Answer &#8594;</button>
+              <button id="mockHintBtn" onclick="requestMockHint()" style="padding:10px 18px;border:1.5px solid var(--teal);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--teal);cursor:pointer;font-weight:600">&#128161; Hint</button>
+              <button onclick="skipMockQuestion()" style="padding:10px 18px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--muted);cursor:pointer">Skip</button>
+            </div>
+          </div>
+
+          <!-- AI Feedback (shown after submit) -->
+          <div class="mock-feedback-box" id="mockFeedbackBox" style="display:none">
+            <div class="mock-score-pill" id="mockFeedbackPill">&#129302; Score: -</div>
+            <div style="font-size:0.88rem;line-height:1.65;color:var(--text)" id="mockFeedbackText"></div>
+            <div style="margin-top:12px">
+              <button class="mock-submit-btn" onclick="nextMockQuestion()" id="mockNextBtn" style="display:none">Next Question &#8594;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- === RESULTS VIEW === -->
+        <div class="mock-section" id="mockSectionResults">
+          <div class="card" style="margin-bottom:18px;text-align:center">
+            <div style="font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:8px">OVERALL SCORE</div>
+            <div class="mock-results-score" id="mockResultScore" style="color:var(--teal)">-</div>
+            <div style="font-size:0.85rem;color:var(--muted);margin-top:4px" id="mockResultMeta">5 questions · 0 min</div>
+            <div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:10px;font-size:0.84rem;font-weight:600;color:var(--text)" id="mockResultVerdict"></div>
+          </div>
+          <div class="card" style="margin-bottom:18px">
+            <div class="card-title">&#128200; Per-Question Breakdown</div>
+            <div id="mockResultBreakdown"></div>
+          </div>
+          <div class="card" style="margin-bottom:18px">
+            <div class="card-title">&#128161; Top 3 Tips to Improve</div>
+            <div id="mockResultTips"></div>
+          </div>
+          <!-- Interviewer Rating -->
+          <div class="card" style="margin-bottom:18px;text-align:center" id="mockRatingCard">
+            <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);margin-bottom:10px">RATE THIS SESSION</div>
+            <div style="font-size:0.88rem;color:var(--text);margin-bottom:14px">How was the quality of questions and feedback?</div>
+            <div id="mockStarRow" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
+              <span class="mock-star" data-v="1" onclick="setMockRating(1)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="2" onclick="setMockRating(2)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="3" onclick="setMockRating(3)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="4" onclick="setMockRating(4)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+              <span class="mock-star" data-v="5" onclick="setMockRating(5)" style="font-size:2rem;cursor:pointer;opacity:0.35;transition:opacity 0.15s">&#9733;</span>
+            </div>
+            <div id="mockRatingLabel" style="font-size:0.8rem;color:var(--muted);min-height:18px"></div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <button class="mock-start-btn" onclick="showMockHome()" style="flex:1">&#8617; Back to Mock Home</button>
+            <button onclick="startMockInterview()" style="flex:1;padding:14px;border:2px solid var(--teal);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;color:var(--teal)">Try Again &#8635;</button>
+          </div>
+        </div>
+      </div>
+
       <!-- SETTINGS -->
       <div class="panel" id="panel-settings">
         <div class="panel-title">SETTINGS</div>
@@ -837,7 +1145,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 <script>
 var currentUser = null;
 var panelLoaded = {};
-var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', jobs:'Jobs For You', settings:'Settings' };
+var panelTitles = { overview:'Overview', plan:'My 4-Week Plan', questions:'Weekly Questions', scores:'AI Scores', resume:'Resume Review', jobmatch:'Job Match', jobs:'Jobs For You', mock:'Mock Interview', settings:'Settings' };
 
 // -- Plan polling &mdash; auto-refresh until plan is ready --
 var _planPollTimer   = null;
@@ -998,6 +1306,11 @@ function showDashboard(user, initialPanel) {
   setUserInfo(user);
   initTier(user.tier || 'free');
 
+  // Pre-warm Days 1-3 study resources for free users (background, non-blocking)
+  if ((user.tier || 'free') === 'free') {
+    fetch('/api/resources/preload-free', { credentials: 'include' }).catch(function(){});
+  }
+
   // Server now redirects unregistered Google users to Tally before they reach here
   // This is a safety net only &mdash; should never fire in normal flow
   if (!user.role) {
@@ -1074,6 +1387,13 @@ function doLogout() {
       var el = document.getElementById(id);
       if (el) el.textContent = '';
     });
+    // Reset mock interview in-memory state so next user starts clean
+    _ttsAborted = true;
+    stopAllAudio();
+    _mockFreeUsedSecs = 0;
+    _mockRating = 0;
+    _mockPendingSave = null;
+    _mockSession = null;
     // Reset login button and form before showing page
     var btn = document.getElementById('loginBtn');
     btn.disabled = false;
@@ -1087,6 +1407,11 @@ function doLogout() {
 
 // NAV
 function showPanel(id, btn, skipHistory) {
+  // Stop TTS if navigating away from mock interview
+  if (id !== 'mock' && _ttsAudio) {
+    _ttsAborted = true;
+    stopAllAudio();
+  }
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('panel-'+id).classList.add('active');
@@ -1567,12 +1892,17 @@ function loadPlan() {
           ? '<div style="margin-top:7px;background:#eef0f8;border-radius:100px;height:5px;width:160px"><div style="height:100%;background:'+(st==='overdue'?'var(--red)':'linear-gradient(90deg,var(--teal),var(--purple))')+';border-radius:100px;width:'+Math.round(done/tasks.length*100)+'%;transition:width 0.6s ease"></div></div>'
           : '';
 
-        // -- Task rows &mdash; all weeks interactive (including overdue) --
+        // -- Task rows — all weeks interactive (including overdue) --
         var rows = tasks.length
           ? tasks.map(function(t){
               var ck=t.Status==='Done';
               var tc=t.Type==='Theory'?'badge-purple':t.Type==='Mock'?'badge-orange':'badge-teal';
               var taskKey=encodeURIComponent(t.Week+'|'+t.Day+'|'+(t['Task Title']||''));
+              // Free users: Days 1-3 of Week 1 are open, everything else is locked
+              var isFreeUnlocked = (_userTier !== 'free') || (parseInt(t.Week) === 1 && parseInt(t.Day) <= 3);
+              var studyBtn = isFreeUnlocked
+                ? '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="&#x1F4DA; Study this topic">&#x1F4DA; Study</button>'
+                : '<button class="study-btn" onclick="showUpgradeModal()" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="Upgrade to Pro to unlock">&#128274; Study</button>';
               return '<div class="task-item" data-task="'+taskKey+'">'+
                 '<div onclick="toggleTask(this.parentNode)" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">'+
                   '<div class="task-check '+(ck?'checked':'')+'">'+( ck?'&#10003;':'')+'</div>'+
@@ -1580,7 +1910,7 @@ function loadPlan() {
                 '</div>'+
                 '<div class="task-actions">'+
                   '<span class="badge '+tc+'">'+(t.Type||'')+'</span>'+
-                  '<button class="study-btn" onclick="openResourceDrawer(event,'+t.Week+','+t.Day+')" data-title="'+(t['Task Title']||'').replace(/"/g,'&quot;')+'" data-type="'+(t.Type||'Theory')+'" title="&#x1F4DA; Study this topic">&#x1F4DA; Study</button>'+
+                  studyBtn+
                 '</div>'+
                 '</div>';
             }).join('')
@@ -1963,10 +2293,6 @@ function loadResume() {
 // ======================================================
 function openResourceDrawer(evt, week, day) {
   evt.stopPropagation();
-  if (_userTier === 'free') {
-    showProGate('Study Resources &mdash; Pro Feature', 'Get AI-generated cheatsheets, practice guides, and curated links for every task. Upgrade to Pro to unlock Study Resources.', '&#x1F4DA;');
-    return;
-  } // don't toggle task
   var btn   = evt.currentTarget;
   var title = btn.getAttribute('data-title') || '';
   var type  = btn.getAttribute('data-type')  || 'Theory';
@@ -1991,6 +2317,11 @@ function openResourceDrawer(evt, week, day) {
   })
   .then(function(r){ return r.json(); })
   .then(function(d){
+    if (d.error === 'upgrade_required') {
+      closeResourceDrawer();
+      showUpgradeModal();
+      return;
+    }
     if (d.error) { document.getElementById('drawerContent').innerHTML='<div style="color:var(--red);padding:20px">'+d.error+'</div>'; return; }
     var html = '';
     if (d.summary) {
@@ -2734,6 +3065,1211 @@ function changePassword() {
   .catch(function() { showErr(errEl, 'Connection error. Please try again.'); })
   .finally(function() { btn.disabled = false; btn.innerHTML = 'Update Password'; });
 }
+
+// ══════════════════════════════════════════════════════
+// MOCK INTERVIEW
+// ══════════════════════════════════════════════════════
+var _mockSession = null; // current live session state
+var _mockTimerInt = null;
+var _mockRecognition = null;
+var _srFinalText = '';    // accumulated final transcript across restarts
+var _srRestarting = false; // guard against double-start during restart gap
+var _mockSelectedDate = null;
+var _mockSelectedTime = null;
+
+function showMockInterviewPanel(navEl) {
+  showPanel('mock', navEl || document.getElementById('mockNavBtn'));
+  buildMockDateGrid();
+  renderMockHistory();
+  renderMockUpcoming();
+
+  // Show warning for iOS Chrome users (no SpeechRecognition support)
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var isChrome = /CriOS/.test(navigator.userAgent);
+  var hint = document.getElementById('mockIosVoiceHint');
+  if (hint) hint.style.display = (isIOS && isChrome) ? 'block' : 'none';
+
+  // Sync free-trial status from server (sheet = source of truth), then refresh banner
+  syncMockFreeStatus(function() {
+    refreshMockFreeUI();
+  });
+
+  // Disable schedule tab for free users
+  var schedMode = document.getElementById('mockModeSched');
+  if (schedMode && _userTier === 'free') {
+    schedMode.style.opacity = '0.5';
+    schedMode.title = 'Upgrade to Pro to schedule sessions';
+    schedMode.onclick = function() {
+      showProGate('&#128197; Pro Feature', 'Schedule mock interviews and get reminder emails with RoleKraft Pro.');
+    };
+  }
+}
+
+function refreshMockFreeUI() {
+  var trialBanner = document.getElementById('mockFreeTrialBanner');
+  if (!trialBanner) return;
+
+  if (_userTier === 'free') {
+    var usedSecs   = getMockFreeUsed();
+    var remainMins = Math.max(0, Math.ceil((_FREE_LIMIT_SECS - usedSecs) / 60));
+    trialBanner.style.display = 'flex';
+    var bannerDesc = trialBanner.querySelector('.mock-trial-desc');
+    if (bannerDesc) {
+      bannerDesc.textContent = remainMins <= 0
+        ? 'Your free trial has ended. Upgrade to Pro for unlimited practice.'
+        : remainMins + ' minute' + (remainMins !== 1 ? 's' : '') + ' remaining. Upgrade to Pro for unlimited sessions.';
+    }
+    // Lock / unlock Start button
+    var startBtn = document.getElementById('mockStartBtn');
+    if (startBtn) {
+      if (remainMins <= 0) {
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.5';
+        startBtn.style.cursor = 'not-allowed';
+        startBtn.innerHTML = '&#128274; Trial Ended &mdash; Upgrade to Start';
+        startBtn.onclick = function() { showUpgradeModal(); };
+      } else {
+        startBtn.disabled = false;
+        startBtn.style.opacity = '';
+        startBtn.style.cursor = '';
+        startBtn.innerHTML = '&#9889; Start Interview Now';
+        startBtn.onclick = function() { startMockInterview(); };
+      }
+    }
+  } else {
+    trialBanner.style.display = 'none';
+  }
+}
+
+function setMockMode(mode, btn) {
+  document.querySelectorAll('.mock-mode-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
+  if (mode === 'now') {
+    document.getElementById('mockSectionNow').classList.add('active');
+  } else {
+    document.getElementById('mockSectionSchedule').classList.add('active');
+  }
+}
+
+function showMockHome() {
+  stopMockTimer();
+  stopAllAudio();
+  // Remove free trial overlay if present
+  var overlay = document.getElementById('mockFreeOverlay');
+  if (overlay) overlay.remove();
+  document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('mockSectionNow').classList.add('active');
+  document.querySelectorAll('.mock-mode-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('mockModeNow').classList.add('active');
+  renderMockHistory();
+  // Re-sync free status from server so banner reflects latest usage
+  syncMockFreeStatus(function() { refreshMockFreeUI(); });
+}
+
+// ── DATE GRID ──
+function buildMockDateGrid() {
+  var grid = document.getElementById('mockDateGrid');
+  if (!grid) return;
+  var html = '';
+  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var today = new Date();
+  for (var i = 1; i <= 8; i++) {
+    var d = new Date(today);
+    d.setDate(today.getDate() + i);
+    var label = i === 1 ? 'Tomorrow' : days[d.getDay()];
+    var dateStr = d.getDate() + ' ' + months[d.getMonth()];
+    var iso = d.toISOString().split('T')[0];
+    html += '<div class="mock-date-chip" onclick="selectMockDate(this,\''+iso+'\')" data-iso="'+iso+'">'+
+      '<div class="mdc-day">'+label+'</div>'+
+      '<div class="mdc-date">'+d.getDate()+'</div>'+
+      '<div style="font-size:0.62rem;color:var(--muted)">'+months[d.getMonth()]+'</div>'+
+    '</div>';
+  }
+  grid.innerHTML = html;
+  updateSchedBtn();
+}
+
+function selectMockDate(el, iso) {
+  _mockSelectedDate = iso;
+  document.querySelectorAll('.mock-date-chip').forEach(function(c){c.classList.remove('selected');});
+  el.classList.add('selected');
+  updateSchedBtn();
+}
+
+function selectMockTime(el, t) {
+  _mockSelectedTime = t;
+  document.querySelectorAll('.mock-time-chip').forEach(function(c){c.classList.remove('selected');});
+  el.classList.add('selected');
+  updateSchedBtn();
+}
+
+function updateSchedBtn() {
+  var btn = document.getElementById('mockSchedBtn');
+  if (btn) btn.disabled = !(_mockSelectedDate && _mockSelectedTime);
+}
+
+function resetScheduleForm() {
+  _mockSelectedDate = null; _mockSelectedTime = null;
+  document.querySelectorAll('.mock-date-chip').forEach(function(c){c.classList.remove('selected');});
+  document.querySelectorAll('.mock-time-chip').forEach(function(c){c.classList.remove('selected');});
+  document.getElementById('mockSchedConfirm').style.display = 'none';
+  updateSchedBtn();
+}
+
+// ── SCHEDULE ──
+function scheduleMockInterview() {
+  if (!_mockSelectedDate || !_mockSelectedTime) return;
+  var type = document.getElementById('mockSchedType').value;
+  var diff = document.getElementById('mockSchedDiff').value;
+  var btn  = document.getElementById('mockSchedBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Scheduling...';
+
+  fetch('/api/mock/schedule', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ date: _mockSelectedDate, time: _mockSelectedTime, type: type, difficulty: diff })
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    btn.innerHTML = '&#128197; Schedule &amp; Send Reminder';
+    if (d.success) {
+      document.getElementById('mockSchedConfirm').style.display = 'block';
+      document.getElementById('mockSchedConfirmMsg').textContent =
+        'Scheduled for ' + _mockSelectedDate + ' at ' + _mockSelectedTime + '. A reminder email has been sent.';
+      // Save to localStorage
+      var upcoming = JSON.parse(localStorage.getItem('mockUpcoming')||'[]');
+      upcoming.unshift({ date:_mockSelectedDate, time:_mockSelectedTime, type:type, diff:diff, id:Date.now() });
+      localStorage.setItem('mockUpcoming', JSON.stringify(upcoming.slice(0,10)));
+      renderMockUpcoming();
+    } else {
+      alert('Could not schedule: ' + (d.error||'Unknown error'));
+      btn.disabled = false;
+    }
+  })
+  .catch(function(){
+    btn.innerHTML = '&#128197; Schedule &amp; Send Reminder';
+    btn.disabled = false;
+    alert('Connection error. Please try again.');
+  });
+}
+
+function renderMockUpcoming() {
+  var el = document.getElementById('mockUpcomingList');
+  if (!el) return;
+  var upcoming = JSON.parse(localStorage.getItem('mockUpcoming')||'[]');
+  if (!upcoming.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128197;</div><div class="empty-text">No upcoming sessions</div></div>';
+    return;
+  }
+  var html = '';
+  upcoming.forEach(function(s){
+    html += '<div class="mock-history-item">'+
+      '<div>'+
+        '<div style="font-weight:600;font-size:0.88rem">'+s.type+' &mdash; '+s.diff+'</div>'+
+        '<div style="font-size:0.76rem;color:var(--muted);margin-top:2px">&#128197; '+s.date+' &middot; '+s.time+'</div>'+
+      '</div>'+
+      '<span class="badge badge-teal">Scheduled</span>'+
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── START LIVE ──
+function startMockInterview() {
+  // Gate: free users who have used up their 10-minute trial must upgrade first
+  if (_userTier === 'free') {
+    var usedSecs = getMockFreeUsed();
+    if (usedSecs >= _FREE_LIMIT_SECS) {
+      showUpgradeModal();
+      return;
+    }
+  }
+
+  var type    = document.getElementById('mockType').value;
+  var diff    = document.getElementById('mockDifficulty').value;
+  var numQ    = parseInt(document.getElementById('mockNumQ').value);
+  var useVoice = document.getElementById('mockVoice').value === 'on';
+  var candidateName = ((document.getElementById('userName')||{}).textContent||'there').trim().split(' ')[0]||'there';
+
+  // ── iOS TTS unlock: iOS blocks speechSynthesis unless triggered by a direct user tap.
+  // Speaking an empty utterance here (inside the button click handler) unlocks it for
+  // all subsequent calls in this session.
+  if (useVoice && window.speechSynthesis) {
+    var unlock = new SpeechSynthesisUtterance('');
+    unlock.volume = 0;
+    speechSynthesis.speak(unlock);
+  }
+
+  // Pre-load ElevenLabs config (key + voice ID) from server so first question is ready
+  if (useVoice) loadTTSConfig();
+
+  _mockSession = { type:type, diff:diff, numQ:numQ, useVoice:useVoice,
+    questions:[], answers:[], scores:[], feedbacks:[],
+    history: [], candidateName: candidateName,
+    currentQ:0, elapsed:0 };
+
+  // Reset TTS and audio state for fresh session
+  _ttsAborted = false;
+  _ttsGeneration = 0;
+  _typewriterGen = 0;
+  if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src=''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+
+  // Remove any leftover free overlay
+  var overlay = document.getElementById('mockFreeOverlay');
+  if (overlay) overlay.remove();
+
+  // Show live section
+  document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('mockSectionLive').classList.add('active');
+
+  // Update live bar
+  document.getElementById('mockLiveMeta').textContent = type + ' · ' + diff;
+  document.getElementById('mockLiveQProg').textContent = 'Q 1 of ' + numQ;
+  document.getElementById('mockQNum').textContent = 'QUESTION 1 OF ' + numQ;
+
+  // Hide/show mic
+  var micBtn = document.getElementById('mockMicBtn');
+  if (micBtn) micBtn.style.display = useVoice ? 'inline-flex' : 'none';
+
+  startMockTimer();
+  loadMockQuestion(0);
+}
+
+function toggleMockMic() {
+  var btn = document.getElementById('mockMicBtn');
+
+  if (_mockRecognition) {
+    // User manually stopped — capture any pending interim before stopping
+    _mockRecognition._manualStop = true;
+    // Flush current interim to final text
+    var box = document.getElementById('mockAnswerBox');
+    if (box && box.value) {
+      _srFinalText = box.value.trim(); // save what's visible (includes interim)
+    }
+    _mockRecognition.stop();
+    _mockRecognition = null;
+    btn.classList.remove('recording');
+    btn.innerHTML = '&#127908; Start Speaking';
+    return;
+  }
+
+  // Stop any playing TTS so mic doesn't pick it up
+  if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var isChromeiOS = /CriOS/.test(navigator.userAgent);
+  if (isIOS && isChromeiOS) {
+    showMockMicToast('Voice input isn\'t supported in Chrome on iPhone. Please open RoleKraft in Safari to use your microphone.');
+    return;
+  }
+  if (!SR) {
+    showMockMicToast('Voice input isn\'t supported in this browser. Please use Chrome on desktop or Safari on iPhone.');
+    return;
+  }
+
+  // Seed final text from whatever is already typed in the box
+  _srFinalText = (document.getElementById('mockAnswerBox').value || '').trim();
+  _srRestarting = false;
+
+  function createAndStart() {
+    if (_srRestarting) return; // prevent double-start
+    var r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = 'en-IN';
+    r.maxAlternatives = 3; // get alternatives so we can pick best
+    r._manualStop = false;
+
+    r.onresult = function(e) {
+      var newFinal = '';
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          // Pick the best alternative (highest confidence)
+          var best = e.results[i][0].transcript;
+          var bestConf = e.results[i][0].confidence || 0;
+          for (var j = 1; j < e.results[i].length; j++) {
+            if ((e.results[i][j].confidence || 0) > bestConf) {
+              best = e.results[i][j].transcript;
+              bestConf = e.results[i][j].confidence;
+            }
+          }
+          newFinal += best + ' ';
+        } else {
+          interim = e.results[i][0].transcript;
+        }
+      }
+      if (newFinal) {
+        _srFinalText = (_srFinalText + ' ' + newFinal).trim();
+      }
+      var box = document.getElementById('mockAnswerBox');
+      if (box) {
+        box.value = interim ? (_srFinalText + ' ' + interim).trim() : _srFinalText;
+        updateMockWordCount();
+      }
+    };
+
+    r.onerror = function(e) {
+      if (e.error === 'no-speech') {
+        // Silence — don't restart immediately, wait a beat then restart
+        return;
+      }
+      if (e.error === 'aborted') return;
+      if (e.error === 'not-allowed') {
+        showMockMicToast('Microphone access was denied. Please allow microphone in browser settings.');
+        btn.classList.remove('recording');
+        btn.innerHTML = '&#127908; Start Speaking';
+        _mockRecognition = null;
+        return;
+      }
+      console.warn('Speech recognition error:', e.error);
+    };
+
+    r.onend = function() {
+      if (r._manualStop || _mockRecognition !== r) return;
+      // Before restarting, flush whatever is in the box as final
+      // (in case the last words were interim and got dropped)
+      var box = document.getElementById('mockAnswerBox');
+      if (box && box.value.trim()) {
+        _srFinalText = box.value.trim();
+      }
+      // Restart with a fresh instance — never call .start() on ended instance
+      _srRestarting = true;
+      _mockRecognition = null;
+      setTimeout(function() {
+        _srRestarting = false;
+        if (btn.classList.contains('recording')) {
+          createAndStart();
+        }
+      }, 120); // 120ms gap prevents "already started" errors
+    };
+
+    try {
+      r.start();
+      _mockRecognition = r;
+      btn.classList.add('recording');
+      btn.innerHTML = '&#9632; Stop Recording';
+    } catch(err) {
+      console.warn('Could not start recognition:', err.message);
+      btn.classList.remove('recording');
+      btn.innerHTML = '&#127908; Start Speaking';
+      _mockRecognition = null;
+    }
+  }
+
+  if (isIOS && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function(stream) {
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        createAndStart();
+      })
+      .catch(function() {
+        showMockMicToast('Microphone access denied. Go to Settings → Safari → Microphone and allow access.');
+      });
+  } else {
+    createAndStart();
+  }
+}
+
+function showMockMicToast(msg) {
+  var existing = document.getElementById('mockMicToast');
+  if (existing) existing.remove();
+  var toast = document.createElement('div');
+  toast.id = 'mockMicToast';
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:12px 18px;border-radius:10px;font-size:0.82rem;line-height:1.5;max-width:320px;text-align:center;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.3)';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(function() { if (toast.parentNode) toast.remove(); }, 6000);
+}
+
+// Fallback question banks if API fails
+var _mockFallbackQs = {
+  'Technical': [
+    'Walk me through how you would design a caching layer for a high-traffic web application.',
+    'Explain the difference between synchronous and asynchronous programming with a real example.',
+    'How would you debug a memory leak in a Node.js production server?',
+    'Describe how database indexing works and when you would and would not use it.',
+    'How do you ensure code quality in a fast-moving team? What tools or processes do you use?',
+    'What happens when a user types a URL in the browser and presses Enter?',
+    'How would you approach refactoring a large legacy codebase with no tests?',
+    'Explain REST vs GraphQL — when would you choose one over the other?',
+    'What is the difference between horizontal and vertical scaling? Give a real scenario for each.',
+    'How would you implement rate limiting on a public API?'
+  ],
+  'Behavioral': [
+    'Tell me about a time you had a conflict with a teammate and how you resolved it.',
+    'Describe a project where you had to meet a very tight deadline. What did you do?',
+    'Tell me about a time you made a significant technical mistake. What happened and what did you learn?',
+    'How do you handle disagreements with your manager about technical decisions?',
+    'Describe a time you took ownership of a problem outside your direct responsibility.',
+    'Tell me about the most complex project you have worked on. How did you manage it?',
+    'Give an example of when you had to learn a new technology quickly under pressure.',
+    'Describe a time you improved a process or workflow at your company.',
+    'Tell me about a time you had to give difficult feedback to a colleague.',
+    'How do you prioritise when you have multiple urgent tasks competing for your attention?'
+  ],
+  'System Design': [
+    'Design a URL shortener like bit.ly. Walk me through your approach.',
+    'How would you design a real-time notification system for 10 million users?',
+    'Design the backend for a food delivery app like Swiggy or Zomato.',
+    'How would you build a scalable file storage system like Google Drive?',
+    'Design a system to detect fraud in real-time financial transactions.',
+    'How would you architect a chat application like WhatsApp that supports millions of users?',
+    'Design a search autocomplete feature for a large e-commerce platform.',
+    'How would you build a rate limiter that works across multiple servers?',
+    'Design a ride-sharing system like Ola or Uber — focus on matching drivers to riders.',
+    'How would you design a distributed job queue for processing background tasks?'
+  ],
+  'Mixed': [
+    'Walk me through your most impactful technical project from idea to production.',
+    'How do you balance technical debt with delivering features on time?',
+    'Tell me about a time you influenced an architectural decision. What was the outcome?',
+    'Describe a situation where you had to simplify a complex technical concept for a non-technical stakeholder.',
+    'How do you stay current with new technologies while delivering on your current project?'
+  ]
+};
+
+function getMockFallbackQuestion(type, idx) {
+  var bank = _mockFallbackQs[type] || _mockFallbackQs['Technical'];
+  return bank[idx % bank.length];
+}
+
+// ── CHAT-BASED MOCK INTERVIEW ENGINE ──
+// _mockSession.history = [{role:'assistant',content:'...',isQuestion:true}, {role:'user',content:'...'}]
+
+function callMockChat(action, userContent) {
+  var s = _mockSession;
+  if (userContent) {
+    s.history.push({ role: 'user', content: userContent });
+  }
+  return fetch('/api/mock/chat', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      history: s.history,
+      type: s.type,
+      diff: s.diff,
+      numQ: s.numQ,
+      action: action,
+      currentQIndex: s.currentQ,  // 0-based, reliable — don't count history
+      currentQuestion: (action === 'answer') ? (s.questions[s.currentQ] || '') : '',
+      currentAnswer:   (action === 'answer') ? (userContent || '') : ''
+    })
+  }).then(function(r) { return r.json(); });
+}
+
+function loadMockQuestion(idx) {
+  var s = _mockSession;
+  document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockWordCount').textContent = '0 words';
+  _srFinalText = '';
+  document.getElementById('mockFeedbackBox').style.display = 'none';
+  document.getElementById('mockSubmitBtn').disabled = false;
+  document.getElementById('mockSubmitBtn').innerHTML = 'Submit Answer &#8594;';
+  document.getElementById('mockNextBtn').style.display = 'none';
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
+
+  var action = (idx === 0) ? 'start' : 'next';
+  setMockQuestionLoading();
+
+  // Capture the question index at call time — guard against stale responses
+  // if user skips again before this response arrives
+  var capturedIdx = idx;
+  var capturedQ = s.currentQ;
+
+  callMockChat(action, null)
+    .then(function(d) {
+      // If session was ended or currentQ changed (another skip happened), discard
+      if (!_mockSession || _mockSession.currentQ !== capturedQ) return;
+      var text = cleanMockText(d.response) || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
+      s.history.push({ role: 'assistant', content: text, isQuestion: true });
+      s.questions[capturedIdx] = text;
+      var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(text) : null;
+      setMockQuestion(text, capturedIdx, blobP);
+    })
+    .catch(function(err) {
+      if (!_mockSession || _mockSession.currentQ !== capturedQ) return;
+      console.warn('Mock chat failed, using fallback:', err.message);
+      var q = capturedIdx === 0
+        ? 'Hi ' + (_mockSession.candidateName || 'there') + '! Great to have you here. To start — could you walk me through your most recent project? What did you build, what was your role, and what was the outcome?'
+        : getMockFallbackQuestion(s.type, capturedIdx);
+      s.history.push({ role: 'assistant', content: q, isQuestion: true });
+      s.questions[capturedIdx] = q;
+      var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
+      setMockQuestion(q, capturedIdx, blobP);
+    });
+}
+
+function setMockQuestionLoading() {
+  document.getElementById('mockQText').textContent = '';
+  var dots = document.getElementById('mockThinkingDots');
+  if (dots) dots.style.display = 'inline-flex';
+  var hintCard = document.getElementById('mockHintCard');
+  if (hintCard) hintCard.style.display = 'none';
+}
+
+var _typewriterTimer = null;
+var _typewriterGen = 0; // separate generation counter just for typewriter
+
+function setMockQuestion(text, idx, blobPromise) {
+  text = cleanMockText(text);
+
+  var dots = document.getElementById('mockThinkingDots');
+  var hintCard = document.getElementById('mockHintCard');
+  if (hintCard) hintCard.style.display = 'none';
+
+  // Kill any running typewriter and blank the text
+  if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  _typewriterGen++; // invalidate previous typewriter tick chain
+  var myGen = _typewriterGen; // capture NOW — before any async callbacks
+  document.getElementById('mockQText').textContent = '';
+
+  function startTypewriter() {
+    var el = document.getElementById('mockQText');
+    if (!el) return;
+    if (_typewriterGen !== myGen) return; // already invalidated before audio even played
+    var i = 0;
+    var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
+    function tick() {
+      if (_typewriterGen !== myGen) return; // newer question took over — stop silently
+      if (i <= text.length) {
+        el.textContent = text.slice(0, i);
+        i++;
+        _typewriterTimer = setTimeout(tick, speed);
+      }
+    }
+    tick();
+  }
+
+  var useVoice = _mockSession && _mockSession.useVoice;
+  if (useVoice) {
+    if (dots) dots.style.display = 'inline-flex';
+    speakMockText(text, blobPromise || null, function onPlay() {
+      if (_typewriterGen !== myGen) return; // skip happened while audio was loading
+      if (dots) dots.style.display = 'none';
+      startTypewriter();
+    });
+  } else {
+    if (dots) dots.style.display = 'none';
+    startTypewriter();
+  }
+}
+
+// Strip any [SCORE:{...}] or raw JSON that leaked into display text
+function cleanMockText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')   // strip [SCORE:{...}]
+    .replace(/\[SCORE:\{[\s\S]*/g, '')         // strip unclosed [SCORE:{
+    .replace(/\{"technical_competency"[\s\S]*/g, '') // strip raw JSON bleed
+    .replace(/\{[\s\S]*?"overall_assessment"[\s\S]*?\}/g, '') // strip assessment JSON
+    .trim();
+}
+
+function updateMockWordCount() {
+  var txt = document.getElementById('mockAnswerBox').value.trim();
+  var wc  = txt ? txt.split(/\s+/).filter(Boolean).length : 0;
+  document.getElementById('mockWordCount').textContent = wc + ' word' + (wc!==1?'s':'');
+}
+
+function submitMockAnswer() {
+  var s   = _mockSession;
+  var ans = document.getElementById('mockAnswerBox').value.trim();
+  if (!ans) { alert('Please type or speak your answer first.'); return; }
+
+  var btn = document.getElementById('mockSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Getting AI Feedback...';
+
+  if (_mockRecognition) {
+    _mockRecognition._manualStop = true;
+    _mockRecognition.stop();
+    _mockRecognition = null;
+    var micBtn = document.getElementById('mockMicBtn');
+    if (micBtn) { micBtn.classList.remove('recording'); micBtn.innerHTML = '&#127908; Start Speaking'; }
+  }
+
+  s.answers[s.currentQ] = ans;
+
+  callMockChat('answer', ans)
+    .then(function(d) {
+      var score    = d.score !== null ? d.score : null;
+      var feedback = d.feedback || '';
+      var response = d.response || '';
+
+      // After answer, the interviewer's follow-up is the next question — handled by nextMockQuestion
+      // Just push to history so the conversation context is maintained
+      if (response) {
+        var cleanResponse = cleanMockText(response);
+        if (cleanResponse) {
+          s.history.push({ role: 'assistant', content: cleanResponse, isQuestion: !d.isLastQuestion });
+        }
+      }
+
+      // Show score + feedback if returned
+      if (score !== null) {
+        s.scores[s.currentQ]   = score;
+        s.feedbacks[s.currentQ]= feedback;
+
+        var pillCls = score >= 80 ? 'great' : score >= 60 ? 'ok' : 'weak';
+        var pillTxt = score >= 80 ? '&#129395; Excellent' : score >= 60 ? '&#128077; Good' : '&#128197; Needs Work';
+
+        var pill = document.getElementById('mockFeedbackPill');
+        pill.className = 'mock-score-pill ' + pillCls;
+        pill.innerHTML = pillTxt + ' &mdash; ' + score + '/100';
+        document.getElementById('mockFeedbackText').innerHTML = feedback.replace(/\n/g,'<br>');
+        document.getElementById('mockFeedbackBox').style.display = 'block';
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = 'Submit Answer &#8594;';
+
+      // isLast: use server flag OR check if this was the final question
+      var isLast = d.isLastQuestion || s.currentQ >= s.numQ - 1;
+      showMockNextBtn(isLast);
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = 'Submit Answer &#8594;';
+      // Still show Next/Results so user isn't stuck — mark current Q with fallback score
+      if (!s.scores[s.currentQ] && s.scores[s.currentQ] !== 0) {
+        s.scores[s.currentQ] = 0;
+        s.feedbacks[s.currentQ] = 'Could not get feedback for this answer.';
+      }
+      var isLast = s.currentQ >= s.numQ - 1;
+      showMockNextBtn(isLast);
+    });
+}
+
+function requestMockHint() {
+  var s = _mockSession;
+  var btn = document.getElementById('mockHintBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '&#128161; Getting hint...'; }
+
+  callMockChat('hint', 'I need a hint')
+    .then(function(d) {
+      if (d.response) {
+        var cleanHint = cleanMockText(d.response);
+        // Show in the hint card below the question
+        var hintCard = document.getElementById('mockHintCard');
+        var hintText = document.getElementById('mockHintText');
+        if (hintCard && hintText && cleanHint) {
+          hintText.textContent = '';
+          hintCard.style.display = 'block';
+          // Typewrite hint text
+          var i = 0;
+          var speed = Math.max(18, Math.min(40, Math.round(3000 / Math.max(cleanHint.length, 1))));
+          function typeTick() {
+            if (i <= cleanHint.length) { hintText.textContent = cleanHint.slice(0, i); i++; setTimeout(typeTick, speed); }
+          }
+          typeTick();
+          s.history.push({ role: 'assistant', content: cleanHint, isQuestion: false });
+        }
+        speakMockText(cleanHint);
+      }
+      if (btn) { btn.disabled = false; btn.innerHTML = '&#128161; Hint'; }
+    })
+    .catch(function() {
+      if (btn) { btn.disabled = false; btn.innerHTML = '&#128161; Hint'; }
+    });
+}
+
+function showMockNextBtn(isLast) {
+  var nBtn = document.getElementById('mockNextBtn');
+  if (nBtn) {
+    nBtn.innerHTML = isLast ? 'See Results &#127942;' : 'Next Question &#8594;';
+    nBtn.style.display = 'inline-flex';
+    nBtn.onclick = isLast ? function() { endMockSession(); } : function() { nextMockQuestion(); };
+  }
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'none');
+}
+
+function skipMockQuestion() {
+  stopAllAudio(); // immediately kill audio + typewriter
+  var s = _mockSession;
+  s.questions[s.currentQ] = s.questions[s.currentQ] || '(skipped)';
+  s.answers[s.currentQ]   = '(skipped)';
+  s.scores[s.currentQ]    = 0;
+  s.feedbacks[s.currentQ] = 'Question skipped.';
+  // Fire skip action to API (non-blocking) so history stays consistent
+  callMockChat('skip', 'I want to skip this question').catch(function(){});
+  // Always load a fresh question — never reuse current question from history
+  s.currentQ++;
+  if (s.currentQ >= s.numQ) { endMockSession(); return; }
+  document.getElementById('mockLiveQProg').textContent = 'Q ' + (s.currentQ+1) + ' of ' + s.numQ;
+  document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
+  document.getElementById('mockFeedbackBox').style.display = 'none';
+  document.getElementById('mockSubmitBtn').disabled = false;
+  document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockWordCount').textContent = '0 words';
+  _srFinalText = '';
+  document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
+  setMockQuestionLoading();
+  loadMockQuestion(s.currentQ); // always fresh — never take from history on skip
+}
+
+function nextMockQuestion() {
+  var s = _mockSession;
+  s.currentQ++;
+  if (s.currentQ >= s.numQ) {
+    endMockSession();
+    return;
+  }
+  document.getElementById('mockLiveQProg').textContent = 'Q ' + (s.currentQ+1) + ' of ' + s.numQ;
+  document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
+  document.getElementById('mockFeedbackBox').style.display = 'none';
+  document.getElementById('mockSubmitBtn').disabled = false;
+
+  // For Q2+: the follow-up question was already delivered in the previous callMockChat response
+  // Just reset the answer box and re-speak the last interviewer message
+  document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockWordCount').textContent = '0 words';
+  _srFinalText = '';
+  document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
+
+  // If no new question was pushed into history by the last chat response, fetch one
+  var lastMsg = s.history[s.history.length - 1];
+  if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isQuestion) {
+    var q = lastMsg.content;
+    s.questions[s.currentQ] = q;
+    document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
+    var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
+    setMockQuestion(q, s.currentQ, blobP);
+  } else {
+    loadMockQuestion(s.currentQ);
+  }
+}
+
+function endMockEarly() {
+  if (!confirm('End the interview now? Your answers so far will be scored.')) return;
+  endMockSession();
+}
+
+function endMockSession() {
+  var s = _mockSession;
+  _ttsAborted = true; // kill any pending API responses — session is over
+  stopAllAudio();
+
+  // Capture elapsed BEFORE stopMockTimer (which resets it for free users)
+  var elapsedSecs = s ? (s.elapsed || 0) : 0;
+  stopMockTimer();
+  // For free users stopMockTimer resets elapsed to 0 — use what we captured above
+  var mins = Math.max(1, Math.round(elapsedSecs / 60)); // at least 1 min
+
+  // Update in-memory free usage immediately so banner reflects it right now
+  // (don't wait for server sync — we know exactly how long this session was)
+  if (_userTier === 'free') {
+    _mockFreeUsedSecs += elapsedSecs;
+    localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
+  }
+
+  var scores = s.scores.filter(function(sc){return typeof sc === 'number';});
+  var avg    = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
+
+  var sessionRecord = {
+    date: new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),
+    isoDate: new Date().toISOString().split('T')[0],
+    type: s.type, diff: s.diff, score: avg,
+    numQ: s.numQ, mins: mins, id: Date.now()
+  };
+
+  // Reset star rating for new session
+  _mockRating = 0;
+  setMockRating(0, true);
+
+  // 1. Save to localStorage immediately (instant)
+  var history = JSON.parse(localStorage.getItem('mockHistory')||'[]');
+  history.unshift(sessionRecord);
+  localStorage.setItem('mockHistory', JSON.stringify(history.slice(0,20)));
+
+  // Store save payload so rating can be re-sent if user rates after viewing results
+  _mockPendingSave = {
+    date: sessionRecord.isoDate,
+    type: s.type,
+    difficulty: s.diff,
+    score: avg,
+    numQuestions: s.numQ,
+    durationMins: mins,
+    questions: (s.questions || []).slice(0, s.numQ),
+    scores: (s.scores || []).slice(0, s.numQ),
+    feedbacks: (s.feedbacks || []).slice(0, s.numQ)
+  };
+
+  // 2. Save to Google Sheets immediately (without rating — rating updates separately)
+  saveMockToSheet(_mockPendingSave);
+
+  // Show results
+  var scoreEl = document.getElementById('mockResultScore');
+  scoreEl.textContent = avg;
+  scoreEl.style.color = avg >= 80 ? 'var(--green)' : avg >= 60 ? 'var(--orange)' : 'var(--red)';
+  document.getElementById('mockResultMeta').textContent = s.numQ + ' questions · ' + mins + ' min';
+
+  var verdict = avg >= 80 ? '&#127942; Great session! You\'re interview-ready.' :
+                avg >= 60 ? '&#128077; Good effort — targeted practice will sharpen your answers.' :
+                            '&#128197; Keep practising — review the tips below.';
+  document.getElementById('mockResultVerdict').innerHTML = verdict;
+
+  // Breakdown
+  var bHtml = '';
+  for (var i = 0; i < s.numQ; i++) {
+    var sc  = s.scores[i] || 0;
+    var cls = sc >= 80 ? 'great' : sc >= 60 ? 'ok' : 'weak';
+    bHtml += '<div class="mock-history-item">'+
+      '<div style="flex:1">'+
+        '<div style="font-size:0.8rem;font-weight:600;margin-bottom:3px">Q'+(i+1)+': '+(s.questions[i]||'').substring(0,70)+'...</div>'+
+        '<div style="font-size:0.77rem;color:var(--muted)">'+(s.feedbacks[i]||'').substring(0,100)+'...</div>'+
+      '</div>'+
+      '<div class="mock-history-score '+cls+'">'+sc+'</div>'+
+    '</div>';
+  }
+  document.getElementById('mockResultBreakdown').innerHTML = bHtml || '<div class="empty-state"><div class="empty-text">No answers recorded</div></div>';
+
+  // Tips (from last feedback)
+  var tips = [
+    'Structure answers using the STAR method (Situation, Task, Action, Result) for behavioural questions.',
+    'Use concrete numbers and outcomes — "improved performance by 40%" beats vague statements.',
+    'Practice thinking aloud: interviewers want to follow your reasoning, not just hear conclusions.'
+  ];
+  var tHtml = tips.map(function(t,i){
+    return '<div class="mock-result-tip"><span style="background:var(--teal-light);color:var(--teal-dark);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0;font-family:\'DM Mono\',monospace">'+(i+1)+'</span><span>'+t+'</span></div>';
+  }).join('');
+  document.getElementById('mockResultTips').innerHTML = tHtml;
+
+  // Switch view
+  document.querySelectorAll('.mock-section').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('mockSectionResults').classList.add('active');
+
+  // Immediately update the free trial banner with new usage (no need to wait for Back click)
+  refreshMockFreeUI();
+}
+
+function renderMockHistory(fromSheets) {
+  var el = document.getElementById('mockHistoryList');
+  if (!el) return;
+
+  // If we have fresh Sheets data passed in, use + cache it
+  if (fromSheets && fromSheets.length) {
+    localStorage.setItem('mockHistory', JSON.stringify(fromSheets.slice(0,20)));
+    renderMockHistoryHtml(el, fromSheets);
+    return;
+  }
+
+  // Show localStorage instantly while Sheets loads
+  var cached = JSON.parse(localStorage.getItem('mockHistory')||'[]');
+  if (cached.length) renderMockHistoryHtml(el, cached);
+  else el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">Loading history...</div></div>';
+
+  // Fetch from Sheets in background and refresh
+  fetch('/api/mock/history', { credentials: 'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.sessions && d.sessions.length) {
+        localStorage.setItem('mockHistory', JSON.stringify(d.sessions.slice(0,20)));
+        renderMockHistoryHtml(el, d.sessions);
+      } else if (!cached.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>';
+      }
+    })
+    .catch(function(){
+      if (!cached.length) el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>';
+    });
+}
+
+function renderMockHistoryHtml(el, history) {
+  if (!history || !history.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127908;</div><div class="empty-text">No sessions yet — start your first mock interview above!</div></div>';
+    return;
+  }
+  var html = '';
+  history.slice(0,5).forEach(function(h){
+    var cls = h.score >= 80 ? 'great' : h.score >= 60 ? 'ok' : 'weak';
+    html += '<div class="mock-history-item">'+
+      '<div>'+
+        '<div style="font-weight:600;font-size:0.88rem">'+h.type+' &mdash; '+h.diff+'</div>'+
+        '<div style="font-size:0.75rem;color:var(--muted);margin-top:2px">'+h.date+' &middot; '+h.numQ+' questions &middot; '+h.mins+'min</div>'+
+      '</div>'+
+      '<div class="mock-history-score '+cls+'">'+h.score+'</div>'+
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── TIMER ──
+var _FREE_LIMIT_SECS = 600; // 10 minutes total
+var _mockFreeUsedSecs = 0;  // in-memory cache, synced from server
+var _mockRating = 0;
+var _mockPendingSave = null;
+var _ttsAudio = null;
+var _ttsAborted = false;
+var _ttsGeneration = 0; // increments on every speakMockText call — old promises self-cancel
+var _ttsConfigLoaded = true;
+
+function loadTTSConfig(callback) { if (callback) callback(); }
+
+// ── stopAllAudio — call on end session, sign out, nav away, skip ──
+function stopAllAudio() {
+  _ttsGeneration++;    // invalidate in-flight TTS fetch
+  _typewriterGen++;    // invalidate active typewriter tick chain
+  if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
+  // Blank text + hide dots immediately
+  var el = document.getElementById('mockQText');
+  if (el) el.textContent = '';
+  var dots = document.getElementById('mockThinkingDots');
+  if (dots) dots.style.display = 'none';
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+  // _ttsAborted is NOT set here — it's only set on full session end
+  // Setting it here would silently drop the next question's API response
+}
+
+// ── prefetchTTS — start fetching audio immediately, returns Promise<blob|null> ──
+function prefetchTTS(text) {
+  if (!text) return Promise.resolve(null);
+  var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
+  if (!clean) return Promise.resolve(null);
+  return fetch('/api/tts', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: clean })
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('el_' + r.status);
+    return r.blob();
+  })
+  .catch(function(e) {
+    console.warn('TTS fetch failed:', e.message);
+    return null;
+  });
+}
+
+// ── speakMockText — generation-guarded so skip/next never overlaps previous audio ──
+// Browser TTS fallback removed — ElevenLabs only. On failure, typewriter still runs.
+function speakMockText(text, blobPromise, onPlay) {
+  if (!_mockSession || !_mockSession.useVoice || !text) {
+    if (onPlay) onPlay(); // no voice — still trigger typewriter
+    return;
+  }
+
+  // Stop anything currently playing
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+
+  // Tag this call with a generation number — if a newer call arrives before this
+  // promise resolves, myGeneration !== _ttsGeneration and we discard silently
+  _ttsAborted = false;
+  _ttsGeneration++;
+  var myGeneration = _ttsGeneration;
+
+  var clean = text.replace(/[*_`#]/g, '').trim().slice(0, 500);
+  if (!clean) { if (onPlay) onPlay(); return; }
+
+  var promise = blobPromise || prefetchTTS(clean);
+
+  promise.then(function(blob) {
+    // Stale — a newer question was requested while this was fetching
+    if (_ttsAborted || _ttsGeneration !== myGeneration) return;
+
+    if (!blob) {
+      // ElevenLabs failed — start typewriter silently, no robotic fallback
+      if (onPlay) onPlay();
+      return;
+    }
+
+    var url = URL.createObjectURL(blob);
+    var audio = new Audio(url);
+    _ttsAudio = audio;
+
+    audio.onplay  = function() { if (onPlay) onPlay(); };
+    audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
+    audio.onerror = function() {
+      URL.revokeObjectURL(url); _ttsAudio = null;
+      if (onPlay) onPlay(); // audio failed — still start typewriter
+    };
+
+    // One final stale check before playing
+    if (_ttsAborted || _ttsGeneration !== myGeneration) { URL.revokeObjectURL(url); return; }
+
+    audio.play().catch(function() {
+      if (onPlay) onPlay(); // autoplay blocked — still show typewriter
+    });
+  });
+}
+
+function saveMockToSheet(payload) {
+  fetch('/api/mock/save', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.success) console.error('❌ Mock save failed:', d.error);
+    else console.log('✅ Mock session saved | rating=' + (payload.interviewerRating || 'none'));
+  })
+  .catch(function(e) { console.error('❌ Mock save network error:', e.message); });
+}
+
+var _mockRatingLabels = ['','Poor — questions felt off','Fair — some issues','Good — decent session','Great — very helpful','Excellent — loved it!'];
+
+function setMockRating(val, silent) {
+  _mockRating = val;
+  var stars = document.querySelectorAll('.mock-star');
+  stars.forEach(function(s) {
+    var sv = parseInt(s.getAttribute('data-v'));
+    s.style.opacity = sv <= val ? '1' : '0.25';
+    s.style.color   = sv <= val ? 'var(--teal)' : '';
+  });
+  var label = document.getElementById('mockRatingLabel');
+  if (label) label.textContent = val > 0 ? _mockRatingLabels[val] : '';
+
+  if (!silent && val > 0 && _mockPendingSave) {
+    // Re-save with rating included
+    _mockPendingSave.interviewerRating = String(val);
+    saveMockToSheet(_mockPendingSave);
+  }
+}
+
+function getMockFreeKey() {
+  // Per-user key so different users on same browser don't share trial state
+  var email = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : 'guest';
+  return 'mockFreeUsedSecs_' + email;
+}
+
+function getMockFreeUsed() {
+  return _mockFreeUsedSecs;
+}
+function addMockFreeUsed(secs) {
+  _mockFreeUsedSecs += secs;
+  // Also keep localStorage as offline backup (per-user key)
+  localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
+}
+
+// Fetch free-trial status from server (source of truth = MockSessions sheet)
+function syncMockFreeStatus(callback) {
+  if (_userTier !== 'free') {
+    _mockFreeUsedSecs = 0;
+    if (callback) callback();
+    return;
+  }
+  // Use per-user localStorage key instantly while server responds
+  _mockFreeUsedSecs = parseInt(localStorage.getItem(getMockFreeKey()) || '0', 10);
+
+  fetch('/api/mock/free-status', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.unlimited) {
+        _mockFreeUsedSecs = 0;
+      } else {
+        var serverSecs = (d.usedMins || 0) * 60;
+        var localSecs  = parseInt(localStorage.getItem(getMockFreeKey()) || '0', 10);
+        _mockFreeUsedSecs = Math.max(serverSecs, localSecs);
+        localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
+      }
+      if (callback) callback();
+    })
+    .catch(function() {
+      if (callback) callback();
+    });
+}
+
+function startMockTimer() {
+  stopMockTimer();
+  if (_mockSession) _mockSession.elapsed = 0;
+
+  // For free users, warn if they're close to limit
+  if (_userTier === 'free') {
+    var alreadyUsed = getMockFreeUsed();
+    var remaining = _FREE_LIMIT_SECS - alreadyUsed;
+    if (remaining <= 0) {
+      // Already used up — show gate immediately
+      showMockFreeGate();
+      return;
+    }
+  }
+
+  _mockTimerInt = setInterval(function(){
+    if (_mockSession) _mockSession.elapsed++;
+    var e = _mockSession ? _mockSession.elapsed : 0;
+    var m = String(Math.floor(e/60)).padStart(2,'0');
+    var s = String(e%60).padStart(2,'0');
+    var el = document.getElementById('mockTimer');
+    if (el) el.textContent = m + ':' + s;
+
+    // Free users: lock when cumulative time hits 10 minutes
+    if (_userTier === 'free') {
+      var totalUsed = getMockFreeUsed() + e;
+      if (totalUsed >= _FREE_LIMIT_SECS) {
+        // Save elapsed to local + in-memory store
+        _mockFreeUsedSecs += e;
+        localStorage.setItem(getMockFreeKey(), String(_mockFreeUsedSecs));
+        stopMockTimer();
+
+        // Save partial session to sheet so time is recorded server-side
+        // This ensures the usage is reflected on any device, not just this browser
+        if (_mockSession) {
+          var s = _mockSession;
+          var elapsedMins = Math.max(1, Math.round(e / 60));
+          var scores = (s.scores || []).filter(function(sc){ return typeof sc === 'number'; });
+          var avg = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
+          saveMockToSheet({
+            date: new Date().toISOString().split('T')[0],
+            type: s.type || 'Technical',
+            difficulty: s.diff || 'mid',
+            score: avg,
+            numQuestions: s.numQ || 0,
+            durationMins: elapsedMins,
+            questions: (s.questions || []).slice(0, s.numQ),
+            scores: (s.scores || []).slice(0, s.numQ),
+            feedbacks: (s.feedbacks || []).slice(0, s.numQ),
+            interviewerRating: ''
+          });
+        }
+
+        showMockFreeGate();
+      }
+    }
+  }, 1000);
+}
+
+function showMockFreeGate() {
+  // Disable answer input and submit
+  var box = document.getElementById('mockAnswerBox');
+  var btn = document.getElementById('mockSubmitBtn');
+  if (box) { box.disabled = true; box.placeholder = 'Upgrade to Pro to continue practising...'; }
+  if (btn) { btn.disabled = true; }
+  // Show upgrade overlay inside live section
+  var liveSection = document.getElementById('mockSectionLive');
+  if (liveSection && !document.getElementById('mockFreeOverlay')) {
+    var overlay = document.createElement('div');
+    overlay.id = 'mockFreeOverlay';
+    overlay.style.cssText = 'position:absolute;inset:0;background:rgba(248,249,255,0.96);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;z-index:10';
+    overlay.innerHTML =
+      '<div style="font-size:2.5rem;margin-bottom:12px">&#9200;</div>'+
+      '<div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">Free Trial Ended</div>'+
+      '<div style="font-size:0.88rem;color:var(--muted);line-height:1.6;max-width:320px;margin-bottom:22px">You\'ve used your free 10-minute mock interview. Upgrade to Pro for unlimited sessions, scheduling, and detailed history.</div>'+
+      '<button onclick="hideProGate();showUpgradeModal()" style="padding:12px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:\'DM Sans\',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;margin-bottom:10px">&#x26A1; Upgrade to Pro</button>'+
+      '<button onclick="showMockHome()" style="padding:9px 20px;border:1.5px solid var(--border);border-radius:9px;background:none;font-family:\'DM Sans\',sans-serif;font-size:0.84rem;color:var(--muted);cursor:pointer">Back to Home</button>';
+    liveSection.style.position = 'relative';
+    liveSection.appendChild(overlay);
+  }
+}
+
+function stopMockTimer() {
+  if (_mockTimerInt) {
+    clearInterval(_mockTimerInt);
+    _mockTimerInt = null;
+  }
+}
 </script>
 
 <!-- -- UPGRADE MODAL -- -->
@@ -2757,7 +4293,7 @@ function changePassword() {
       <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Unlimited Job Match</strong> &mdash; analyse your fit against any JD</span></div>
       <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Analyse Match on job listings</strong> &mdash; one-click AI scoring on live jobs</span></div>
       <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Resume upload + AI extraction</strong> &mdash; powers smarter matching everywhere</span></div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--teal);font-size:1rem">&#x27F3;</span><span style="color:var(--muted)">Mock Interview with AI voice <em>(coming soon)</em></span></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.87rem"><span style="color:var(--green);font-size:1rem">&#x2713;</span><span><strong>Mock Interview</strong> &mdash; AI-powered live practice with voice + instant scoring</span></div>
     </div>
   </div>
 
@@ -2781,6 +4317,7 @@ function changePassword() {
         <div>&#x2705; Study resources for every task</div>
         <div>&#x2705; Job Match &mdash; paste any JD, get match score</div>
         <div>&#x2705; Jobs For You &mdash; live listings matched to your profile</div>
+        <div>&#x2705; Mock Interview &mdash; AI voice practice + instant scoring</div>
       </div>
       <button onclick="startPayment('pro')" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer">Get Pro &mdash; &#x20B9;499/mo &#x2192;</button>
     </div>

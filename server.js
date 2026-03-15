@@ -318,8 +318,9 @@ function requirePro(req, res, next) {
 // ── Helper: check if week should advance and update Sheets + session ──
 // ── Helper: calculate days elapsed since a date string (YYYY-MM-DD) ──
 function daysSince(dateStr) {
-  if (!dateStr) return 0;
+  if (!dateStr) return 999;
   const start = new Date(dateStr);
+  if (isNaN(start)) return 999;
   const today = new Date();
   start.setHours(0,0,0,0);
   today.setHours(0,0,0,0);
@@ -1335,6 +1336,36 @@ Rules:
   return payload;
 }
 
+// ── Pre-generate Week 1 Days 1–3 study resources for FREE users (runs after plan generation) ──
+async function preloadFreeResources(email, role, experience) {
+  console.log(`🎁 Preloading free resources (W1 D1-3) for ${email}`);
+  try {
+    const allPlans = await readSheet('Plans');
+    const freeTasks = allPlans.filter(r =>
+      (r.Email || '').toLowerCase() === email.toLowerCase() &&
+      String(r.Week) === '1' &&
+      parseInt(r.Day) <= 3
+    );
+    if (freeTasks.length === 0) {
+      console.warn(`⚠️  preloadFreeResources: no W1 D1-3 tasks for ${email}`);
+      return;
+    }
+    await Promise.allSettled(
+      freeTasks.map(task =>
+        generateAndCacheResource(
+          email, role, experience, 1,
+          parseInt(task.Day) || 1,
+          task.Task || task.Title || task.TaskTitle || task['Task Title'] || '',
+          task.Type || task.TaskType || 'Theory'
+        )
+      )
+    );
+    console.log(`✅ Free resource preload done for ${email} (${freeTasks.length} tasks)`);
+  } catch(e) {
+    console.error('preloadFreeResources failed (non-fatal):', e.message);
+  }
+}
+
 // ── Pre-generate all 7 Week 1 study materials for a user (runs in background after payment) ──
 async function preloadWeek1Resources(email, role, experience) {
   console.log(`🚀 Preloading Week 1 resources for ${email} (${role} — ${experience})`);
@@ -1377,15 +1408,43 @@ async function preloadWeek1Resources(email, role, experience) {
   console.log(`✅ Week 1 preload done for ${email}: ${succeeded} succeeded, ${failed} failed`);
 }
 
+// GET /api/resources/preload-free — trigger Days 1-3 preload for free users on login
+// Fast: checks cache first, only generates what's missing
+app.get('/api/resources/preload-free', requireLogin, async (req, res) => {
+  const { email, role, experience } = req.session.user;
+  const tier = (req.session.user.tier || 'free').toLowerCase();
+
+  // Only needed for free users
+  if (tier !== 'free') return res.json({ ok: true, skipped: true });
+
+  // Respond immediately — preload runs in background
+  res.json({ ok: true, started: true });
+
+  setImmediate(async () => {
+    try {
+      await preloadFreeResources(email, role || '', experience || 'Mid');
+    } catch(e) {
+      console.error('Login preload-free failed (non-fatal):', e.message);
+    }
+  });
+});
+
 // POST /api/resources — generate cheatsheet + curated links (uses shared generateAndCacheResource)
-app.post('/api/resources', requirePro, async (req, res) => {
+app.post('/api/resources', requireLogin, async (req, res) => {
   try {
     const { week, day, taskTitle, taskType } = req.body;
     const { email, role, experience } = req.session.user;
+    const tier = (req.session.user.tier || 'free').toLowerCase();
 
     if (!taskTitle) return res.status(400).json({ error: 'Task title required' });
 
-    console.log(`🔨 Resource request: ${email} W${week}D${day} "${taskTitle}"`);
+    // Free users can only access Week 1, Days 1–3
+    const isFreeAllowed = (parseInt(week) === 1 && parseInt(day) <= 3);
+    if (tier === 'free' && !isFreeAllowed) {
+      return res.status(403).json({ error: 'upgrade_required', message: 'Upgrade to Pro to unlock all study resources.' });
+    }
+
+    console.log(`🔨 Resource request: ${email} W${week}D${day} "${taskTitle}" [${tier}]`);
     const payload = await generateAndCacheResource(email, role, experience, week, day, taskTitle, taskType);
     res.json(payload);
   } catch (err) {
@@ -1772,7 +1831,19 @@ app.post('/api/trigger-plan', async (req, res) => {
   // Run Phase 2 in background
   const { triggerPhase2 } = require('./onboarding');
   triggerPhase2(email, getSheetsClient, SHEET_ID)
-    .then(() => console.log(`✅ Phase 2 complete for ${email}`))
+    .then(async () => {
+      console.log(`✅ Phase 2 complete for ${email}`);
+      // Pre-generate free Days 1–3 resources right after plan is ready
+      try {
+        const userRows = await readSheet('Users');
+        const uRow = userRows.find(r => (r.Email||'').toLowerCase() === email.toLowerCase());
+        const uRole = uRow?.Role || req.session.user?.role || '';
+        const uExp  = uRow?.Experience || req.session.user?.experience || 'Mid';
+        if (uRole) await preloadFreeResources(email, uRole, uExp);
+      } catch(e) {
+        console.error('Free resource preload after phase2 failed (non-fatal):', e.message);
+      }
+    })
     .catch(e => console.error(`❌ Phase 2 failed for ${email}:`, e.message));
 });
 
@@ -1877,6 +1948,23 @@ app.post('/api/onboard', async (req, res) => {
   } else {
     console.error(`❌ Onboarding failed: ${result.error}`);
   }
+
+  // Pre-generate Days 1–3 resources for the new free user in background
+  if (result.success && result.email) {
+    setImmediate(async () => {
+      try {
+        // Wait a moment to let the plan finish writing to the sheet
+        await new Promise(r => setTimeout(r, 8000));
+        const userRows = await readSheet('Users');
+        const uRow = userRows.find(r => (r.Email||'').toLowerCase() === result.email.toLowerCase());
+        const uRole = uRow?.Role || '';
+        const uExp  = uRow?.Experience || 'Mid';
+        if (uRole) await preloadFreeResources(result.email, uRole, uExp);
+      } catch(e) {
+        console.error('Free preload after onboard failed (non-fatal):', e.message);
+      }
+    });
+  }
 });
 
 // GET /api/session-test — verify session is working
@@ -1891,6 +1979,890 @@ app.get('/api/session-test', (req, res) => {
   });
 });
 
+
+
+// ══════════════════════════════════════════════════════
+// ELEVENLABS TTS PROXY (server-side — paid plan required)
+// ══════════════════════════════════════════════════════
+// Config in Railway env vars:
+//   ELEVENLABS_API_KEY=your_key_here
+//   ELEVENLABS_VOICE_ID=ecp3DWciuUyW7BYM7II1
+//   ELEVENLABS_MODEL=eleven_multilingual_v2
+
+app.post('/api/tts', requireLogin, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
+
+    const apiKey  = process.env.ELEVENLABS_API_KEY;
+    const voiceId = process.env.ELEVENLABS_VOICE_ID || 'ecp3DWciuUyW7BYM7II1';
+    const model   = process.env.ELEVENLABS_MODEL    || 'eleven_multilingual_v2';
+
+    if (!apiKey) {
+      return res.status(503).json({ error: 'tts_not_configured' });
+    }
+
+    const cleanText = text.trim().slice(0, 500);
+    console.log(`🔊 TTS: voice=${voiceId} model=${model} chars=${cleanText.length}`);
+
+    const body = JSON.stringify({
+      text: cleanText,
+      model_id: model,
+      output_format: 'mp3_44100_128',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true }
+    });
+
+    const https = require('https');
+    const options = {
+      hostname: 'api.elevenlabs.io',
+      path:     `/v1/text-to-speech/${voiceId}`,
+      method:   'POST',
+      headers:  {
+        'xi-api-key':     apiKey,
+        'Content-Type':   'application/json',
+        'Accept':         'audio/mpeg',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+
+    const chunks = [];
+    const proxyReq = https.request(options, (proxyRes) => {
+      if (proxyRes.statusCode !== 200) {
+        let errBody = '';
+        proxyRes.on('data', c => errBody += c);
+        proxyRes.on('end', () => {
+          console.error(`❌ ElevenLabs ${proxyRes.statusCode}: ${errBody.slice(0, 300)}`);
+          res.status(502).json({ error: 'tts_upstream_error', status: proxyRes.statusCode });
+        });
+        return;
+      }
+      proxyRes.on('data', chunk => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const audio = Buffer.concat(chunks);
+        console.log(`✅ TTS audio: ${audio.length} bytes`);
+        res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': audio.length, 'Cache-Control': 'no-store' });
+        res.send(audio);
+      });
+    });
+
+    proxyReq.on('error', (e) => {
+      console.error('ElevenLabs network error:', e.message);
+      res.status(502).json({ error: 'tts_network_error' });
+    });
+
+    proxyReq.write(body);
+    proxyReq.end();
+
+  } catch (err) {
+    console.error('TTS route error:', err.message);
+    res.status(500).json({ error: 'tts_failed' });
+  }
+});
+
+// Keep config endpoint for reference (returns non-sensitive info only)
+app.get('/api/tts/config', requireLogin, (req, res) => {
+  res.json({ configured: !!process.env.ELEVENLABS_API_KEY, mode: 'server-side' });
+});
+
+// ══════════════════════════════════════════════════════
+// MOCK INTERVIEW ROUTES  (Pro + Premium)
+// ══════════════════════════════════════════════════════
+
+function requirePremium(req, res, next) {
+  if (!req.session || !req.session.user) return res.status(401).json({ error: 'Not logged in' });
+  const tier = (req.session.user.tier || 'free').toLowerCase();
+  if (tier !== 'pro' && tier !== 'premium') return res.status(403).json({ error: 'Pro required', upgrade: true });
+  next();
+}
+
+// POST /api/mock/chat — stateful conversational mock interview (replaces /question + /score)
+// Handles: opening greeting, resume-based Q1, follow-ups, hints, adaptive difficulty, scoring
+app.post('/api/mock/chat', requireLogin, async (req, res) => {
+  try {
+    const { history = [], type = 'Technical', difficulty = 'mid', numQ = 5, action = 'next', currentQuestion = '', currentAnswer = '', currentQIndex = null } = req.body;
+    // action: 'start' | 'answer' | 'skip' | 'hint'
+    const { role = 'Software Engineer', name = 'there' } = req.session.user;
+    const email = req.session.user.email;
+    const firstName = (name || '').split(' ')[0] || 'there';
+
+    const diffLabel = { entry: 'entry-level (0-1 yrs)', mid: 'mid-level (2-4 yrs)', senior: 'senior (5-8 yrs)', staff: 'staff/principal (8+ yrs)' };
+
+    // Fetch resume text once (only needed for first message)
+    let resumeText = '';
+    if (action === 'start' || history.length === 0) {
+      try {
+        const raw = await getSheetsClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:Z' });
+        const hdrs = raw.data.values[0];
+        const rows = raw.data.values.slice(1);
+        const eIdx = hdrs.indexOf('Email');
+        const rIdx = hdrs.findIndex(h => h.trim() === 'Resume Text');
+        const userRow = rows.find(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase());
+        if (userRow && rIdx !== -1) resumeText = (userRow[rIdx] || '').slice(0, 1500);
+      } catch(e) { /* non-fatal */ }
+    }
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // Use explicit currentQIndex from frontend (0-based) — more reliable than counting history
+    const questionCount = currentQIndex !== null ? parseInt(currentQIndex) : history.filter(m => m.role === 'assistant' && m.isQuestion).length;
+    const questionsAnswered = action === 'answer' ? questionCount + 1 : questionCount; // how many Q&As are complete
+    const isLastQuestion = questionCount >= numQ - 1; // currentQIndex is 0-based, numQ is total
+
+    // ── STEP 1: Score the answer separately (clean, focused, no conversation noise) ──
+    let score = null, feedback = null, nextDifficulty = 'same';
+    if (action === 'answer' && currentQuestion && currentAnswer) {
+      try {
+        const scorePrompt = `You are scoring a mock interview answer.
+
+Role: ${role} (${diffLabel[difficulty]||difficulty})
+Interview type: ${type}
+Question: ${currentQuestion}
+Candidate's answer: ${currentAnswer}
+
+Score this answer honestly on a 0-100 scale:
+- 85-100: Excellent — specific, structured, concrete examples, real depth
+- 70-84: Good — covers main points but lacks depth or concrete examples  
+- 50-69: Needs work — vague, incomplete, or missing key aspects
+- Below 50: Weak — off-topic, very short, or "I don't know" type answers
+
+Return ONLY valid JSON (no markdown, no extra text):
+{"score":<number>,"feedback":"<2-3 sentences: 1 strength, 1 gap, 1 specific actionable tip>","nextDifficulty":"<easier|same|harder>"}`;
+
+        const scoreMsg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 250,
+          system: 'You are a strict interview scorer. Return ONLY valid JSON. No extra text before or after.',
+          messages: [{ role: 'user', content: scorePrompt }],
+        });
+        const raw = scoreMsg.content[0].text.trim().replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(raw);
+        score = Math.min(100, Math.max(0, parseInt(parsed.score) || 50));
+        feedback = parsed.feedback || '';
+        nextDifficulty = parsed.nextDifficulty || 'same';
+      } catch(e) {
+        console.error('Inline scoring failed:', e.message);
+        // Don't block — score stays null
+      }
+    }
+
+    // ── STEP 2: Generate conversational interviewer response ──
+
+    // Generate a session-unique random seed to vary question selection each run
+    const sessionSeed = Math.floor(Math.random() * 1000);
+    const sessionVariant = ['A','B','C','D','E'][sessionSeed % 5];
+
+    // Pull tech stack and role from session for personalised coding questions
+    const techStack = req.session.user.techStack || '';
+    const experienceYears = req.session.user.experienceYears || null;
+
+    // Infer coding question domain from role + tech stack
+    // This ensures a Data Engineer gets SQL/Python questions, not LeetCode tree problems
+    function getCodingDomain(role, techStack, difficulty) {
+      const r = (role || '').toLowerCase();
+      const t = (techStack || '').toLowerCase();
+      const combined = r + ' ' + t;
+
+      // Data roles
+      if (/data engineer|etl|pipeline|spark|airflow|redshift|snowflake|databricks|glue/.test(combined)) {
+        return {
+          domain: 'Data Engineering',
+          codingTypes: [
+            'SQL query optimisation (window functions, CTEs, aggregations)',
+            'Python data processing (pandas, handling large datasets, transformations)',
+            'ETL pipeline design (handling failures, idempotency, schema changes)',
+            'Writing a PySpark transformation for a given dataset problem',
+            'Optimising a slow SQL query with proper indexing strategy',
+            'Python function to clean and validate incoming data records'
+          ]
+        };
+      }
+      // Data science / ML
+      if (/data scientist|machine learning|ml engineer|ai engineer|nlp|deep learning/.test(combined)) {
+        return {
+          domain: 'Data Science / ML',
+          codingTypes: [
+            'Python: implement a function to calculate precision/recall/F1',
+            'SQL: write a query to find feature correlations from a dataset',
+            'Python: write a data preprocessing pipeline for missing values',
+            'Implement k-means clustering logic step by step in pseudocode',
+            'Python: write a function to split data and evaluate a model',
+            'SQL: aggregate and pivot data for a reporting dashboard'
+          ]
+        };
+      }
+      // Frontend
+      if (/frontend|front-end|react|vue|angular|ui engineer|javascript|typescript/.test(combined)) {
+        return {
+          domain: 'Frontend',
+          codingTypes: [
+            'JavaScript: implement a debounce or throttle function',
+            'Write a React hook that handles API fetching with loading/error state',
+            'JavaScript: implement a deep clone function without using JSON',
+            'CSS/JS: explain how you would build an infinite scroll component',
+            'JavaScript: write a function to flatten a nested array',
+            'React: implement a custom useLocalStorage hook'
+          ]
+        };
+      }
+      // Backend / general SWE
+      if (/backend|back-end|node|java|python|golang|django|spring|rails|api/.test(combined)) {
+        return {
+          domain: 'Backend / API',
+          codingTypes: [
+            'Design and implement a rate limiter for an API endpoint',
+            'Write a function to implement LRU cache with get/put operations',
+            'Implement a middleware that logs request duration and errors',
+            'Write a function to parse and validate a complex nested JSON input',
+            'Design a retry mechanism with exponential backoff',
+            'Write a function to find duplicate records in a large dataset efficiently'
+          ]
+        };
+      }
+      // DevOps / SRE / Cloud
+      if (/devops|sre|platform|infrastructure|cloud|kubernetes|docker|terraform|aws|gcp|azure/.test(combined)) {
+        return {
+          domain: 'DevOps / Cloud',
+          codingTypes: [
+            'Write a bash script to monitor disk usage and alert when above threshold',
+            'Design a Terraform module structure for a multi-env deployment',
+            'Write a Python script to rotate AWS credentials across services',
+            'Explain and sketch a CI/CD pipeline for a microservice deployment',
+            'Write a Docker health check script for a web service',
+            'Design a rollback strategy for a failed Kubernetes deployment'
+          ]
+        };
+      }
+      // Mobile
+      if (/mobile|ios|android|swift|kotlin|flutter|react native/.test(combined)) {
+        return {
+          domain: 'Mobile',
+          codingTypes: [
+            'Implement a local caching strategy for offline-first mobile app',
+            'Write a function to handle pagination in a mobile list view',
+            'Design a push notification handling flow with deep linking',
+            'Implement a retry mechanism for failed network requests on mobile',
+            'Write a function to parse and display dynamic JSON-driven UI'
+          ]
+        };
+      }
+      // Default — general SWE with moderate DS&A
+      return {
+        domain: 'General Software Engineering',
+        codingTypes: [
+          'Array/string manipulation relevant to your tech stack',
+          'HashMap-based problem (frequency count, grouping, lookup)',
+          'Write a function to validate and parse structured input data',
+          'Implement a simple queue or stack using available data structures',
+          'Design a function with proper error handling and edge cases',
+          'String parsing: extract structured data from a log or text format'
+        ]
+      };
+    }
+
+    const codingDomain = getCodingDomain(role, techStack, difficulty);
+
+    // ── Role-aware topic pools ──
+    // Instead of generic tech topics, derive topics from the actual role + resume
+    // This ensures a Journal Editor gets editorial/publishing topics, not message queues
+    function getRoleTopics(role, techStack, type) {
+      const r = (role || '').toLowerCase();
+      const t = (techStack || '').toLowerCase();
+      const combined = r + ' ' + t;
+
+      // Non-technical / business roles — use role-specific topics
+      if (/editor|editorial|journalist|writer|content|publishing|media|communications|pr |public relations/.test(combined)) {
+        return [
+          ['editorial workflow','content strategy','stakeholder management','deadline management','team leadership','process improvement','cross-functional collaboration','quality control'],
+          ['content planning','editorial standards','feedback and review','project management','audience strategy','budget management','vendor management','performance metrics'],
+          ['digital transformation','team development','strategic planning','conflict resolution','change management','data-driven decisions','brand voice','publication processes']
+        ];
+      }
+      if (/product manager|product owner|pm |head of product/.test(combined)) {
+        return [
+          ['product strategy','roadmap prioritisation','stakeholder alignment','user research','metrics and KPIs','go-to-market','feature trade-offs','customer discovery'],
+          ['agile methodology','sprint planning','A/B testing','competitive analysis','OKRs','cross-functional leadership','product launches','data analysis'],
+          ['pricing strategy','market sizing','technical communication','team collaboration','product vision','experiment design','backlog management','customer feedback']
+        ];
+      }
+      if (/designer|ux|ui designer|product design|design lead/.test(combined)) {
+        return [
+          ['design process','user research','wireframing','prototyping','usability testing','design systems','stakeholder feedback','accessibility'],
+          ['information architecture','interaction design','visual design','handoff to engineering','design critique','user flows','A/B testing','design metrics'],
+          ['cross-functional collaboration','design strategy','brand consistency','mobile design','responsive design','user personas','design thinking','iteration']
+        ];
+      }
+      if (/marketing|growth|demand generation|digital marketing|seo|campaign/.test(combined)) {
+        return [
+          ['campaign strategy','audience targeting','performance marketing','content marketing','brand strategy','analytics','conversion optimisation','channel mix'],
+          ['SEO and SEM','social media','email marketing','lead generation','marketing attribution','budget allocation','creative briefing','market research'],
+          ['growth hacking','customer lifecycle','ABM','influencer marketing','marketing automation','reporting','competitive positioning','customer journey']
+        ];
+      }
+      if (/sales|account executive|business development|revenue|account manager/.test(combined)) {
+        return [
+          ['sales process','pipeline management','prospecting','closing techniques','objection handling','CRM usage','quota attainment','discovery calls'],
+          ['account management','upselling','negotiation','forecasting','customer success','competitive positioning','stakeholder mapping','deal strategy'],
+          ['territory management','sales enablement','cold outreach','partnership development','revenue metrics','customer retention','demo skills','market knowledge']
+        ];
+      }
+      if (/finance|analyst|accounting|investment|banking|financial/.test(combined)) {
+        return [
+          ['financial modelling','budgeting','forecasting','variance analysis','reporting','stakeholder communication','Excel/tools proficiency','audit and compliance'],
+          ['P&L management','cash flow analysis','valuation','investment analysis','cost reduction','business partnering','data interpretation','risk management'],
+          ['process improvement','financial strategy','regulatory compliance','team leadership','ERP systems','KPI tracking','M&A analysis','presentation skills']
+        ];
+      }
+      if (/hr|human resources|talent|recruiter|people operations|l&d|learning/.test(combined)) {
+        return [
+          ['talent acquisition','employee engagement','performance management','HR policies','onboarding','culture building','conflict resolution','compensation'],
+          ['learning and development','succession planning','HR analytics','diversity and inclusion','change management','employee relations','compliance','HRIS'],
+          ['workforce planning','employer branding','retention strategies','team development','HR strategy','stakeholder management','process improvement','wellbeing']
+        ];
+      }
+      if (/operations|supply chain|logistics|procurement|program manager/.test(combined)) {
+        return [
+          ['process optimisation','supply chain management','vendor management','project delivery','cost reduction','KPI tracking','cross-functional coordination','risk management'],
+          ['operational efficiency','forecasting','inventory management','contract negotiation','team leadership','change management','quality assurance','reporting'],
+          ['strategic planning','resource allocation','SLA management','business continuity','data analysis','stakeholder communication','automation','continuous improvement']
+        ];
+      }
+
+      // Technical roles — use tech-specific topics based on stack
+      if (/data engineer|etl|spark|airflow|redshift|databricks/.test(combined)) {
+        return [
+          ['data pipeline architecture','SQL optimisation','ETL design patterns','data quality','cloud data platforms','orchestration','schema design','data governance'],
+          ['streaming vs batch processing','partitioning strategies','data modelling','error handling in pipelines','performance tuning','data lineage','monitoring','API integration'],
+          ['warehouse design','CDC patterns','data lake architecture','Python for data','testing data pipelines','security and access','cost optimisation','team collaboration']
+        ];
+      }
+      if (/data scientist|machine learning|ml|ai engineer/.test(combined)) {
+        return [
+          ['model development','feature engineering','model evaluation','experiment design','data preprocessing','statistical analysis','ML frameworks','deployment'],
+          ['A/B testing','bias and fairness','hyperparameter tuning','cross-validation','model monitoring','NLP techniques','recommendation systems','business impact'],
+          ['MLOps','model versioning','production issues','data collection','deep learning','time series','causal inference','stakeholder communication']
+        ];
+      }
+
+      // Default technical pool — still better than generic message queues for everyone
+      return [
+        ['system design','databases','APIs','caching','scalability','security','testing','performance'],
+        ['architecture decisions','error handling','code quality','monitoring','authentication','deployment','debugging','documentation'],
+        ['distributed systems','design patterns','trade-offs','team collaboration','technical debt','refactoring','observability','incident response']
+      ];
+    }
+
+    // For Behavioral/Mixed, always use behavioral topics regardless of role
+    const behavioralTopics = [
+      ['conflict resolution','leadership','ownership','failure and learning','collaboration','time management','prioritisation','feedback','communication','ambiguity'],
+      ['influence without authority','cross-team work','difficult stakeholders','delivering bad news','process improvement','mentoring','deadline pressure','self-motivation','career growth'],
+      ['problem solving','initiative','adaptability','decision-making','trade-offs','project management','retrospectives','recognition','team dynamics']
+    ];
+
+    let sessionTopicPool;
+    if (type === 'Behavioral') {
+      sessionTopicPool = behavioralTopics;
+    } else if (type === 'System Design') {
+      sessionTopicPool = [
+        ['scalability','availability','consistency','partitioning','caching','load balancing','database design','API design'],
+        ['real-time systems','search','notification systems','rate limiting','data pipelines','microservices','observability','disaster recovery'],
+        ['authentication systems','distributed storage','write-heavy vs read-heavy','global distribution','cost optimisation','capacity planning']
+      ];
+    } else if (type === 'Mixed') {
+      // Interleave role topics with behavioral for mixed
+      const roleTopics = getRoleTopics(role, techStack, type);
+      sessionTopicPool = roleTopics.map((pool, i) => [...pool.slice(0, 5), ...(behavioralTopics[i] || []).slice(0, 4)]);
+    } else {
+      sessionTopicPool = getRoleTopics(role, techStack, type);
+    }
+
+    const poolIndex = sessionSeed % sessionTopicPool.length;
+    const sessionTopics = sessionTopicPool[poolIndex];
+
+    // Extract questions already asked from history to prevent repetition
+    const askedQuestions = history
+      .filter(m => m.role === 'assistant' && m.isQuestion)
+      .map(m => (m.content || '').slice(0, 80))
+      .join(' | ');
+
+    // Pick which coding type to use for this session (rotates per variant)
+    const codingTypeForSession = codingDomain.codingTypes[sessionSeed % codingDomain.codingTypes.length];
+
+    const systemPrompt = `You are an experienced interviewer conducting a mock interview with ${firstName}, a ${diffLabel[difficulty]||difficulty} ${role}.
+
+${resumeText ? `Their resume (excerpt):\n"""\n${resumeText}\n"""\n` : ''}
+
+INTERVIEW CONTEXT
+- Role: ${role}
+- Tech stack / tools: ${techStack || 'as mentioned in resume'}
+- Interview type: ${type}
+- Total questions planned: ${numQ}
+- Current question number: ${questionCount + 1} of ${numQ}
+- Questions completed so far: ${questionsAnswered} of ${numQ}
+- Is this the final question: ${isLastQuestion ? 'YES — wrap up after this' : 'NO — continue interview'}
+- Current action: ${action}
+- Session variant: ${sessionVariant}
+${action === 'answer' && score !== null ? `- Candidate just scored ${score}/100 on their answer` : ''}
+
+CRITICAL — ROLE RELEVANCE (read carefully)
+You MUST ask questions relevant to THIS candidate's actual role: "${role}".
+${techStack ? `Their tools/tech: ${techStack}.` : ''}
+- A Journal Editor / Editorial Manager → ask about editorial workflows, content strategy, team management, publishing processes, stakeholder communication — NOT about APIs, databases, or system design
+- A Marketing professional → ask about campaigns, audience targeting, metrics, brand strategy — NOT about distributed systems or message queues
+- A Data Engineer → ask about pipelines, SQL, ETL, cloud data tools — NOT about frontend or mobile
+- A Software Engineer → ask about code, architecture, systems relevant to their stack
+- ALWAYS anchor questions to the resume excerpt above — reference their actual projects, companies, and tools
+- NEVER ask generic tech questions to non-technical roles
+
+YOUR PERSONA
+- You are a warm, professional human interviewer — not an AI
+- Speak naturally and conversationally
+- Use the candidate's name (${firstName}) occasionally but not every message
+- Keep responses short and voice-friendly (2-4 sentences max)
+- Never mention that you are an AI or Claude
+
+QUESTION VARIETY — CRITICAL
+This session's topic sequence: ${sessionTopics.slice(0, numQ).join(' → ')}
+- Follow this topic sequence for non-coding questions — cover different areas each question
+- NEVER repeat a topic or concept already covered in this session
+- NEVER ask a question similar to one already asked
+- Questions already asked (do not repeat these topics): ${askedQuestions || 'none yet'}
+- Each question must feel like it comes from a DIFFERENT part of the interview — vary between: technical concepts, real experience, trade-offs, problem solving, and past projects
+- Mix difficulty within the session — don't ask all hard or all easy questions in a row
+
+INTERVIEW FLOW
+${history.length === 0 ? `Start with: a warm 1-sentence greeting using their name, then immediately ask your first question about their most recent project from the resume (or their background if no resume). Keep it to 2-3 sentences total.` : ''}
+
+${action === 'answer' ? `The candidate just answered question ${questionCount + 1} of ${numQ}.
+${isLastQuestion
+  ? `This IS question ${numQ} of ${numQ} — the FINAL question. Acknowledge briefly then close the interview warmly.`
+  : `This is NOT the last question (${questionCount + 1} of ${numQ} done). Do NOT close the interview. ${
+      score !== null && score >= 75
+        ? 'Their answer was good. Acknowledge briefly (1 sentence), then ask ONE deeper follow-up or next question on a DIFFERENT topic.'
+        : score !== null && score < 50
+          ? 'Their answer was weak. Acknowledge encouragingly (1 sentence), then move to a DIFFERENT topic for the next question.'
+          : 'Acknowledge briefly (1 sentence), then ask ONE question on the next topic in the sequence.'
+    }`}` : ''}
+
+${action === 'hint' ? `The candidate is struggling. Give a small encouraging hint (1-2 sentences). Start with "That's okay, take a moment." then give one specific conceptual nudge without giving the answer.` : ''}
+
+${action === 'skip' ? `The candidate skipped. Acknowledge briefly in one sentence, then move on with the next topic.` : ''}
+
+CODING / PRACTICAL QUESTION RULE
+${(() => {
+  const r = (role || '').toLowerCase();
+  const t = (techStack || '').toLowerCase();
+  const combined = r + ' ' + t;
+  const isTechnical = /engineer|developer|architect|data |ml |devops|sre|platform|mobile|frontend|backend|fullstack|programmer|coder/.test(combined);
+
+  if (!isTechnical) {
+    // Non-technical role — no coding questions, ask practical/scenario questions instead
+    return `This candidate is a ${role} — do NOT ask coding or algorithm questions.
+Instead, for "practical" question slots, ask scenario-based or skills questions relevant to their role:
+- A scenario they might face in their job ("How would you handle...")
+- A practical task question ("Walk me through how you would...")
+- A tool or process question relevant to their work
+These should feel like practical interview questions, not technical coding exercises.`;
+  }
+
+  if (type === 'Technical' || type === 'Mixed') {
+    const codingQs = numQ <= 5 ? [3,5] : numQ <= 8 ? [3,6,8] : numQ <= 12 ? [3,6,9,12] : [3,6,9,12,15];
+    const isCodingQ = codingQs.includes(questionCount + 1);
+    return `You MUST include coding/practical questions at these positions: ${codingQs.join(', ')}
+- Current question is ${questionCount + 1}. ${isCodingQ
+  ? `THIS IS A CODING QUESTION. Candidate is a ${role}${techStack ? ` using ${techStack}` : ''}. Ask a ${codingDomain.domain} question around: ${codingTypeForSession}. Do NOT ask generic LeetCode puzzles — make it relevant to their actual role.`
+  : 'This is NOT a coding question — ask conceptual or experience-based.'}
+- Keep difficulty appropriate to ${diffLabel[difficulty]||difficulty}
+- Vary coding problem types across the session — do not repeat the same category`;
+  }
+  return '';
+})()}
+
+STRICT OUTPUT RULES
+- Output ONLY the spoken words of the interviewer
+- No markdown, no asterisks, no bold, no bullet points, no numbered lists
+- No meta-commentary, no "here is the question", no analysis of the resume
+- Never use "they/their/the candidate" — always "you/your"
+- ONE question only per response (never two questions in the same message)
+- Do NOT include any JSON or score data in your response`;
+
+    const messages = history.map(m => ({
+      role: m.role,
+      content: (m.content || '').replace(/\[SCORE:\{[\s\S]*?\}\]/g, '').replace(/\[SCORE:\{[\s\S]*/g, '').trim()
+    }));
+    if (action === 'start' || messages.length === 0) {
+      messages.push({ role: 'user', content: `Start the interview. My name is ${firstName}.` });
+    }
+
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 350,
+      system: systemPrompt,
+      messages,
+    });
+
+    // Strip any JSON/SCORE that leaked into the response
+    let fullText = msg.content[0].text.trim()
+      .replace(/\[SCORE:\{[\s\S]*?\}\]/g, '')
+      .replace(/\[SCORE:\{[\s\S]*/g, '')
+      .replace(/\{"score"\s*:[\s\S]*?\}/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    res.json({ response: fullText, score, feedback, nextDifficulty, isLastQuestion });
+  } catch (err) {
+    console.error('Mock chat error:', err.message);
+    res.status(500).json({ error: 'Chat failed', response: 'Sorry, I had a connection issue. Please try again.' });
+  }
+});
+
+// GET /api/mock/question — legacy endpoint kept for fallback compatibility
+app.get('/api/mock/question', requireLogin, async (req, res) => {
+  res.json({ question: 'Tell me about your most recent project — what did you build and what was your role?' });
+});
+
+// POST /api/mock/score — score a candidate's answer
+app.post('/api/mock/score', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { question, answer, type = 'Technical', difficulty = 'mid' } = req.body;
+    if (!answer || !answer.trim()) return res.status(400).json({ error: 'Answer required' });
+
+    const { role = 'Software Engineer' } = req.session.user;
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `You are an expert interviewer scoring a ${type} answer for a ${difficulty} ${role} role.
+
+QUESTION: ${question}
+ANSWER: ${answer.trim()}
+
+Return ONLY valid JSON, no markdown:
+{
+  "score": <0-100>,
+  "feedback": "<2-3 sentences: 1) what was strong, 2) what was missing, 3) one specific actionable tip>"
+}
+
+Scoring:
+- 85-100: Specific, structured, concrete examples, depth
+- 70-84: Covers main points, lacks depth or examples
+- 55-69: Basic, vague, or missing key aspects
+- Below 55: Incomplete or off-topic`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw    = msg.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(raw);
+    const score  = Math.min(100, Math.max(0, parseInt(parsed.score) || 60));
+    res.json({ score, feedback: parsed.feedback || 'Good effort. Keep practising!' });
+  } catch (err) {
+    console.error('Mock score error:', err.message);
+    res.status(500).json({ error: 'Scoring failed', score: 65, feedback: 'Could not score automatically — please review your answer manually.' });
+  }
+});
+
+// POST /api/mock/save — persist completed session to MockSessions sheet
+app.post('/api/mock/save', requireLogin, async (req, res) => {
+  try {
+    const { date, type, difficulty, score, numQuestions, durationMins, questions, scores, feedbacks, interviewerRating } = req.body;
+    const { email, name } = req.session.user;
+    const tier = (req.session.user.tier || 'free').toLowerCase();
+    const sheets = getSheetsClient();
+
+    // ── Build header row: fixed cols + Q1..Q10 triplets + SavedAt ──
+    const MAX_Q = 10;
+    const fixedHeaders = ['Email','Name','Tier','Date','Type','Difficulty','OverallScore','NumQuestions','DurationMins','InterviewerRating'];
+    const qHeaders = [];
+    for (let i = 1; i <= MAX_Q; i++) {
+      qHeaders.push(`Q${i}_Question`, `Q${i}_Score`, `Q${i}_Feedback`);
+    }
+    const allHeaders = [...fixedHeaders, ...qHeaders, 'SavedAt'];
+
+    // Ensure MockSessions sheet exists with correct headers
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const existingSheet = meta.data.sheets.find(s => s.properties.title === 'MockSessions');
+
+    if (!existingSheet) {
+      // Create sheet with 50 columns explicitly (default is only 26)
+      const addRes = await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: { requests: [{ addSheet: { properties: { title: 'MockSessions', gridProperties: { columnCount: 50, rowCount: 1000 } } } }] }
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID, range: 'MockSessions!A1',
+        valueInputOption: 'RAW',
+        requestBody: { values: [allHeaders] }
+      });
+      console.log('✅ Created MockSessions sheet with 50 columns');
+    } else {
+      // Expand columns if sheet exists but has fewer than 50
+      const currentCols = existingSheet.properties.gridProperties.columnCount || 26;
+      if (currentCols < 50) {
+        const sheetId = existingSheet.properties.sheetId;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SHEET_ID,
+          requestBody: { requests: [{ updateSheetProperties: {
+            properties: { sheetId, gridProperties: { columnCount: 50 } },
+            fields: 'gridProperties.columnCount'
+          }}] }
+        });
+        console.log(`✅ Expanded MockSessions from ${currentCols} to 50 columns`);
+      }
+
+      // Check if existing sheet has old schema (no Q1_Question column) — update header if so
+      const existingHdr = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'MockSessions!A1:AX1' });
+      const firstRow = (existingHdr.data.values || [[]])[0] || [];
+      if (!firstRow.includes('Q1_Question')) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID, range: 'MockSessions!A1',
+          valueInputOption: 'RAW',
+          requestBody: { values: [allHeaders] }
+        });
+        console.log('✅ Updated MockSessions header to new schema');
+      }
+    }
+
+    // ── Build data row ──
+    const fixedCols = [
+      email,
+      name || '',
+      tier,
+      date || new Date().toISOString().split('T')[0],
+      type || '',
+      difficulty || '',
+      String(score || 0),
+      String(numQuestions || 0),
+      String(durationMins || 0),
+      String(interviewerRating || '')
+    ];
+
+    const qCols = [];
+    for (let i = 0; i < MAX_Q; i++) {
+      qCols.push(
+        (questions || [])[i] ? (questions[i] || '').substring(0, 300) : '',
+        String((scores || [])[i] !== undefined ? (scores[i] || 0) : ''),
+        (feedbacks || [])[i] ? (feedbacks[i] || '').substring(0, 250) : ''
+      );
+    }
+
+    const row = [...fixedCols, ...qCols, new Date().toISOString()];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: 'MockSessions!A:A',
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] }
+    });
+
+    console.log(`✅ Mock session saved: ${email} | tier=${tier} | score=${score} | type=${type} | mins=${durationMins} | rating=${interviewerRating||'none'}`);
+
+    // Send score summary email (non-blocking)
+    try {
+      const { sendBrevoEmail } = require('./onboarding');
+      const firstName = (name || '').split(' ')[0] || 'there';
+      const scoreColor = score >= 80 ? '#00b38a' : score >= 60 ? '#f5a623' : '#e74c3c';
+      const verdict = score >= 80 ? '🏆 Great session — you\'re interview-ready!' : score >= 60 ? '👍 Good effort — a bit more practice will sharpen your answers.' : '📅 Keep practising — focus on the tips below.';
+
+      const qRows = (questions || []).slice(0, numQuestions).map((q, i) => {
+        const sc = (scores || [])[i] || 0;
+        const fb = (feedbacks || [])[i] || '';
+        const color = sc >= 80 ? '#00b38a' : sc >= 60 ? '#f5a623' : '#e74c3c';
+        return `<tr style="border-bottom:1px solid #eee">
+          <td style="padding:10px 12px;font-size:0.82rem;color:#444;vertical-align:top">Q${i+1}: ${(q||'').substring(0,80)}${q && q.length > 80 ? '...' : ''}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:800;font-size:1rem;color:${color};white-space:nowrap">${sc}/100</td>
+          <td style="padding:10px 12px;font-size:0.79rem;color:#666;vertical-align:top">${(fb||'').substring(0,120)}${fb && fb.length > 120 ? '...' : ''}</td>
+        </tr>`;
+      }).join('');
+
+      const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
+        <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">
+          <div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>
+          <div style="font-size:14px;opacity:.85">🎙 Mock Interview Results</div>
+        </div>
+        <div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07);margin-bottom:20px">
+          <p style="font-size:18px;font-weight:700;margin-bottom:6px">Hi ${firstName}! 👋</p>
+          <p style="color:#6b6b8a;margin-bottom:20px">Here's your mock interview summary for today's ${type} session.</p>
+          <div style="text-align:center;background:#f8f9ff;border-radius:12px;padding:24px;margin-bottom:20px">
+            <div style="font-size:0.72rem;letter-spacing:2px;color:#9999bb;margin-bottom:8px">OVERALL SCORE</div>
+            <div style="font-size:4rem;font-weight:900;color:${scoreColor};line-height:1">${score}</div>
+            <div style="font-size:0.75rem;color:#9999bb;margin-top:4px">out of 100 &middot; ${numQuestions} questions &middot; ${durationMins} min</div>
+            <div style="margin-top:12px;font-size:0.88rem;font-weight:600;color:#333">${verdict}</div>
+          </div>
+          ${qRows ? `<div style="font-size:0.72rem;letter-spacing:2px;color:#9999bb;margin-bottom:12px">PER-QUESTION BREAKDOWN</div>
+          <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif">
+            <tr style="background:#f8f9ff"><th style="padding:8px 12px;text-align:left;font-size:0.72rem;color:#9999bb;letter-spacing:1px">QUESTION</th><th style="padding:8px 12px;font-size:0.72rem;color:#9999bb;letter-spacing:1px">SCORE</th><th style="padding:8px 12px;text-align:left;font-size:0.72rem;color:#9999bb;letter-spacing:1px">FEEDBACK</th></tr>
+            ${qRows}
+          </table>` : ''}
+        </div>
+        <a href="${process.env.APP_URL||'https://www.rolekraft.com'}/app" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">Practice Again on RoleKraft →</a>
+        <p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Keep practising — consistency is the key to interview success.</p>
+      </div>`;
+
+      await sendBrevoEmail(email, name || firstName, `Your Mock Interview Score: ${score}/100 — ${type} Session`, emailHtml);
+      console.log(`📧 Score email sent to ${email}`);
+    } catch(emailErr) {
+      console.error('Score email failed (non-fatal):', emailErr.message);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Mock save error:', err.message, err.stack);
+    res.status(500).json({ error: 'Could not save session: ' + err.message });
+  }
+});
+
+// GET /api/mock/free-status — returns total minutes used from sheet (source of truth for free trial)
+app.get('/api/mock/free-status', requireLogin, async (req, res) => {
+  try {
+    const { email } = req.session.user;
+    const tier = (req.session.user.tier || 'free').toLowerCase();
+
+    // Pro/premium users are never limited
+    if (tier === 'pro' || tier === 'premium') {
+      return res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false, unlimited: true });
+    }
+
+    const sheets = getSheetsClient();
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const exists = meta.data.sheets.some(s => s.properties.title === 'MockSessions');
+    if (!exists) return res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false });
+
+    const raw = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'MockSessions!A:M'
+    });
+
+    const values = raw.data.values || [];
+    if (values.length < 2) return res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false });
+
+    const [headers, ...rows] = values;
+    const eIdx = headers.indexOf('Email');
+    const mIdx = headers.indexOf('DurationMins');
+
+    const totalMins = rows
+      .filter(r => (r[eIdx]||'').toLowerCase() === email.toLowerCase())
+      .reduce((sum, r) => sum + (parseInt(r[mIdx]) || 0), 0);
+
+    res.json({
+      usedMins: totalMins,
+      usedSecs: totalMins * 60,
+      limitMins: 10,
+      exhausted: totalMins >= 10
+    });
+  } catch (err) {
+    console.error('Free status error:', err.message);
+    // On error, don't block the user — return safe defaults
+    res.json({ usedMins: 0, usedSecs: 0, limitMins: 10, exhausted: false });
+  }
+});
+
+// GET /api/mock/history — fetch past sessions for logged-in user
+app.get('/api/mock/history', requireLogin, async (req, res) => {
+  try {
+    const { email } = req.session.user;
+    const sheets = getSheetsClient();
+
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const exists = meta.data.sheets.some(s => s.properties.title === 'MockSessions');
+    if (!exists) return res.json({ sessions: [] });
+
+    const raw = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'MockSessions!A:AO'  // covers all 41 columns
+    });
+
+    const values = raw.data.values || [];
+    if (values.length < 2) return res.json({ sessions: [] });
+
+    const [headers, ...rows] = values;
+    const h = (col) => headers.indexOf(col);
+
+    const sessions = rows
+      .filter(r => (r[h('Email')]||'').toLowerCase() === email.toLowerCase())
+      .reverse()
+      .slice(0, 20)
+      .map(r => {
+        // Extract per-question data from Q1_Question, Q1_Score, Q1_Feedback ... Q10_*
+        const questions = [], scores = [], feedbacks = [];
+        for (let i = 1; i <= 10; i++) {
+          const q  = r[h(`Q${i}_Question`)] || '';
+          const sc = r[h(`Q${i}_Score`)]    || '';
+          const fb = r[h(`Q${i}_Feedback`)] || '';
+          if (q || sc) {
+            questions.push(q);
+            scores.push(parseInt(sc) || 0);
+            feedbacks.push(fb);
+          }
+        }
+        return {
+          date:             r[h('Date')]              || '',
+          type:             r[h('Type')]              || '',
+          diff:             r[h('Difficulty')]        || '',
+          score:            parseInt(r[h('OverallScore')]) || 0,
+          numQ:             parseInt(r[h('NumQuestions')]) || 0,
+          mins:             parseInt(r[h('DurationMins')]) || 0,
+          interviewerRating: r[h('InterviewerRating')] || '',
+          questions, scores, feedbacks
+        };
+      });
+
+    res.json({ sessions });
+  } catch (err) {
+    console.error('Mock history error:', err.message);
+    res.status(500).json({ error: 'Could not load history', sessions: [] });
+  }
+});
+
+// POST /api/mock/schedule — schedule a session and send Brevo reminder email
+app.post('/api/mock/schedule', requireLogin, requirePremium, async (req, res) => {
+  try {
+    const { date, time, type = 'Technical', difficulty = 'mid' } = req.body;
+    if (!date || !time) return res.status(400).json({ error: 'Date and time required' });
+
+    const { email, name } = req.session.user;
+    const firstName = (name || '').split(' ')[0] || 'there';
+    const diffLabel = { entry: 'Entry Level', mid: 'Mid Level', senior: 'Senior', staff: 'Staff / Principal' };
+
+    const emailHtml =
+      '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">' +
+      '<div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:28px;color:white;text-align:center;margin-bottom:24px">' +
+        '<div style="font-size:26px;font-weight:900;letter-spacing:3px;margin-bottom:4px">ROLEKRAFT</div>' +
+        '<div style="font-size:14px;opacity:.85">&#127908; Mock Interview Scheduled</div>' +
+      '</div>' +
+      '<div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07)">' +
+        '<p style="font-size:18px;font-weight:700;margin-bottom:12px">Hi ' + firstName + '! &#128075;</p>' +
+        '<p style="color:#6b6b8a;line-height:1.7;margin-bottom:20px">Your mock interview session is confirmed. Come prepared!</p>' +
+        '<div style="background:#f8f9ff;border-radius:12px;padding:20px;margin-bottom:24px">' +
+          '<table style="width:100%;border-collapse:collapse">' +
+            '<tr><td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">DATE</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + date + '</td>' +
+                '<td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">TIME</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + time + '</td></tr>' +
+            '<tr><td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">TYPE</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + type + '</td>' +
+                '<td style="padding:8px 12px;font-size:11px;color:#6b6b8a;letter-spacing:2px;font-weight:600">LEVEL</td><td style="padding:8px 12px;font-weight:700;font-size:15px">' + (diffLabel[difficulty]||difficulty) + '</td></tr>' +
+          '</table>' +
+        '</div>' +
+        '<a href="' + (process.env.APP_URL||'https://www.rolekraft.com') + '/app" style="display:block;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px">Open RoleKraft Dashboard &#8594;</a>' +
+        '<p style="color:#9999bb;font-size:12px;text-align:center;margin:0">Tip: Find a quiet spot, have water nearby, and practise thinking aloud.</p>' +
+      '</div></div>';
+
+    // Use the same sendBrevoEmail helper used by onboarding (properly awaited + error-checked)
+    const { sendBrevoEmail } = require('./onboarding');
+    try {
+      await sendBrevoEmail(email, name || firstName, 'Your Mock Interview: ' + date + ' at ' + time + ' — ' + type, emailHtml);
+      console.log(`📧 Mock schedule email sent to ${email}`);
+    } catch (emailErr) {
+      console.error('Mock schedule email failed:', emailErr.message);
+      // Don't block the response — schedule still saved, email failure is non-fatal
+    }
+
+    console.log(`📅 Mock interview scheduled: ${email} → ${date} ${time} [${type}, ${difficulty}]`);
+    res.json({ success: true, message: 'Session scheduled and reminder sent.' });
+  } catch (err) {
+    console.error('Mock schedule error:', err.message);
+    res.status(500).json({ error: 'Could not schedule: ' + err.message });
+  }
+});
 
 // ── robots.txt ──
 app.get('/robots.txt', (req, res) => {
@@ -2322,7 +3294,498 @@ app.get('/api/ready', async (req, res) => {
   return res.json({ ready: false, processing: false });
 });
 
-app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+
+// ══════════════════════════════════════════════════════════════════
+// DRIP EMAIL CAMPAIGN SYSTEM
+// ══════════════════════════════════════════════════════════════════
+// Segments:
+//   SEG1: Free, never started       → Convert to Pro (every 4-5 days, max 3 emails)
+//   SEG2: Pro, never activated      → Activation (every 2-3 days, first 10 days)
+//   SEG3: Started but inactive      → Reactivation (weekly)
+//   SEG4: Completed W1, slowing     → Retention (weekly)
+//   SEG5: Pro, active, no mock      → Mock adoption (one-time)
+//   SEG6: All users                 → Weekly Sunday value email
+//
+// EmailsSent sheet: Email | CampaignId | SentAt
+// Run: GET /api/cron/drip  (secured with CRON_SECRET header)
+// Railway cron: 0 3 30 * * * (9am IST daily)
+// ══════════════════════════════════════════════════════════════════
+
+const APP_BASE = process.env.APP_URL || 'https://www.rolekraft.com';
+
+// ── Ensure EmailsSent sheet exists ──
+async function ensureEmailsSentSheet(sheets) {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const exists = meta.data.sheets.some(s => s.properties.title === 'EmailsSent');
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: { requests: [{ addSheet: { properties: { title: 'EmailsSent' } } }] }
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID, range: 'EmailsSent!A1',
+      valueInputOption: 'RAW',
+      requestBody: { values: [['Email', 'CampaignId', 'SentAt']] }
+    });
+  }
+}
+
+// ── Load sent log — returns Set of "email|campaignId" ──
+async function loadSentLog(sheets) {
+  try {
+    const raw = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'EmailsSent!A:C' });
+    const rows = (raw.data.values || []).slice(1);
+    return new Set(rows.map(r => `${(r[0]||'').toLowerCase()}|${r[1]||''}`));
+  } catch(e) { return new Set(); }
+}
+
+// ── Mark email as sent ──
+async function markSent(sheets, email, campaignId) {
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID, range: 'EmailsSent!A:A',
+    valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: [[email.toLowerCase(), campaignId, new Date().toISOString()]] }
+  });
+}
+
+// ── Email Templates ──
+function buildEmail(templateId, user, regDays) {
+  const name = (user.Name || '').split(' ')[0] || 'there';
+  const role = user.Role || 'your target role';
+  const atsScore = user['ATS Score'] || user.H || '65';
+  const appUrl = APP_BASE + '/app';
+  regDays = regDays || 0;
+
+  const header = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
+    <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:24px;color:white;text-align:center;margin-bottom:24px">
+      <div style="font-size:24px;font-weight:900;letter-spacing:3px">ROLEKRAFT</div>
+      <div style="font-size:13px;opacity:.85;margin-top:4px">AI-Powered Interview Preparation</div>
+    </div>
+    <div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07);margin-bottom:16px">`;
+  const footer = `</div>
+    <p style="color:#9999bb;font-size:11px;text-align:center;margin:0">RoleKraft · <a href="${APP_BASE}/app" style="color:#9999bb">Open Dashboard</a></p>
+  </div>`;
+  const btn = (text, url) => `<a href="${url}" style="display:inline-block;margin-top:20px;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none">${text} →</a>`;
+
+  const templates = {
+
+    // ── SEG1: Free, never started ──
+    'F1': {
+      subject: `Your resume is not the reason you're failing interviews, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name} 👋</p>
+        <p style="color:#444;line-height:1.7">Most candidates spend weeks reading blogs and watching random videos — but still struggle in real interviews.</p>
+        <p style="color:#444;line-height:1.7">The real problem? <strong>No structured practice for your specific role.</strong></p>
+        <p style="color:#444;line-height:1.7">RoleKraft has already built a personalised 4-week interview plan based on your resume as a <strong>${role}</strong>. It's waiting for you.</p>
+        <div style="background:#f0fdf9;border-left:4px solid #00b38a;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          ✅ Week-by-week structured tasks<br>✅ AI-scored practice questions<br>✅ Resume improvement tips
+        </div>
+        <p style="color:#444">Your plan is ready. It takes just 10 minutes a day.</p>
+        ${btn('Start My Preparation', appUrl)}` + footer
+    },
+
+    'F2': {
+      subject: `${role} professionals targeting top companies are doing this`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Right now, hundreds of <strong>${role}</strong> candidates are actively preparing for interviews at companies like Google, Amazon, Barclays, Flipkart, and Thoughtworks.</p>
+        <p style="color:#444;line-height:1.7">What separates the ones who get calls from the ones who don't?</p>
+        <div style="background:#f8f9ff;border-radius:12px;padding:20px;margin:20px 0">
+          <div style="font-size:0.75rem;letter-spacing:2px;color:#5048e5;font-weight:700;margin-bottom:14px">WHAT PREPARED CANDIDATES DO DIFFERENTLY</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:0.88rem;color:#333;line-height:1.6">
+              <span style="color:#00b38a;font-weight:700;flex-shrink:0">✓</span>
+              <span>They practice with <strong>role-specific questions</strong> — not random LeetCode</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:0.88rem;color:#333;line-height:1.6">
+              <span style="color:#00b38a;font-weight:700;flex-shrink:0">✓</span>
+              <span>They get <strong>AI feedback on every answer</strong> — not just hope they're doing it right</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:0.88rem;color:#333;line-height:1.6">
+              <span style="color:#00b38a;font-weight:700;flex-shrink:0">✓</span>
+              <span>They follow a <strong>structured 4-week plan</strong> — not random YouTube videos</span>
+            </div>
+          </div>
+        </div>
+        <p style="color:#444;line-height:1.7">Your personalised plan for <strong>${role}</strong> is already built. The candidates who land interviews aren't more talented — they just started earlier.</p>
+        ${btn('Start Preparing Today', appUrl)}` + footer
+    },
+
+    'F3': {
+      subject: `Can you answer this ${role} interview question?`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Here's a question that comes up in almost every <strong>${role}</strong> interview:</p>
+        <div style="background:#f8f9ff;border:2px solid #5048e5;border-radius:12px;padding:20px;margin:20px 0;font-size:1rem;font-weight:600;color:#1a1a2e;line-height:1.6">
+          💬 "Walk me through your most impactful project. What was the problem, what did you do, and what was the measurable outcome?"
+        </div>
+        <p style="color:#444;line-height:1.7">Most candidates answer this poorly — they describe what they did but forget the <strong>impact</strong>. That's exactly what interviewers are looking for.</p>
+        <p style="color:#444;line-height:1.7">RoleKraft will ask you questions based on <strong>your actual resume and role</strong>, then score your answer and tell you exactly what to improve.</p>
+        <div style="background:#fff8f0;border-left:4px solid #f5a623;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          🎯 Your ATS score was <strong>${atsScore}/100</strong>. Candidates who practice consistently improve their interview performance significantly.
+        </div>
+        ${btn('Try Answering This Question', appUrl)}` + footer
+    },
+
+    'F4': {
+      subject: `This is your last nudge, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You registered on RoleKraft ${regDays} days ago. Your personalised interview plan has been sitting ready since day one.</p>
+        <p style="color:#444;line-height:1.7">We won't keep sending reminders after this — we respect your inbox.</p>
+        <div style="background:#f8f9ff;border-radius:12px;padding:20px;margin:20px 0;text-align:center">
+          <div style="font-size:2rem;margin-bottom:8px">⏳</div>
+          <div style="font-weight:700;font-size:1rem;color:#1a1a2e;margin-bottom:6px">Your plan expires if unused</div>
+          <div style="color:#666;font-size:0.85rem;line-height:1.6">Interview seasons are competitive. The best time to start was day one.<br>The second best time is right now.</div>
+        </div>
+        <p style="color:#444;line-height:1.7">If you're seriously targeting <strong>${role}</strong> roles, your prep starts with one click.</p>
+        ${btn('Open My Plan — One Last Time', appUrl)}` + footer
+    },
+
+    // ── SEG2: Pro, never activated ──
+    'P1': {
+      subject: `You activated Pro but haven't started yet, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You unlocked RoleKraft Pro — great decision. But your personalised preparation hasn't started yet.</p>
+        <p style="color:#444;line-height:1.7">Many candidates fail interviews not because they lack skills, but because they <strong>never practice under interview conditions</strong>.</p>
+        <p style="color:#444;line-height:1.7">Your Week 1 tasks are ready. Your AI questions are ready. Your mock interview is waiting.</p>
+        <p style="color:#444;line-height:1.7"><strong>It takes less than 5 minutes to get started.</strong></p>
+        ${btn('Begin My Preparation', appUrl)}` + footer
+    },
+
+    'P2': {
+      subject: `Candidates who start within 7 days are 3x more likely to get interviews`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Based on what we've seen: candidates who begin their structured preparation within the first week are far more likely to build a lasting habit and reach interview readiness.</p>
+        <p style="color:#444;line-height:1.7">You have <strong>RoleKraft Pro</strong> — everything you need is already set up for your role as a <strong>${role}</strong>.</p>
+        <div style="background:#fff8f0;border-left:4px solid #f5a623;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          ⏰ The longer you wait, the harder it is to build momentum. Start today — even just one task.
+        </div>
+        ${btn('Start Week 1 Today', appUrl)}` + footer
+    },
+
+    'P3': {
+      subject: `Week 1 is almost over — don't let it slip`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Your Week 1 preparation window is running out and you haven't started yet.</p>
+        <p style="color:#444;line-height:1.7">Each week in RoleKraft builds on the previous one — Week 1 is your foundation. Skipping it means Week 2 will be harder.</p>
+        <p style="color:#444;line-height:1.7">You can complete the core Week 1 tasks in <strong>under 2 hours total</strong>. That's less time than most people spend scrolling.</p>
+        ${btn('Complete Week 1 Now', appUrl)}` + footer
+    },
+
+    // ── SEG3: Started but inactive ──
+    'R1': {
+      subject: `Ready for your next ${role} challenge?`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You started practising on RoleKraft — great start. But interview preparation only works when it's consistent.</p>
+        <p style="color:#444;line-height:1.7">Here's a challenge question for your role:</p>
+        <div style="background:#f8f9ff;border:2px solid #00b38a;border-radius:12px;padding:20px;margin:20px 0;font-size:1rem;font-weight:600;color:#1a1a2e;line-height:1.6">
+          💬 "Tell me about a time you had to make a difficult decision with incomplete information. What did you do?"
+        </div>
+        <p style="color:#444;line-height:1.7">Try answering it in the mock interview — you'll get AI feedback instantly.</p>
+        ${btn('Continue Practising', appUrl)}` + footer
+    },
+
+    'R2': {
+      subject: `Most candidates give up after week 1 — don't be one of them`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You haven't been active on RoleKraft in a while. That's okay — life gets busy.</p>
+        <p style="color:#444;line-height:1.7">But here's the reality: <strong>the candidates who get interviews are the ones who show up consistently</strong>, not the ones who prepare perfectly for 2 days then stop.</p>
+        <p style="color:#444;line-height:1.7">Your plan is still there. Your questions are still there. It takes just 10 minutes to get back on track today.</p>
+        ${btn('Get Back on Track', appUrl)}` + footer
+    },
+
+    // ── SEG4: W1 done, slowing ──
+    'W1': {
+      subject: `Week 2 of your interview preparation starts today`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You completed Week 1 — that puts you ahead of most candidates who never start at all.</p>
+        <p style="color:#444;line-height:1.7">Week 2 is where preparation gets deeper — more role-specific questions, technical depth, and mock interview practice.</p>
+        <div style="background:#f0fdf9;border-left:4px solid #00b38a;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          📌 Week 2 focus: Technical depth + your first full mock interview
+        </div>
+        ${btn('Start Week 2', appUrl)}` + footer
+    },
+
+    'W2': {
+      subject: `Your preparation is falling behind — here's how to catch up`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You're into Week 2 but your task completion is lower than it should be at this stage.</p>
+        <p style="color:#444;line-height:1.7">The good news: you can catch up. Here's what matters most right now:</p>
+        <div style="background:#f8f9ff;border-left:4px solid #5048e5;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333;line-height:1.8">
+          1️⃣ Complete your remaining Week 2 tasks<br>
+          2️⃣ Answer at least 2 AI questions this week<br>
+          3️⃣ Do one mock interview session
+        </div>
+        ${btn('Resume My Preparation', appUrl)}` + footer
+    },
+
+    // ── SEG5: Pro active, no mock ──
+    'M1': {
+      subject: `How would you perform in a real interview today?`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You've been preparing well — but there's one thing that separates truly interview-ready candidates from the rest:</p>
+        <p style="color:#1a1a2e;font-size:1.1rem;font-weight:700;text-align:center;padding:16px 0">Practicing under real interview conditions.</p>
+        <p style="color:#444;line-height:1.7">RoleKraft's AI mock interview asks you questions based on your actual resume and role as a <strong>${role}</strong>, then scores each answer and gives you specific feedback.</p>
+        <p style="color:#444;line-height:1.7">Takes 15-25 minutes. Completely changes how you perform on the real day.</p>
+        ${btn('Take My First Mock Interview', appUrl)}` + footer
+    },
+
+    // ── SEG6: Weekly Sunday value email ──
+    'S1': {
+      subject: `Your weekly interview insight — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#666;font-size:0.85rem;margin-bottom:20px">YOUR WEEKLY ROLEKRAFT INSIGHT</p>
+        <div style="margin-bottom:24px">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:2px;color:#5048e5;margin-bottom:8px">💬 QUESTION OF THE WEEK</div>
+          <div style="background:#f8f9ff;border:1px solid rgba(80,72,229,0.2);border-radius:10px;padding:16px;font-weight:600;color:#1a1a2e;line-height:1.6">
+            "Describe a situation where you had to deliver results under a tight deadline with limited resources. What was your approach?"
+          </div>
+          <p style="color:#666;font-size:0.84rem;margin-top:8px">Try answering this in your mock interview for instant AI feedback.</p>
+        </div>
+        <div style="margin-bottom:24px">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:2px;color:#00b38a;margin-bottom:8px">📝 RESUME TIP OF THE WEEK</div>
+          <div style="background:#f0fdf9;border-left:3px solid #00b38a;padding:14px;border-radius:8px;color:#333;font-size:0.88rem;line-height:1.7">
+            <strong>Quantify everything you can.</strong> Instead of "managed a team", write "led a team of 6 engineers delivering 3 product launches in Q2". Numbers make your resume 40% more likely to pass ATS screening.
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:20px">
+          <p style="color:#444;font-size:0.88rem">Keep the momentum going this week 💪</p>
+          ${btn('Open My Dashboard', appUrl)}
+        </div>` + footer
+    }
+  };
+
+  return templates[templateId] || null;
+}
+
+// ── Main drip campaign runner ──
+async function runDripCampaign(dryRun = false) {
+  const { sendBrevoEmail } = require('./onboarding');
+  const sheets = getSheetsClient();
+  const today = new Date();
+  const isSunday = today.getDay() === 0;
+  const results = { sent: 0, skipped: 0, errors: 0, log: [] };
+
+  await ensureEmailsSentSheet(sheets);
+  const sentLog = await loadSentLog(sheets);
+
+  // Load all data once
+  const [users, allScores, allPlans, allMock] = await Promise.all([
+    readSheet('Users'),
+    readSheet('Scores').catch(() => []),
+    readSheet('Plans').catch(() => []),
+    (async () => {
+      try {
+        const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+        if (!meta.data.sheets.some(s => s.properties.title === 'MockSessions')) return [];
+        return await readSheet('MockSessions');
+      } catch(e) { return []; }
+    })()
+  ]);
+
+  // Track emails sent this run — max 1 per user per day
+  const sentThisRun = new Set();
+
+  async function trySend(user, campaignId) {
+    const email = (user.Email || '').toLowerCase();
+    if (!email) return false;
+    if (sentThisRun.has(email)) return false; // max 1 per day
+    if (sentLog.has(`${email}|${campaignId}`)) return false; // already sent this campaign
+
+    const tpl = buildEmail(campaignId, user, daysSince(user['Week Started'] || user['K'] || ''));
+    if (!tpl) return false;
+
+    if (dryRun) {
+      results.log.push(`[DRY RUN] Would send ${campaignId} to ${email}`);
+      return true;
+    }
+
+    try {
+      await sendBrevoEmail(email, user.Name || '', tpl.subject, tpl.html);
+      await markSent(sheets, email, campaignId);
+      sentThisRun.add(email);
+      results.sent++;
+      results.log.push(`✅ Sent ${campaignId} → ${email}`);
+      return true;
+    } catch(e) {
+      results.errors++;
+      results.log.push(`❌ Failed ${campaignId} → ${email}: ${e.message}`);
+      return false;
+    }
+  }
+
+  for (const user of users) {
+    const email = (user.Email || '').toLowerCase();
+    if (!email) continue;
+
+    const tier     = (user.Tier || 'free').toLowerCase();
+    const isPro    = (tier === 'pro' || tier === 'premium');
+    const regDays  = daysSince(user['Week Started'] || user['K'] || '');
+    const currentWeek = parseInt(user.Week) || 1;
+
+    // ── Activity signals ──
+    const userScores = allScores.filter(r => (r.Email||'').toLowerCase() === email);
+    const userPlans  = allPlans.filter(r  => (r.Email||'').toLowerCase() === email);
+    const userMock   = allMock.filter(r   => (r.Email||'').toLowerCase() === email);
+
+    const doneTasks         = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+    const questionsAnswered = userScores.length;
+    const mocksTaken        = userMock.length;
+
+    // "Meaningfully started" = answered at least 1 question OR done 2+ tasks OR taken a mock
+    // A single task ticked doesn't count — could be accidental or just exploring
+    const hasStarted = questionsAnswered >= 1 || doneTasks >= 2 || mocksTaken >= 1;
+
+    // Last activity = most recent date across Scores AND MockSessions
+    const scoreDates = userScores.map(r => r.Date || r.SavedAt || '').filter(Boolean);
+    const mockDates  = userMock.map(r => r.SavedAt || r.Date || '').filter(Boolean);
+    const allActivityDates = [...scoreDates, ...mockDates].filter(Boolean).sort();
+    const lastActivityDays = allActivityDates.length
+      ? daysSince(allActivityDates[allActivityDates.length - 1])
+      : regDays; // no activity at all — use registration age
+
+    // Week 2 stats (for retention emails)
+    const w2Tasks = userPlans.filter(r => String(r.Week) === '2');
+    const w2Done  = w2Tasks.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+    const w2Total = w2Tasks.length;
+
+    // ── PRIORITY ORDER — only one lifecycle email per user per day ──
+    // Higher priority segments are checked first. Once one sends, lower ones are skipped
+    // because trySend() enforces max-1-per-day via sentThisRun Set.
+
+    // Priority 1: Pro not activated (most urgent — they paid, need to start)
+    if (isPro && !hasStarted) {
+      if      (regDays >= 2 && regDays < 5)  await trySend(user, 'P1');
+      else if (regDays >= 5 && regDays < 9)  await trySend(user, 'P2');
+      else if (regDays >= 9 && regDays < 14) await trySend(user, 'P3');
+    }
+
+    // Priority 2: Free, never started → convert to Pro
+    if (!isPro && !hasStarted) {
+      if      (regDays >= 3  && regDays < 7)  await trySend(user, 'F1');
+      else if (regDays >= 7  && regDays < 12) await trySend(user, 'F2');
+      else if (regDays >= 12 && regDays < 17) await trySend(user, 'F3');
+      else if (regDays >= 17 && regDays < 23) await trySend(user, 'F4');
+    }
+
+    // Priority 3: Started but gone inactive (applies to both free and pro)
+    // Only triggers if they DID start — otherwise covered by P or F above
+    if (hasStarted && lastActivityDays >= 5) {
+      if      (lastActivityDays >= 5  && lastActivityDays < 12) await trySend(user, 'R1');
+      else if (lastActivityDays >= 12 && lastActivityDays < 25) await trySend(user, 'R2');
+    }
+
+    // Priority 4: Retention — week milestones (Pro users who are progressing)
+    if (isPro && hasStarted) {
+      // Week 2 just started but not touched it
+      if (currentWeek >= 2 && w2Total > 0 && w2Done === 0 && regDays >= 8) {
+        await trySend(user, 'W1');
+      }
+      // Week 2 significantly behind (less than 30% done after 14 days)
+      if (currentWeek >= 2 && w2Total > 0 && w2Done / w2Total < 0.3 && regDays >= 14) {
+        await trySend(user, 'W2');
+      }
+    }
+
+    // Priority 5: Mock interview nudge — Pro, active, never tried mock
+    // Only fires once (EmailsSent prevents repeat), day 5+ after at least 3 questions
+    if (isPro && mocksTaken === 0 && questionsAnswered >= 3 && regDays >= 5) {
+      await trySend(user, 'M1');
+    }
+
+    // Priority 6: Weekly Sunday insight — all users (any activity or 7+ days old)
+    // Uses date-stamped ID so a fresh one goes out each Sunday
+    if (isSunday && (hasStarted || regDays >= 7)) {
+      const weekKey = `S1_${today.toISOString().slice(0, 10)}`;
+      await trySend(user, weekKey);
+    }
+  }
+
+  console.log(`📧 Drip campaign complete: ${results.sent} sent, ${results.skipped} skipped, ${results.errors} errors`);
+  results.log.forEach(l => console.log(l));
+  return results;
+}
+
+// ── Drip campaign endpoint — hit by Railway cron daily ──
+app.get('/api/cron/drip', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers['x-cron-secret'] !== secret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const dryRun = req.query.dry === 'true';
+  const debug  = req.query.debug === 'true'; // ?debug=true shows raw user data
+  console.log(`🔄 Drip campaign triggered — dryRun=${dryRun} debug=${debug}`);
+
+  try {
+    // Debug mode — show raw sheet data for a specific email to diagnose issues
+    if (debug) {
+      const users      = await readSheet('Users');
+      const allScores  = await readSheet('Scores').catch(() => []);
+      const allPlans   = await readSheet('Plans').catch(() => []);
+      const allMock    = await (async () => {
+        try {
+          const meta = await getSheetsClient().spreadsheets.get({ spreadsheetId: SHEET_ID });
+          if (!meta.data.sheets.some(s => s.properties.title === 'MockSessions')) return [];
+          return await readSheet('MockSessions');
+        } catch(e) { return []; }
+      })();
+      const sentLog    = await loadSentLog(getSheetsClient());
+      const filterEmail = req.query.email || '';
+      const debugUsers = filterEmail
+        ? users.filter(u => (u.Email||'').toLowerCase().includes(filterEmail.toLowerCase()))
+        : users.slice(0, 5);
+
+      const debugInfo = debugUsers.map(user => {
+        const email = (user.Email||'').toLowerCase();
+        const weekStartedRaw = user['Week Started'] || user['K'] || '';
+        const regDays = daysSince(weekStartedRaw);
+        const tier = (user.Tier||'free').toLowerCase();
+        const isPro = tier === 'pro' || tier === 'premium';
+        const userScores = allScores.filter(r => (r.Email||'').toLowerCase() === email);
+        const userPlans  = allPlans.filter(r  => (r.Email||'').toLowerCase() === email);
+        const userMock   = allMock.filter(r   => (r.Email||'').toLowerCase() === email);
+        const doneTasks         = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+        const questionsAnswered = userScores.length;
+        const mocksTaken        = userMock.length;
+        const hasStarted        = questionsAnswered >= 1 || doneTasks >= 2 || mocksTaken >= 1;
+
+        // Which campaign would fire
+        let wouldSend = 'none';
+        let reason = '';
+        if (isPro && !hasStarted) {
+          if      (regDays >= 2 && regDays < 5)  wouldSend = 'P1';
+          else if (regDays >= 5 && regDays < 9)  wouldSend = 'P2';
+          else if (regDays >= 9 && regDays < 14) wouldSend = 'P3';
+          else reason = `Pro not activated but regDays=${regDays} outside P windows (2-14)`;
+        } else if (!isPro && !hasStarted) {
+          if      (regDays >= 3  && regDays < 7)  wouldSend = 'F1';
+          else if (regDays >= 7  && regDays < 12) wouldSend = 'F2';
+          else if (regDays >= 12 && regDays < 17) wouldSend = 'F3';
+          else if (regDays >= 17 && regDays < 23) wouldSend = 'F4';
+          else reason = `Free not started but regDays=${regDays} outside F windows (3-23)`;
+        } else {
+          reason = `hasStarted=true (q=${questionsAnswered} tasks=${doneTasks} mock=${mocksTaken})`;
+        }
+
+        const alreadySent = wouldSend !== 'none' && sentLog.has(`${email}|${wouldSend}`);
+        if (alreadySent) reason = `already sent ${wouldSend} previously`;
+
+        return {
+          email, weekStartedRaw, regDays, tier, isPro,
+          questionsAnswered, doneTasks, mocksTaken, hasStarted,
+          wouldSend, alreadySent, reason: reason || null
+        };
+      });
+      return res.json({ debug: true, users: debugInfo });
+    }
+
+    const results = await runDripCampaign(dryRun);
+    res.json({ success: true, ...results });
+  } catch(e) {
+    console.error('Drip campaign error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 function noCache(req, res, next) {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Pragma', 'no-cache');
@@ -2343,4 +3806,33 @@ app.listen(PORT, () => {
   console.log(`✅ CareerAI server running on http://localhost:${PORT}`);
   if (!process.env.SHEET_ID) console.warn('⚠️  SHEET_ID not set in .env');
   if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) console.warn('⚠️  GOOGLE_SERVICE_ACCOUNT_JSON not set in .env');
+
+  // ── Self-hosted drip campaign cron — runs daily at 9am IST (3:30am UTC) ──
+  // No Railway cron job needed — this runs inside the server process
+  function scheduleDripCron() {
+    const now  = new Date();
+    const next = new Date();
+    next.setUTCHours(3, 30, 0, 0); // 3:30am UTC = 9:00am IST
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1); // already past today's slot → tomorrow
+    const msUntilFirst = next - now;
+
+    console.log(`⏰ Drip cron scheduled — first run in ${Math.round(msUntilFirst / 60000)} mins (${next.toISOString()})`);
+
+    setTimeout(function runAndReschedule() {
+      console.log('🔄 Drip cron firing — daily email campaign');
+      runDripCampaign(false)
+        .then(r => console.log(`📧 Drip done: ${r.sent} sent, ${r.errors} errors`))
+        .catch(e => console.error('Drip cron error:', e.message));
+
+      // Schedule next run exactly 24 hours later
+      setTimeout(runAndReschedule, 24 * 60 * 60 * 1000);
+    }, msUntilFirst);
+  }
+
+  // Only run cron in production — not during local dev (avoids spamming test users)
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DRIP_CRON === 'true') {
+    scheduleDripCron();
+  } else {
+    console.log('ℹ️  Drip cron disabled in dev — set ENABLE_DRIP_CRON=true to force, or call /api/cron/drip manually');
+  }
 });

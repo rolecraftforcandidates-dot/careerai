@@ -1176,4 +1176,4 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
   }
 }
 
-module.exports = { runOnboarding, parseTallyPayload, triggerPhase2 };
+module.exports = { runOnboarding, parseTallyPayload, triggerPhase2, sendBrevoEmail };

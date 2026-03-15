@@ -318,8 +318,9 @@ function requirePro(req, res, next) {
 // ── Helper: check if week should advance and update Sheets + session ──
 // ── Helper: calculate days elapsed since a date string (YYYY-MM-DD) ──
 function daysSince(dateStr) {
-  if (!dateStr) return 0;
+  if (!dateStr) return 999;
   const start = new Date(dateStr);
+  if (isNaN(start)) return 999;
   const today = new Date();
   start.setHours(0,0,0,0);
   today.setHours(0,0,0,0);
@@ -3312,13 +3313,6 @@ app.get('/api/ready', async (req, res) => {
 
 const APP_BASE = process.env.APP_URL || 'https://www.rolekraft.com';
 
-function daysSince(dateStr) {
-  if (!dateStr) return 999;
-  const d = new Date(dateStr);
-  if (isNaN(d)) return 999;
-  return Math.floor((Date.now() - d.getTime()) / 86400000);
-}
-
 // ── Ensure EmailsSent sheet exists ──
 async function ensureEmailsSentSheet(sheets) {
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
@@ -3677,16 +3671,50 @@ async function runDripCampaign(dryRun = false) {
 
 // ── Drip campaign endpoint — hit by Railway cron daily ──
 app.get('/api/cron/drip', async (req, res) => {
-  // Secure with secret key
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers['x-cron-secret'] !== secret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const dryRun = req.query.dry === 'true';
-  console.log(`🔄 Drip campaign triggered — dryRun=${dryRun}`);
+  const debug  = req.query.debug === 'true'; // ?debug=true shows raw user data
+  console.log(`🔄 Drip campaign triggered — dryRun=${dryRun} debug=${debug}`);
 
   try {
+    // Debug mode — show raw sheet data for a specific email to diagnose issues
+    if (debug) {
+      const { sendBrevoEmail } = require('./onboarding');
+      const users      = await readSheet('Users');
+      const allScores  = await readSheet('Scores').catch(() => []);
+      const allPlans   = await readSheet('Plans').catch(() => []);
+      const filterEmail = req.query.email || '';
+      const debugUsers = filterEmail
+        ? users.filter(u => (u.Email||'').toLowerCase().includes(filterEmail.toLowerCase()))
+        : users.slice(0, 5); // first 5 if no filter
+
+      const debugInfo = debugUsers.map(user => {
+        const email = (user.Email||'').toLowerCase();
+        const weekStartedRaw = user['Week Started'] || user['K'] || '';
+        const regDays = daysSince(weekStartedRaw);
+        const userScores = allScores.filter(r => (r.Email||'').toLowerCase() === email);
+        const userPlans  = allPlans.filter(r  => (r.Email||'').toLowerCase() === email);
+        const doneTasks  = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+        return {
+          email,
+          weekStartedRaw,
+          regDays,
+          tier: user.Tier || 'free',
+          week: user.Week,
+          questionsAnswered: userScores.length,
+          doneTasks,
+          wouldMatch: regDays >= 3 && regDays < 7 ? 'F1' :
+                      regDays >= 7 && regDays < 12 ? 'F2' :
+                      regDays >= 12 && regDays < 20 ? 'F3' : 'none in F range'
+        };
+      });
+      return res.json({ debug: true, users: debugInfo });
+    }
+
     const results = await runDripCampaign(dryRun);
     res.json({ success: true, ...results });
   } catch(e) {

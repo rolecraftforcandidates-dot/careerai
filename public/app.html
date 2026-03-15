@@ -3621,12 +3621,13 @@ function setMockQuestion(text, idx, blobPromise) {
   // Kill any running typewriter and blank the text
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
   _typewriterGen++; // invalidate previous typewriter tick chain
+  var myGen = _typewriterGen; // capture NOW — before any async callbacks
   document.getElementById('mockQText').textContent = '';
 
   function startTypewriter() {
     var el = document.getElementById('mockQText');
     if (!el) return;
-    var myGen = _typewriterGen; // capture at start — if incremented, this chain is stale
+    if (_typewriterGen !== myGen) return; // already invalidated before audio even played
     var i = 0;
     var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
     function tick() {
@@ -3644,6 +3645,7 @@ function setMockQuestion(text, idx, blobPromise) {
   if (useVoice) {
     if (dots) dots.style.display = 'inline-flex';
     speakMockText(text, blobPromise || null, function onPlay() {
+      if (_typewriterGen !== myGen) return; // skip happened while audio was loading
       if (dots) dots.style.display = 'none';
       startTypewriter();
     });

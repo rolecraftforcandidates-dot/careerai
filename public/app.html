@@ -1380,6 +1380,7 @@ function doLogout() {
       if (el) el.textContent = '';
     });
     // Reset mock interview in-memory state so next user starts clean
+    _ttsAborted = true;
     stopAllAudio();
     _mockFreeUsedSecs = 0;
     _mockRating = 0;
@@ -1399,7 +1400,10 @@ function doLogout() {
 // NAV
 function showPanel(id, btn, skipHistory) {
   // Stop TTS if navigating away from mock interview
-  if (id !== 'mock' && _ttsAudio) stopAllAudio();
+  if (id !== 'mock' && _ttsAudio) {
+    _ttsAborted = true;
+    stopAllAudio();
+  }
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('panel-'+id).classList.add('active');
@@ -3568,25 +3572,31 @@ function loadMockQuestion(idx) {
   var action = (idx === 0) ? 'start' : 'next';
   setMockQuestionLoading();
 
+  // Capture the question index at call time — guard against stale responses
+  // if user skips again before this response arrives
+  var capturedIdx = idx;
+  var capturedQ = s.currentQ;
+
   callMockChat(action, null)
     .then(function(d) {
-      if (_ttsAborted) return;
+      // If session was ended or currentQ changed (another skip happened), discard
+      if (!_mockSession || _mockSession.currentQ !== capturedQ) return;
       var text = cleanMockText(d.response) || 'Tell me about your most recent project — what did you build, what was your role, and what was the outcome?';
       s.history.push({ role: 'assistant', content: text, isQuestion: true });
-      s.questions[idx] = text;
+      s.questions[capturedIdx] = text;
       var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(text) : null;
-      setMockQuestion(text, idx, blobP);
+      setMockQuestion(text, capturedIdx, blobP);
     })
     .catch(function(err) {
-      if (_ttsAborted) return;
+      if (!_mockSession || _mockSession.currentQ !== capturedQ) return;
       console.warn('Mock chat failed, using fallback:', err.message);
-      var q = idx === 0
+      var q = capturedIdx === 0
         ? 'Hi ' + (_mockSession.candidateName || 'there') + '! Great to have you here. To start — could you walk me through your most recent project? What did you build, what was your role, and what was the outcome?'
-        : getMockFallbackQuestion(s.type, idx);
+        : getMockFallbackQuestion(s.type, capturedIdx);
       s.history.push({ role: 'assistant', content: q, isQuestion: true });
-      s.questions[idx] = q;
+      s.questions[capturedIdx] = q;
       var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
-      setMockQuestion(q, idx, blobP);
+      setMockQuestion(q, capturedIdx, blobP);
     });
 }
 
@@ -3837,7 +3847,8 @@ function endMockEarly() {
 
 function endMockSession() {
   var s = _mockSession;
-  stopAllAudio(); // stop any playing TTS immediately
+  _ttsAborted = true; // kill any pending API responses — session is over
+  stopAllAudio();
 
   // Capture elapsed BEFORE stopMockTimer (which resets it for free users)
   var elapsedSecs = s ? (s.elapsed || 0) : 0;
@@ -3997,17 +4008,18 @@ function loadTTSConfig(callback) { if (callback) callback(); }
 
 // ── stopAllAudio — call on end session, sign out, nav away, skip ──
 function stopAllAudio() {
-  _ttsAborted = true;
   _ttsGeneration++;    // invalidate in-flight TTS fetch
   _typewriterGen++;    // invalidate active typewriter tick chain
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
-  // Blank the text immediately — caller will set new content
+  // Blank text + hide dots immediately
   var el = document.getElementById('mockQText');
   if (el) el.textContent = '';
   var dots = document.getElementById('mockThinkingDots');
   if (dots) dots.style.display = 'none';
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+  // _ttsAborted is NOT set here — it's only set on full session end
+  // Setting it here would silently drop the next question's API response
 }
 
 // ── prefetchTTS — start fetching audio immediately, returns Promise<blob|null> ──

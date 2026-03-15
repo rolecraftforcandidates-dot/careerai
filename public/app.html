@@ -3773,14 +3773,28 @@ function showMockNextBtn(isLast) {
 }
 
 function skipMockQuestion() {
-  stopAllAudio(); // immediately kill audio + typewriter before doing anything else
+  stopAllAudio(); // immediately kill audio + typewriter
   var s = _mockSession;
   s.questions[s.currentQ] = s.questions[s.currentQ] || '(skipped)';
   s.answers[s.currentQ]   = '(skipped)';
   s.scores[s.currentQ]    = 0;
   s.feedbacks[s.currentQ] = 'Question skipped.';
+  // Fire skip action to API (non-blocking) so history stays consistent
   callMockChat('skip', 'I want to skip this question').catch(function(){});
-  nextMockQuestion();
+  // Always load a fresh question — never reuse current question from history
+  s.currentQ++;
+  if (s.currentQ >= s.numQ) { endMockSession(); return; }
+  document.getElementById('mockLiveQProg').textContent = 'Q ' + (s.currentQ+1) + ' of ' + s.numQ;
+  document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
+  document.getElementById('mockFeedbackBox').style.display = 'none';
+  document.getElementById('mockSubmitBtn').disabled = false;
+  document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockWordCount').textContent = '0 words';
+  _srFinalText = '';
+  document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
+  document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
+  setMockQuestionLoading();
+  loadMockQuestion(s.currentQ); // always fresh — never take from history on skip
 }
 
 function nextMockQuestion() {

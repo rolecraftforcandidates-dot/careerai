@@ -2261,33 +2261,122 @@ Return ONLY valid JSON (no markdown, no extra text):
 
     const codingDomain = getCodingDomain(role, techStack, difficulty);
 
-    // Topic pools per interview type — rotate so each session covers different areas
-    const topicPools = {
-      Technical: [
-        ['system design','databases','APIs','caching','scalability','security','testing','cloud services','concurrency','networking'],
-        ['microservices','message queues','indexing','error handling','code review','CI/CD','monitoring','authentication','performance optimisation'],
-        ['distributed systems','REST vs GraphQL','containerisation','design patterns','load balancing','event-driven architecture','debugging','observability']
-      ],
-      Behavioral: [
-        ['conflict resolution','leadership','ownership','failure and learning','collaboration','time management','prioritisation','feedback','communication','ambiguity'],
-        ['influence without authority','cross-team work','difficult stakeholders','delivering bad news','process improvement','mentoring','deadline pressure','self-motivation','career growth'],
-        ['problem solving','initiative','adaptability','technical decision-making','trade-offs','project management','retrospectives','recognition','team dynamics']
-      ],
-      'System Design': [
-        ['scalability','availability','consistency','partitioning','caching strategies','CDN','load balancing','database sharding','event sourcing','API design'],
-        ['real-time systems','search infrastructure','notification systems','rate limiting','data pipelines','microservices decomposition','service mesh','observability','disaster recovery'],
-        ['authentication systems','recommendation engines','distributed storage','write-heavy systems','read-heavy systems','global distribution','cost optimisation','capacity planning']
-      ],
-      Mixed: [
-        ['technical depth','system design','leadership','ownership','conflict','scalability','feedback','databases','communication'],
-        ['microservices','initiative','caching','collaboration','API design','failure learning','distributed systems','prioritisation','security','influence'],
-        ['concurrency','cross-team work','indexing','deadline pressure','REST design','problem solving','event-driven','adaptability','performance','mentoring']
-      ]
-    };
+    // ── Role-aware topic pools ──
+    // Instead of generic tech topics, derive topics from the actual role + resume
+    // This ensures a Journal Editor gets editorial/publishing topics, not message queues
+    function getRoleTopics(role, techStack, type) {
+      const r = (role || '').toLowerCase();
+      const t = (techStack || '').toLowerCase();
+      const combined = r + ' ' + t;
 
-    const pool = topicPools[type] || topicPools['Technical'];
-    const poolIndex = sessionSeed % pool.length;
-    const sessionTopics = pool[poolIndex];
+      // Non-technical / business roles — use role-specific topics
+      if (/editor|editorial|journalist|writer|content|publishing|media|communications|pr |public relations/.test(combined)) {
+        return [
+          ['editorial workflow','content strategy','stakeholder management','deadline management','team leadership','process improvement','cross-functional collaboration','quality control'],
+          ['content planning','editorial standards','feedback and review','project management','audience strategy','budget management','vendor management','performance metrics'],
+          ['digital transformation','team development','strategic planning','conflict resolution','change management','data-driven decisions','brand voice','publication processes']
+        ];
+      }
+      if (/product manager|product owner|pm |head of product/.test(combined)) {
+        return [
+          ['product strategy','roadmap prioritisation','stakeholder alignment','user research','metrics and KPIs','go-to-market','feature trade-offs','customer discovery'],
+          ['agile methodology','sprint planning','A/B testing','competitive analysis','OKRs','cross-functional leadership','product launches','data analysis'],
+          ['pricing strategy','market sizing','technical communication','team collaboration','product vision','experiment design','backlog management','customer feedback']
+        ];
+      }
+      if (/designer|ux|ui designer|product design|design lead/.test(combined)) {
+        return [
+          ['design process','user research','wireframing','prototyping','usability testing','design systems','stakeholder feedback','accessibility'],
+          ['information architecture','interaction design','visual design','handoff to engineering','design critique','user flows','A/B testing','design metrics'],
+          ['cross-functional collaboration','design strategy','brand consistency','mobile design','responsive design','user personas','design thinking','iteration']
+        ];
+      }
+      if (/marketing|growth|demand generation|digital marketing|seo|campaign/.test(combined)) {
+        return [
+          ['campaign strategy','audience targeting','performance marketing','content marketing','brand strategy','analytics','conversion optimisation','channel mix'],
+          ['SEO and SEM','social media','email marketing','lead generation','marketing attribution','budget allocation','creative briefing','market research'],
+          ['growth hacking','customer lifecycle','ABM','influencer marketing','marketing automation','reporting','competitive positioning','customer journey']
+        ];
+      }
+      if (/sales|account executive|business development|revenue|account manager/.test(combined)) {
+        return [
+          ['sales process','pipeline management','prospecting','closing techniques','objection handling','CRM usage','quota attainment','discovery calls'],
+          ['account management','upselling','negotiation','forecasting','customer success','competitive positioning','stakeholder mapping','deal strategy'],
+          ['territory management','sales enablement','cold outreach','partnership development','revenue metrics','customer retention','demo skills','market knowledge']
+        ];
+      }
+      if (/finance|analyst|accounting|investment|banking|financial/.test(combined)) {
+        return [
+          ['financial modelling','budgeting','forecasting','variance analysis','reporting','stakeholder communication','Excel/tools proficiency','audit and compliance'],
+          ['P&L management','cash flow analysis','valuation','investment analysis','cost reduction','business partnering','data interpretation','risk management'],
+          ['process improvement','financial strategy','regulatory compliance','team leadership','ERP systems','KPI tracking','M&A analysis','presentation skills']
+        ];
+      }
+      if (/hr|human resources|talent|recruiter|people operations|l&d|learning/.test(combined)) {
+        return [
+          ['talent acquisition','employee engagement','performance management','HR policies','onboarding','culture building','conflict resolution','compensation'],
+          ['learning and development','succession planning','HR analytics','diversity and inclusion','change management','employee relations','compliance','HRIS'],
+          ['workforce planning','employer branding','retention strategies','team development','HR strategy','stakeholder management','process improvement','wellbeing']
+        ];
+      }
+      if (/operations|supply chain|logistics|procurement|program manager/.test(combined)) {
+        return [
+          ['process optimisation','supply chain management','vendor management','project delivery','cost reduction','KPI tracking','cross-functional coordination','risk management'],
+          ['operational efficiency','forecasting','inventory management','contract negotiation','team leadership','change management','quality assurance','reporting'],
+          ['strategic planning','resource allocation','SLA management','business continuity','data analysis','stakeholder communication','automation','continuous improvement']
+        ];
+      }
+
+      // Technical roles — use tech-specific topics based on stack
+      if (/data engineer|etl|spark|airflow|redshift|databricks/.test(combined)) {
+        return [
+          ['data pipeline architecture','SQL optimisation','ETL design patterns','data quality','cloud data platforms','orchestration','schema design','data governance'],
+          ['streaming vs batch processing','partitioning strategies','data modelling','error handling in pipelines','performance tuning','data lineage','monitoring','API integration'],
+          ['warehouse design','CDC patterns','data lake architecture','Python for data','testing data pipelines','security and access','cost optimisation','team collaboration']
+        ];
+      }
+      if (/data scientist|machine learning|ml|ai engineer/.test(combined)) {
+        return [
+          ['model development','feature engineering','model evaluation','experiment design','data preprocessing','statistical analysis','ML frameworks','deployment'],
+          ['A/B testing','bias and fairness','hyperparameter tuning','cross-validation','model monitoring','NLP techniques','recommendation systems','business impact'],
+          ['MLOps','model versioning','production issues','data collection','deep learning','time series','causal inference','stakeholder communication']
+        ];
+      }
+
+      // Default technical pool — still better than generic message queues for everyone
+      return [
+        ['system design','databases','APIs','caching','scalability','security','testing','performance'],
+        ['architecture decisions','error handling','code quality','monitoring','authentication','deployment','debugging','documentation'],
+        ['distributed systems','design patterns','trade-offs','team collaboration','technical debt','refactoring','observability','incident response']
+      ];
+    }
+
+    // For Behavioral/Mixed, always use behavioral topics regardless of role
+    const behavioralTopics = [
+      ['conflict resolution','leadership','ownership','failure and learning','collaboration','time management','prioritisation','feedback','communication','ambiguity'],
+      ['influence without authority','cross-team work','difficult stakeholders','delivering bad news','process improvement','mentoring','deadline pressure','self-motivation','career growth'],
+      ['problem solving','initiative','adaptability','decision-making','trade-offs','project management','retrospectives','recognition','team dynamics']
+    ];
+
+    let sessionTopicPool;
+    if (type === 'Behavioral') {
+      sessionTopicPool = behavioralTopics;
+    } else if (type === 'System Design') {
+      sessionTopicPool = [
+        ['scalability','availability','consistency','partitioning','caching','load balancing','database design','API design'],
+        ['real-time systems','search','notification systems','rate limiting','data pipelines','microservices','observability','disaster recovery'],
+        ['authentication systems','distributed storage','write-heavy vs read-heavy','global distribution','cost optimisation','capacity planning']
+      ];
+    } else if (type === 'Mixed') {
+      // Interleave role topics with behavioral for mixed
+      const roleTopics = getRoleTopics(role, techStack, type);
+      sessionTopicPool = roleTopics.map((pool, i) => [...pool.slice(0, 5), ...(behavioralTopics[i] || []).slice(0, 4)]);
+    } else {
+      sessionTopicPool = getRoleTopics(role, techStack, type);
+    }
+
+    const poolIndex = sessionSeed % sessionTopicPool.length;
+    const sessionTopics = sessionTopicPool[poolIndex];
 
     // Extract questions already asked from history to prevent repetition
     const askedQuestions = history
@@ -2298,19 +2387,31 @@ Return ONLY valid JSON (no markdown, no extra text):
     // Pick which coding type to use for this session (rotates per variant)
     const codingTypeForSession = codingDomain.codingTypes[sessionSeed % codingDomain.codingTypes.length];
 
-    const systemPrompt = `You are an experienced technical interviewer conducting a mock interview with ${firstName}, a ${diffLabel[difficulty]||difficulty} ${role} candidate.
+    const systemPrompt = `You are an experienced interviewer conducting a mock interview with ${firstName}, a ${diffLabel[difficulty]||difficulty} ${role}.
 
 ${resumeText ? `Their resume (excerpt):\n"""\n${resumeText}\n"""\n` : ''}
 
 INTERVIEW CONTEXT
+- Role: ${role}
+- Tech stack / tools: ${techStack || 'as mentioned in resume'}
 - Interview type: ${type}
 - Total questions planned: ${numQ}
 - Current question number: ${questionCount + 1} of ${numQ}
 - Questions completed so far: ${questionsAnswered} of ${numQ}
 - Is this the final question: ${isLastQuestion ? 'YES — wrap up after this' : 'NO — continue interview'}
 - Current action: ${action}
-- Session variant: ${sessionVariant} (use this to vary your question style and topic selection)
+- Session variant: ${sessionVariant}
 ${action === 'answer' && score !== null ? `- Candidate just scored ${score}/100 on their answer` : ''}
+
+CRITICAL — ROLE RELEVANCE (read carefully)
+You MUST ask questions relevant to THIS candidate's actual role: "${role}".
+${techStack ? `Their tools/tech: ${techStack}.` : ''}
+- A Journal Editor / Editorial Manager → ask about editorial workflows, content strategy, team management, publishing processes, stakeholder communication — NOT about APIs, databases, or system design
+- A Marketing professional → ask about campaigns, audience targeting, metrics, brand strategy — NOT about distributed systems or message queues
+- A Data Engineer → ask about pipelines, SQL, ETL, cloud data tools — NOT about frontend or mobile
+- A Software Engineer → ask about code, architecture, systems relevant to their stack
+- ALWAYS anchor questions to the resume excerpt above — reference their actual projects, companies, and tools
+- NEVER ask generic tech questions to non-technical roles
 
 YOUR PERSONA
 - You are a warm, professional human interviewer — not an AI
@@ -2346,25 +2447,35 @@ ${action === 'hint' ? `The candidate is struggling. Give a small encouraging hin
 
 ${action === 'skip' ? `The candidate skipped. Acknowledge briefly in one sentence, then move on with the next topic.` : ''}
 
-CODING QUESTION RULE
-${type === 'Technical' || type === 'Mixed' ? `You MUST include coding/algorithm questions distributed through the interview:
-- Coding question positions for this ${numQ}-question session: ${
-  numQ <= 5  ? 'questions 3 and 5' :
-  numQ <= 8  ? 'questions 3, 6, and 8' :
-  numQ <= 12 ? 'questions 3, 6, 9, and 12' :
-               'questions 3, 6, 9, 12, and 15'
-}
-- Current question is ${questionCount + 1} of ${numQ}. ${
-  (() => {
+CODING / PRACTICAL QUESTION RULE
+${(() => {
+  const r = (role || '').toLowerCase();
+  const t = (techStack || '').toLowerCase();
+  const combined = r + ' ' + t;
+  const isTechnical = /engineer|developer|architect|data |ml |devops|sre|platform|mobile|frontend|backend|fullstack|programmer|coder/.test(combined);
+
+  if (!isTechnical) {
+    // Non-technical role — no coding questions, ask practical/scenario questions instead
+    return `This candidate is a ${role} — do NOT ask coding or algorithm questions.
+Instead, for "practical" question slots, ask scenario-based or skills questions relevant to their role:
+- A scenario they might face in their job ("How would you handle...")
+- A practical task question ("Walk me through how you would...")
+- A tool or process question relevant to their work
+These should feel like practical interview questions, not technical coding exercises.`;
+  }
+
+  if (type === 'Technical' || type === 'Mixed') {
     const codingQs = numQ <= 5 ? [3,5] : numQ <= 8 ? [3,6,8] : numQ <= 12 ? [3,6,9,12] : [3,6,9,12,15];
-    return codingQs.includes(questionCount + 1)
-      ? `THIS IS A CODING QUESTION. IMPORTANT: This candidate is a ${role}${techStack ? ` working with ${techStack}` : ''}. Ask a ${codingDomain.domain} coding question — specifically around: ${codingTypeForSession}. Do NOT ask generic LeetCode-style algorithm puzzles unless they are directly relevant to this role. The question should feel like something asked in a real ${role} interview.`
-      : 'This is NOT a coding question — ask a conceptual, experience-based, or system design question from the topic sequence.';
-  })()
-}
-- For coding questions: describe a realistic scenario clearly, ask the candidate to walk through their approach and logic — they do not need to write actual code, just explain it conversationally.
-- Keep the difficulty appropriate to ${diffLabel[difficulty]||difficulty} level
-- Each coding question in this session should test a DIFFERENT skill — do not repeat the same type` : ''}
+    const isCodingQ = codingQs.includes(questionCount + 1);
+    return `You MUST include coding/practical questions at these positions: ${codingQs.join(', ')}
+- Current question is ${questionCount + 1}. ${isCodingQ
+  ? `THIS IS A CODING QUESTION. Candidate is a ${role}${techStack ? ` using ${techStack}` : ''}. Ask a ${codingDomain.domain} question around: ${codingTypeForSession}. Do NOT ask generic LeetCode puzzles — make it relevant to their actual role.`
+  : 'This is NOT a coding question — ask conceptual or experience-based.'}
+- Keep difficulty appropriate to ${diffLabel[difficulty]||difficulty}
+- Vary coding problem types across the session — do not repeat the same category`;
+  }
+  return '';
+})()}
 
 STRICT OUTPUT RULES
 - Output ONLY the spoken words of the interviewer

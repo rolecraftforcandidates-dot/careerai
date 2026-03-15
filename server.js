@@ -3293,7 +3293,409 @@ app.get('/api/ready', async (req, res) => {
   return res.json({ ready: false, processing: false });
 });
 
-app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+
+// ══════════════════════════════════════════════════════════════════
+// DRIP EMAIL CAMPAIGN SYSTEM
+// ══════════════════════════════════════════════════════════════════
+// Segments:
+//   SEG1: Free, never started       → Convert to Pro (every 4-5 days, max 3 emails)
+//   SEG2: Pro, never activated      → Activation (every 2-3 days, first 10 days)
+//   SEG3: Started but inactive      → Reactivation (weekly)
+//   SEG4: Completed W1, slowing     → Retention (weekly)
+//   SEG5: Pro, active, no mock      → Mock adoption (one-time)
+//   SEG6: All users                 → Weekly Sunday value email
+//
+// EmailsSent sheet: Email | CampaignId | SentAt
+// Run: GET /api/cron/drip  (secured with CRON_SECRET header)
+// Railway cron: 0 3 30 * * * (9am IST daily)
+// ══════════════════════════════════════════════════════════════════
+
+const APP_BASE = process.env.APP_URL || 'https://www.rolekraft.com';
+
+function daysSince(dateStr) {
+  if (!dateStr) return 999;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return 999;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+// ── Ensure EmailsSent sheet exists ──
+async function ensureEmailsSentSheet(sheets) {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const exists = meta.data.sheets.some(s => s.properties.title === 'EmailsSent');
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: { requests: [{ addSheet: { properties: { title: 'EmailsSent' } } }] }
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID, range: 'EmailsSent!A1',
+      valueInputOption: 'RAW',
+      requestBody: { values: [['Email', 'CampaignId', 'SentAt']] }
+    });
+  }
+}
+
+// ── Load sent log — returns Set of "email|campaignId" ──
+async function loadSentLog(sheets) {
+  try {
+    const raw = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'EmailsSent!A:C' });
+    const rows = (raw.data.values || []).slice(1);
+    return new Set(rows.map(r => `${(r[0]||'').toLowerCase()}|${r[1]||''}`));
+  } catch(e) { return new Set(); }
+}
+
+// ── Mark email as sent ──
+async function markSent(sheets, email, campaignId) {
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID, range: 'EmailsSent!A:A',
+    valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: [[email.toLowerCase(), campaignId, new Date().toISOString()]] }
+  });
+}
+
+// ── Email Templates ──
+function buildEmail(templateId, user) {
+  const name = (user.Name || '').split(' ')[0] || 'there';
+  const role = user.Role || 'your target role';
+  const atsScore = user['ATS Score'] || user.H || '65';
+  const appUrl = APP_BASE + '/app';
+
+  const header = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
+    <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:24px;color:white;text-align:center;margin-bottom:24px">
+      <div style="font-size:24px;font-weight:900;letter-spacing:3px">ROLEKRAFT</div>
+      <div style="font-size:13px;opacity:.85;margin-top:4px">AI-Powered Interview Preparation</div>
+    </div>
+    <div style="background:white;border-radius:14px;padding:28px;border:1px solid rgba(0,0,0,.07);margin-bottom:16px">`;
+  const footer = `</div>
+    <p style="color:#9999bb;font-size:11px;text-align:center;margin:0">RoleKraft · <a href="${APP_BASE}/app" style="color:#9999bb">Open Dashboard</a></p>
+  </div>`;
+  const btn = (text, url) => `<a href="${url}" style="display:inline-block;margin-top:20px;background:linear-gradient(135deg,#00b38a,#5048e5);color:white;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none">${text} →</a>`;
+
+  const templates = {
+
+    // ── SEG1: Free, never started ──
+    'F1': {
+      subject: `Your resume is not the reason you're failing interviews, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name} 👋</p>
+        <p style="color:#444;line-height:1.7">Most candidates spend weeks reading blogs and watching random videos — but still struggle in real interviews.</p>
+        <p style="color:#444;line-height:1.7">The real problem? <strong>No structured practice for your specific role.</strong></p>
+        <p style="color:#444;line-height:1.7">RoleKraft has already built a personalised 4-week interview plan based on your resume as a <strong>${role}</strong>. It's waiting for you.</p>
+        <div style="background:#f0fdf9;border-left:4px solid #00b38a;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          ✅ Week-by-week structured tasks<br>✅ AI-scored practice questions<br>✅ Resume improvement tips
+        </div>
+        <p style="color:#444">Your plan is ready. It takes just 10 minutes a day.</p>
+        ${btn('Start My Preparation', appUrl)}` + footer
+    },
+
+    'F2': {
+      subject: `Can you answer this ${role} interview question?`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Here's a question that commonly comes up in <strong>${role}</strong> interviews:</p>
+        <div style="background:#f8f9ff;border:2px solid #5048e5;border-radius:12px;padding:20px;margin:20px 0;font-size:1rem;font-weight:600;color:#1a1a2e;line-height:1.6">
+          💬 "Walk me through your approach to a project where things didn't go as planned. What did you do and what was the outcome?"
+        </div>
+        <p style="color:#444;line-height:1.7">Think you can answer that confidently in 90 seconds?</p>
+        <p style="color:#444;line-height:1.7">RoleKraft's AI mock interview will ask you questions <strong>specific to your resume and role</strong> — then score your answer and give you feedback instantly.</p>
+        ${btn('Try a Mock Interview', appUrl)}` + footer
+    },
+
+    'F3': {
+      subject: `Your personalised interview plan is still waiting, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You registered on RoleKraft but your 4-week preparation plan is still untouched.</p>
+        <p style="color:#444;line-height:1.7">Engineers and professionals who <strong>start practicing within 2 weeks of registration</strong> are significantly more likely to land interviews than those who wait.</p>
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:2.5rem;font-weight:900;color:#5048e5">📋</div>
+          <div style="font-weight:700;font-size:1.1rem;margin-top:8px">Your plan is ready. Your questions are ready.</div>
+          <div style="color:#666;font-size:0.88rem;margin-top:4px">All that's missing is you.</div>
+        </div>
+        ${btn('Open My Plan Now', appUrl)}` + footer
+    },
+
+    // ── SEG2: Pro, never activated ──
+    'P1': {
+      subject: `You activated Pro but haven't started yet, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You unlocked RoleKraft Pro — great decision. But your personalised preparation hasn't started yet.</p>
+        <p style="color:#444;line-height:1.7">Many candidates fail interviews not because they lack skills, but because they <strong>never practice under interview conditions</strong>.</p>
+        <p style="color:#444;line-height:1.7">Your Week 1 tasks are ready. Your AI questions are ready. Your mock interview is waiting.</p>
+        <p style="color:#444;line-height:1.7"><strong>It takes less than 5 minutes to get started.</strong></p>
+        ${btn('Begin My Preparation', appUrl)}` + footer
+    },
+
+    'P2': {
+      subject: `Candidates who start within 7 days are 3x more likely to get interviews`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Based on what we've seen: candidates who begin their structured preparation within the first week are far more likely to build a lasting habit and reach interview readiness.</p>
+        <p style="color:#444;line-height:1.7">You have <strong>RoleKraft Pro</strong> — everything you need is already set up for your role as a <strong>${role}</strong>.</p>
+        <div style="background:#fff8f0;border-left:4px solid #f5a623;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          ⏰ The longer you wait, the harder it is to build momentum. Start today — even just one task.
+        </div>
+        ${btn('Start Week 1 Today', appUrl)}` + footer
+    },
+
+    'P3': {
+      subject: `Week 1 is almost over — don't let it slip`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">Your Week 1 preparation window is running out and you haven't started yet.</p>
+        <p style="color:#444;line-height:1.7">Each week in RoleKraft builds on the previous one — Week 1 is your foundation. Skipping it means Week 2 will be harder.</p>
+        <p style="color:#444;line-height:1.7">You can complete the core Week 1 tasks in <strong>under 2 hours total</strong>. That's less time than most people spend scrolling.</p>
+        ${btn('Complete Week 1 Now', appUrl)}` + footer
+    },
+
+    // ── SEG3: Started but inactive ──
+    'R1': {
+      subject: `Ready for your next ${role} challenge?`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You started practising on RoleKraft — great start. But interview preparation only works when it's consistent.</p>
+        <p style="color:#444;line-height:1.7">Here's a challenge question for your role:</p>
+        <div style="background:#f8f9ff;border:2px solid #00b38a;border-radius:12px;padding:20px;margin:20px 0;font-size:1rem;font-weight:600;color:#1a1a2e;line-height:1.6">
+          💬 "Tell me about a time you had to make a difficult decision with incomplete information. What did you do?"
+        </div>
+        <p style="color:#444;line-height:1.7">Try answering it in the mock interview — you'll get AI feedback instantly.</p>
+        ${btn('Continue Practising', appUrl)}` + footer
+    },
+
+    'R2': {
+      subject: `Most candidates give up after week 1 — don't be one of them`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You haven't been active on RoleKraft in a while. That's okay — life gets busy.</p>
+        <p style="color:#444;line-height:1.7">But here's the reality: <strong>the candidates who get interviews are the ones who show up consistently</strong>, not the ones who prepare perfectly for 2 days then stop.</p>
+        <p style="color:#444;line-height:1.7">Your plan is still there. Your questions are still there. It takes just 10 minutes to get back on track today.</p>
+        ${btn('Get Back on Track', appUrl)}` + footer
+    },
+
+    // ── SEG4: W1 done, slowing ──
+    'W1': {
+      subject: `Week 2 of your interview preparation starts today`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You completed Week 1 — that puts you ahead of most candidates who never start at all.</p>
+        <p style="color:#444;line-height:1.7">Week 2 is where preparation gets deeper — more role-specific questions, technical depth, and mock interview practice.</p>
+        <div style="background:#f0fdf9;border-left:4px solid #00b38a;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          📌 Week 2 focus: Technical depth + your first full mock interview
+        </div>
+        ${btn('Start Week 2', appUrl)}` + footer
+    },
+
+    'W2': {
+      subject: `Your preparation is falling behind — here's how to catch up`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You're into Week 2 but your task completion is lower than it should be at this stage.</p>
+        <p style="color:#444;line-height:1.7">The good news: you can catch up. Here's what matters most right now:</p>
+        <div style="background:#f8f9ff;border-left:4px solid #5048e5;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333;line-height:1.8">
+          1️⃣ Complete your remaining Week 2 tasks<br>
+          2️⃣ Answer at least 2 AI questions this week<br>
+          3️⃣ Do one mock interview session
+        </div>
+        ${btn('Resume My Preparation', appUrl)}` + footer
+    },
+
+    // ── SEG5: Pro active, no mock ──
+    'M1': {
+      subject: `How would you perform in a real interview today?`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You've been preparing well — but there's one thing that separates truly interview-ready candidates from the rest:</p>
+        <p style="color:#1a1a2e;font-size:1.1rem;font-weight:700;text-align:center;padding:16px 0">Practicing under real interview conditions.</p>
+        <p style="color:#444;line-height:1.7">RoleKraft's AI mock interview asks you questions based on your actual resume and role as a <strong>${role}</strong>, then scores each answer and gives you specific feedback.</p>
+        <p style="color:#444;line-height:1.7">Takes 15-25 minutes. Completely changes how you perform on the real day.</p>
+        ${btn('Take My First Mock Interview', appUrl)}` + footer
+    },
+
+    // ── SEG6: Weekly Sunday value email ──
+    'S1': {
+      subject: `Your weekly interview insight — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#666;font-size:0.85rem;margin-bottom:20px">YOUR WEEKLY ROLEKRAFT INSIGHT</p>
+        <div style="margin-bottom:24px">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:2px;color:#5048e5;margin-bottom:8px">💬 QUESTION OF THE WEEK</div>
+          <div style="background:#f8f9ff;border:1px solid rgba(80,72,229,0.2);border-radius:10px;padding:16px;font-weight:600;color:#1a1a2e;line-height:1.6">
+            "Describe a situation where you had to deliver results under a tight deadline with limited resources. What was your approach?"
+          </div>
+          <p style="color:#666;font-size:0.84rem;margin-top:8px">Try answering this in your mock interview for instant AI feedback.</p>
+        </div>
+        <div style="margin-bottom:24px">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:2px;color:#00b38a;margin-bottom:8px">📝 RESUME TIP OF THE WEEK</div>
+          <div style="background:#f0fdf9;border-left:3px solid #00b38a;padding:14px;border-radius:8px;color:#333;font-size:0.88rem;line-height:1.7">
+            <strong>Quantify everything you can.</strong> Instead of "managed a team", write "led a team of 6 engineers delivering 3 product launches in Q2". Numbers make your resume 40% more likely to pass ATS screening.
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:20px">
+          <p style="color:#444;font-size:0.88rem">Keep the momentum going this week 💪</p>
+          ${btn('Open My Dashboard', appUrl)}
+        </div>` + footer
+    }
+  };
+
+  return templates[templateId] || null;
+}
+
+// ── Main drip campaign runner ──
+async function runDripCampaign(dryRun = false) {
+  const { sendBrevoEmail } = require('./onboarding');
+  const sheets = getSheetsClient();
+  const today = new Date();
+  const isSunday = today.getDay() === 0;
+  const results = { sent: 0, skipped: 0, errors: 0, log: [] };
+
+  await ensureEmailsSentSheet(sheets);
+  const sentLog = await loadSentLog(sheets);
+
+  // Load all data once
+  const [users, allScores, allPlans, allMock] = await Promise.all([
+    readSheet('Users'),
+    readSheet('Scores').catch(() => []),
+    readSheet('Plans').catch(() => []),
+    (async () => {
+      try {
+        const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+        if (!meta.data.sheets.some(s => s.properties.title === 'MockSessions')) return [];
+        return await readSheet('MockSessions');
+      } catch(e) { return []; }
+    })()
+  ]);
+
+  // Track emails sent this run — max 1 per user per day
+  const sentThisRun = new Set();
+
+  async function trySend(user, campaignId) {
+    const email = (user.Email || '').toLowerCase();
+    if (!email) return false;
+    if (sentThisRun.has(email)) return false; // max 1 per day
+    if (sentLog.has(`${email}|${campaignId}`)) return false; // already sent this campaign
+
+    const tpl = buildEmail(campaignId, user);
+    if (!tpl) return false;
+
+    if (dryRun) {
+      results.log.push(`[DRY RUN] Would send ${campaignId} to ${email}`);
+      return true;
+    }
+
+    try {
+      await sendBrevoEmail(email, user.Name || '', tpl.subject, tpl.html);
+      await markSent(sheets, email, campaignId);
+      sentThisRun.add(email);
+      results.sent++;
+      results.log.push(`✅ Sent ${campaignId} → ${email}`);
+      return true;
+    } catch(e) {
+      results.errors++;
+      results.log.push(`❌ Failed ${campaignId} → ${email}: ${e.message}`);
+      return false;
+    }
+  }
+
+  for (const user of users) {
+    const email = (user.Email || '').toLowerCase();
+    if (!email) continue;
+
+    const tier     = (user.Tier || 'free').toLowerCase();
+    const isPro    = (tier === 'pro' || tier === 'premium');
+    const regDays  = daysSince(user['Week Started'] || user['K'] || '');
+    const currentWeek = parseInt(user.Week) || 1;
+
+    // ── Activity signals ──
+    const userScores = allScores.filter(r => (r.Email||'').toLowerCase() === email);
+    const userPlans  = allPlans.filter(r  => (r.Email||'').toLowerCase() === email);
+    const userMock   = allMock.filter(r   => (r.Email||'').toLowerCase() === email);
+
+    const doneTasks         = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+    const questionsAnswered = userScores.length;
+    const mocksTaken        = userMock.length;
+    const hasStarted        = questionsAnswered > 0 || doneTasks > 0 || mocksTaken > 0;
+
+    // Last activity = most recent date across Scores AND MockSessions
+    const scoreDates = userScores.map(r => r.Date || r.SavedAt || '').filter(Boolean);
+    const mockDates  = userMock.map(r => r.SavedAt || r.Date || '').filter(Boolean);
+    const allActivityDates = [...scoreDates, ...mockDates].filter(Boolean).sort();
+    const lastActivityDays = allActivityDates.length
+      ? daysSince(allActivityDates[allActivityDates.length - 1])
+      : regDays; // no activity at all — use registration age
+
+    // Week 2 stats (for retention emails)
+    const w2Tasks = userPlans.filter(r => String(r.Week) === '2');
+    const w2Done  = w2Tasks.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+    const w2Total = w2Tasks.length;
+
+    // ── PRIORITY ORDER — only one lifecycle email per user per day ──
+    // Higher priority segments are checked first. Once one sends, lower ones are skipped
+    // because trySend() enforces max-1-per-day via sentThisRun Set.
+
+    // Priority 1: Pro not activated (most urgent — they paid, need to start)
+    if (isPro && !hasStarted) {
+      if      (regDays >= 2 && regDays < 5)  await trySend(user, 'P1');
+      else if (regDays >= 5 && regDays < 9)  await trySend(user, 'P2');
+      else if (regDays >= 9 && regDays < 14) await trySend(user, 'P3');
+    }
+
+    // Priority 2: Free, never started → convert to Pro
+    // Only send if not already sent a Pro activation email today
+    if (!isPro && !hasStarted) {
+      if      (regDays >= 3  && regDays < 7)  await trySend(user, 'F1');
+      else if (regDays >= 7  && regDays < 12) await trySend(user, 'F2');
+      else if (regDays >= 12 && regDays < 20) await trySend(user, 'F3');
+    }
+
+    // Priority 3: Started but gone inactive (applies to both free and pro)
+    // Only triggers if they DID start — otherwise covered by P or F above
+    if (hasStarted && lastActivityDays >= 5) {
+      if      (lastActivityDays >= 5  && lastActivityDays < 12) await trySend(user, 'R1');
+      else if (lastActivityDays >= 12 && lastActivityDays < 25) await trySend(user, 'R2');
+    }
+
+    // Priority 4: Retention — week milestones (Pro users who are progressing)
+    if (isPro && hasStarted) {
+      // Week 2 just started but not touched it
+      if (currentWeek >= 2 && w2Total > 0 && w2Done === 0 && regDays >= 8) {
+        await trySend(user, 'W1');
+      }
+      // Week 2 significantly behind (less than 30% done after 14 days)
+      if (currentWeek >= 2 && w2Total > 0 && w2Done / w2Total < 0.3 && regDays >= 14) {
+        await trySend(user, 'W2');
+      }
+    }
+
+    // Priority 5: Mock interview nudge — Pro, active, never tried mock
+    // Only fires once (EmailsSent prevents repeat), day 5+ after at least 3 questions
+    if (isPro && mocksTaken === 0 && questionsAnswered >= 3 && regDays >= 5) {
+      await trySend(user, 'M1');
+    }
+
+    // Priority 6: Weekly Sunday insight — all users (any activity or 7+ days old)
+    // Uses date-stamped ID so a fresh one goes out each Sunday
+    if (isSunday && (hasStarted || regDays >= 7)) {
+      const weekKey = `S1_${today.toISOString().slice(0, 10)}`;
+      await trySend(user, weekKey);
+    }
+  }
+
+  console.log(`📧 Drip campaign complete: ${results.sent} sent, ${results.skipped} skipped, ${results.errors} errors`);
+  results.log.forEach(l => console.log(l));
+  return results;
+}
+
+// ── Drip campaign endpoint — hit by Railway cron daily ──
+app.get('/api/cron/drip', async (req, res) => {
+  // Secure with secret key
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers['x-cron-secret'] !== secret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const dryRun = req.query.dry === 'true';
+  console.log(`🔄 Drip campaign triggered — dryRun=${dryRun}`);
+
+  try {
+    const results = await runDripCampaign(dryRun);
+    res.json({ success: true, ...results });
+  } catch(e) {
+    console.error('Drip campaign error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 function noCache(req, res, next) {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Pragma', 'no-cache');
@@ -3314,4 +3716,33 @@ app.listen(PORT, () => {
   console.log(`✅ CareerAI server running on http://localhost:${PORT}`);
   if (!process.env.SHEET_ID) console.warn('⚠️  SHEET_ID not set in .env');
   if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) console.warn('⚠️  GOOGLE_SERVICE_ACCOUNT_JSON not set in .env');
+
+  // ── Self-hosted drip campaign cron — runs daily at 9am IST (3:30am UTC) ──
+  // No Railway cron job needed — this runs inside the server process
+  function scheduleDripCron() {
+    const now  = new Date();
+    const next = new Date();
+    next.setUTCHours(3, 30, 0, 0); // 3:30am UTC = 9:00am IST
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1); // already past today's slot → tomorrow
+    const msUntilFirst = next - now;
+
+    console.log(`⏰ Drip cron scheduled — first run in ${Math.round(msUntilFirst / 60000)} mins (${next.toISOString()})`);
+
+    setTimeout(function runAndReschedule() {
+      console.log('🔄 Drip cron firing — daily email campaign');
+      runDripCampaign(false)
+        .then(r => console.log(`📧 Drip done: ${r.sent} sent, ${r.errors} errors`))
+        .catch(e => console.error('Drip cron error:', e.message));
+
+      // Schedule next run exactly 24 hours later
+      setTimeout(runAndReschedule, 24 * 60 * 60 * 1000);
+    }, msUntilFirst);
+  }
+
+  // Only run cron in production — not during local dev (avoids spamming test users)
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DRIP_CRON === 'true') {
+    scheduleDripCron();
+  } else {
+    console.log('ℹ️  Drip cron disabled in dev — set ENABLE_DRIP_CRON=true to force, or call /api/cron/drip manually');
+  }
 });

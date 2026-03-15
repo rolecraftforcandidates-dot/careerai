@@ -3349,11 +3349,12 @@ async function markSent(sheets, email, campaignId) {
 }
 
 // ── Email Templates ──
-function buildEmail(templateId, user) {
+function buildEmail(templateId, user, regDays) {
   const name = (user.Name || '').split(' ')[0] || 'there';
   const role = user.Role || 'your target role';
   const atsScore = user['ATS Score'] || user.H || '65';
   const appUrl = APP_BASE + '/app';
+  regDays = regDays || 0;
 
   const header = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;padding:32px 20px">
     <div style="background:linear-gradient(135deg,#00b38a,#5048e5);border-radius:16px;padding:24px;color:white;text-align:center;margin-bottom:24px">
@@ -3383,28 +3384,58 @@ function buildEmail(templateId, user) {
     },
 
     'F2': {
-      subject: `Can you answer this ${role} interview question?`,
+      subject: `${role} professionals targeting top companies are doing this`,
       html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
-        <p style="color:#444;line-height:1.7">Here's a question that commonly comes up in <strong>${role}</strong> interviews:</p>
-        <div style="background:#f8f9ff;border:2px solid #5048e5;border-radius:12px;padding:20px;margin:20px 0;font-size:1rem;font-weight:600;color:#1a1a2e;line-height:1.6">
-          💬 "Walk me through your approach to a project where things didn't go as planned. What did you do and what was the outcome?"
+        <p style="color:#444;line-height:1.7">Right now, hundreds of <strong>${role}</strong> candidates are actively preparing for interviews at companies like Google, Amazon, Barclays, Flipkart, and Thoughtworks.</p>
+        <p style="color:#444;line-height:1.7">What separates the ones who get calls from the ones who don't?</p>
+        <div style="background:#f8f9ff;border-radius:12px;padding:20px;margin:20px 0">
+          <div style="font-size:0.75rem;letter-spacing:2px;color:#5048e5;font-weight:700;margin-bottom:14px">WHAT PREPARED CANDIDATES DO DIFFERENTLY</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:0.88rem;color:#333;line-height:1.6">
+              <span style="color:#00b38a;font-weight:700;flex-shrink:0">✓</span>
+              <span>They practice with <strong>role-specific questions</strong> — not random LeetCode</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:0.88rem;color:#333;line-height:1.6">
+              <span style="color:#00b38a;font-weight:700;flex-shrink:0">✓</span>
+              <span>They get <strong>AI feedback on every answer</strong> — not just hope they're doing it right</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:0.88rem;color:#333;line-height:1.6">
+              <span style="color:#00b38a;font-weight:700;flex-shrink:0">✓</span>
+              <span>They follow a <strong>structured 4-week plan</strong> — not random YouTube videos</span>
+            </div>
+          </div>
         </div>
-        <p style="color:#444;line-height:1.7">Think you can answer that confidently in 90 seconds?</p>
-        <p style="color:#444;line-height:1.7">RoleKraft's AI mock interview will ask you questions <strong>specific to your resume and role</strong> — then score your answer and give you feedback instantly.</p>
-        ${btn('Try a Mock Interview', appUrl)}` + footer
+        <p style="color:#444;line-height:1.7">Your personalised plan for <strong>${role}</strong> is already built. The candidates who land interviews aren't more talented — they just started earlier.</p>
+        ${btn('Start Preparing Today', appUrl)}` + footer
     },
 
     'F3': {
-      subject: `Your personalised interview plan is still waiting, ${name}`,
+      subject: `Can you answer this ${role} interview question?`,
       html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
-        <p style="color:#444;line-height:1.7">You registered on RoleKraft but your 4-week preparation plan is still untouched.</p>
-        <p style="color:#444;line-height:1.7">Engineers and professionals who <strong>start practicing within 2 weeks of registration</strong> are significantly more likely to land interviews than those who wait.</p>
-        <div style="text-align:center;padding:20px 0">
-          <div style="font-size:2.5rem;font-weight:900;color:#5048e5">📋</div>
-          <div style="font-weight:700;font-size:1.1rem;margin-top:8px">Your plan is ready. Your questions are ready.</div>
-          <div style="color:#666;font-size:0.88rem;margin-top:4px">All that's missing is you.</div>
+        <p style="color:#444;line-height:1.7">Here's a question that comes up in almost every <strong>${role}</strong> interview:</p>
+        <div style="background:#f8f9ff;border:2px solid #5048e5;border-radius:12px;padding:20px;margin:20px 0;font-size:1rem;font-weight:600;color:#1a1a2e;line-height:1.6">
+          💬 "Walk me through your most impactful project. What was the problem, what did you do, and what was the measurable outcome?"
         </div>
-        ${btn('Open My Plan Now', appUrl)}` + footer
+        <p style="color:#444;line-height:1.7">Most candidates answer this poorly — they describe what they did but forget the <strong>impact</strong>. That's exactly what interviewers are looking for.</p>
+        <p style="color:#444;line-height:1.7">RoleKraft will ask you questions based on <strong>your actual resume and role</strong>, then score your answer and tell you exactly what to improve.</p>
+        <div style="background:#fff8f0;border-left:4px solid #f5a623;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:0.88rem;color:#333">
+          🎯 Your ATS score was <strong>${atsScore}/100</strong>. Candidates who practice consistently improve their interview performance significantly.
+        </div>
+        ${btn('Try Answering This Question', appUrl)}` + footer
+    },
+
+    'F4': {
+      subject: `This is your last nudge, ${name}`,
+      html: header + `<p style="font-size:18px;font-weight:700;margin-bottom:16px">Hi ${name},</p>
+        <p style="color:#444;line-height:1.7">You registered on RoleKraft ${regDays} days ago. Your personalised interview plan has been sitting ready since day one.</p>
+        <p style="color:#444;line-height:1.7">We won't keep sending reminders after this — we respect your inbox.</p>
+        <div style="background:#f8f9ff;border-radius:12px;padding:20px;margin:20px 0;text-align:center">
+          <div style="font-size:2rem;margin-bottom:8px">⏳</div>
+          <div style="font-weight:700;font-size:1rem;color:#1a1a2e;margin-bottom:6px">Your plan expires if unused</div>
+          <div style="color:#666;font-size:0.85rem;line-height:1.6">Interview seasons are competitive. The best time to start was day one.<br>The second best time is right now.</div>
+        </div>
+        <p style="color:#444;line-height:1.7">If you're seriously targeting <strong>${role}</strong> roles, your prep starts with one click.</p>
+        ${btn('Open My Plan — One Last Time', appUrl)}` + footer
     },
 
     // ── SEG2: Pro, never activated ──
@@ -3558,7 +3589,7 @@ async function runDripCampaign(dryRun = false) {
     if (sentThisRun.has(email)) return false; // max 1 per day
     if (sentLog.has(`${email}|${campaignId}`)) return false; // already sent this campaign
 
-    const tpl = buildEmail(campaignId, user);
+    const tpl = buildEmail(campaignId, user, daysSince(user['Week Started'] || user['K'] || ''));
     if (!tpl) return false;
 
     if (dryRun) {
@@ -3627,11 +3658,11 @@ async function runDripCampaign(dryRun = false) {
     }
 
     // Priority 2: Free, never started → convert to Pro
-    // Only send if not already sent a Pro activation email today
     if (!isPro && !hasStarted) {
       if      (regDays >= 3  && regDays < 7)  await trySend(user, 'F1');
       else if (regDays >= 7  && regDays < 12) await trySend(user, 'F2');
-      else if (regDays >= 12 && regDays < 20) await trySend(user, 'F3');
+      else if (regDays >= 12 && regDays < 17) await trySend(user, 'F3');
+      else if (regDays >= 17 && regDays < 23) await trySend(user, 'F4');
     }
 
     // Priority 3: Started but gone inactive (applies to both free and pro)
@@ -3727,8 +3758,9 @@ app.get('/api/cron/drip', async (req, res) => {
         } else if (!isPro && !hasStarted) {
           if      (regDays >= 3  && regDays < 7)  wouldSend = 'F1';
           else if (regDays >= 7  && regDays < 12) wouldSend = 'F2';
-          else if (regDays >= 12 && regDays < 20) wouldSend = 'F3';
-          else reason = `Free not started but regDays=${regDays} outside F windows (3-20)`;
+          else if (regDays >= 12 && regDays < 17) wouldSend = 'F3';
+          else if (regDays >= 17 && regDays < 23) wouldSend = 'F4';
+          else reason = `Free not started but regDays=${regDays} outside F windows (3-23)`;
         } else {
           reason = `hasStarted=true (q=${questionsAnswered} tasks=${doneTasks} mock=${mocksTaken})`;
         }

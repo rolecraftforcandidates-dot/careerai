@@ -3597,7 +3597,10 @@ async function runDripCampaign(dryRun = false) {
     const doneTasks         = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
     const questionsAnswered = userScores.length;
     const mocksTaken        = userMock.length;
-    const hasStarted        = questionsAnswered > 0 || doneTasks > 0 || mocksTaken > 0;
+
+    // "Meaningfully started" = answered at least 1 question OR done 2+ tasks OR taken a mock
+    // A single task ticked doesn't count — could be accidental or just exploring
+    const hasStarted = questionsAnswered >= 1 || doneTasks >= 2 || mocksTaken >= 1;
 
     // Last activity = most recent date across Scores AND MockSessions
     const scoreDates = userScores.map(r => r.Date || r.SavedAt || '').filter(Boolean);
@@ -3683,33 +3686,60 @@ app.get('/api/cron/drip', async (req, res) => {
   try {
     // Debug mode — show raw sheet data for a specific email to diagnose issues
     if (debug) {
-      const { sendBrevoEmail } = require('./onboarding');
       const users      = await readSheet('Users');
       const allScores  = await readSheet('Scores').catch(() => []);
       const allPlans   = await readSheet('Plans').catch(() => []);
+      const allMock    = await (async () => {
+        try {
+          const meta = await getSheetsClient().spreadsheets.get({ spreadsheetId: SHEET_ID });
+          if (!meta.data.sheets.some(s => s.properties.title === 'MockSessions')) return [];
+          return await readSheet('MockSessions');
+        } catch(e) { return []; }
+      })();
+      const sentLog    = await loadSentLog(getSheetsClient());
       const filterEmail = req.query.email || '';
       const debugUsers = filterEmail
         ? users.filter(u => (u.Email||'').toLowerCase().includes(filterEmail.toLowerCase()))
-        : users.slice(0, 5); // first 5 if no filter
+        : users.slice(0, 5);
 
       const debugInfo = debugUsers.map(user => {
         const email = (user.Email||'').toLowerCase();
         const weekStartedRaw = user['Week Started'] || user['K'] || '';
         const regDays = daysSince(weekStartedRaw);
+        const tier = (user.Tier||'free').toLowerCase();
+        const isPro = tier === 'pro' || tier === 'premium';
         const userScores = allScores.filter(r => (r.Email||'').toLowerCase() === email);
         const userPlans  = allPlans.filter(r  => (r.Email||'').toLowerCase() === email);
-        const doneTasks  = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+        const userMock   = allMock.filter(r   => (r.Email||'').toLowerCase() === email);
+        const doneTasks         = userPlans.filter(r => (r.Status||'').toLowerCase() === 'done').length;
+        const questionsAnswered = userScores.length;
+        const mocksTaken        = userMock.length;
+        const hasStarted        = questionsAnswered >= 1 || doneTasks >= 2 || mocksTaken >= 1;
+
+        // Which campaign would fire
+        let wouldSend = 'none';
+        let reason = '';
+        if (isPro && !hasStarted) {
+          if      (regDays >= 2 && regDays < 5)  wouldSend = 'P1';
+          else if (regDays >= 5 && regDays < 9)  wouldSend = 'P2';
+          else if (regDays >= 9 && regDays < 14) wouldSend = 'P3';
+          else reason = `Pro not activated but regDays=${regDays} outside P windows (2-14)`;
+        } else if (!isPro && !hasStarted) {
+          if      (regDays >= 3  && regDays < 7)  wouldSend = 'F1';
+          else if (regDays >= 7  && regDays < 12) wouldSend = 'F2';
+          else if (regDays >= 12 && regDays < 20) wouldSend = 'F3';
+          else reason = `Free not started but regDays=${regDays} outside F windows (3-20)`;
+        } else {
+          reason = `hasStarted=true (q=${questionsAnswered} tasks=${doneTasks} mock=${mocksTaken})`;
+        }
+
+        const alreadySent = wouldSend !== 'none' && sentLog.has(`${email}|${wouldSend}`);
+        if (alreadySent) reason = `already sent ${wouldSend} previously`;
+
         return {
-          email,
-          weekStartedRaw,
-          regDays,
-          tier: user.Tier || 'free',
-          week: user.Week,
-          questionsAnswered: userScores.length,
-          doneTasks,
-          wouldMatch: regDays >= 3 && regDays < 7 ? 'F1' :
-                      regDays >= 7 && regDays < 12 ? 'F2' :
-                      regDays >= 12 && regDays < 20 ? 'F3' : 'none in F range'
+          email, weekStartedRaw, regDays, tier, isPro,
+          questionsAnswered, doneTasks, mocksTaken, hasStarted,
+          wouldSend, alreadySent, reason: reason || null
         };
       });
       return res.json({ debug: true, users: debugInfo });

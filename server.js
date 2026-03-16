@@ -2064,6 +2064,62 @@ app.get('/api/tts/config', requireLogin, (req, res) => {
   res.json({ configured: !!process.env.ELEVENLABS_API_KEY, mode: 'server-side' });
 });
 
+// ── POST /api/mock/transcribe — Whisper-quality STT via ElevenLabs ──
+// Receives raw audio buffer, returns accurate transcript
+// Works identically on iOS, Android, desktop — no webkitSpeechRecognition needed
+app.post('/api/mock/transcribe', requireLogin, async (req, res) => {
+  try {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'stt_not_configured' });
+
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    await new Promise(resolve => req.on('end', resolve));
+    const audioBuffer = Buffer.concat(chunks);
+    if (!audioBuffer.length) return res.status(400).json({ error: 'No audio data' });
+
+    const contentType = req.headers['x-audio-type'] || 'audio/webm';
+    console.log(`🎤 Transcribe: ${audioBuffer.length} bytes [${contentType}]`);
+
+    const boundary = '----RoleKraftBoundary' + Date.now();
+    const part1 = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.webm"\r\nContent-Type: ${contentType}\r\n\r\n`
+    );
+    const part2 = Buffer.from(
+      `\r\n--${boundary}\r\nContent-Disposition: form-data; name="model_id"\r\n\r\nscribe_v1\r\n` +
+      `--${boundary}\r\nContent-Disposition: form-data; name="language_code"\r\n\r\nen\r\n` +
+      `--${boundary}--\r\n`
+    );
+    const body = Buffer.concat([part1, audioBuffer, part2]);
+
+    const https = require('https');
+    const transcript = await new Promise((resolve, reject) => {
+      const r2 = https.request({
+        hostname: 'api.elevenlabs.io', path: '/v1/speech-to-text', method: 'POST',
+        headers: { 'xi-api-key': apiKey, 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Content-Length': body.length }
+      }, (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (r.statusCode !== 200) { console.error('ElevenLabs STT', r.statusCode, data.slice(0,200)); reject(new Error('stt_upstream_' + r.statusCode)); }
+            else resolve(parsed.text || '');
+          } catch(e) { reject(e); }
+        });
+      });
+      r2.on('error', reject);
+      r2.write(body); r2.end();
+    });
+
+    console.log(`✅ Transcribed: "${transcript.slice(0, 80)}"`);
+    res.json({ text: transcript });
+  } catch(err) {
+    console.error('Transcribe error:', err.message);
+    res.status(500).json({ error: 'transcribe_failed' });
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // MOCK INTERVIEW ROUTES  (Pro + Premium)
 // ══════════════════════════════════════════════════════

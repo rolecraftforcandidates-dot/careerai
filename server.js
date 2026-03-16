@@ -2064,6 +2064,89 @@ app.get('/api/tts/config', requireLogin, (req, res) => {
   res.json({ configured: !!process.env.ELEVENLABS_API_KEY, mode: 'server-side' });
 });
 
+// ── POST /api/mock/transcribe — OpenAI Whisper STT ──
+// Receives raw audio buffer, returns accurate transcript
+// Works identically on iOS, Android, desktop — 75x cheaper than ElevenLabs STT
+app.post('/api/mock/transcribe', requireLogin, async (req, res) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'stt_not_configured', message: 'OPENAI_API_KEY not set' });
+
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    await new Promise(resolve => req.on('end', resolve));
+    const audioBuffer = Buffer.concat(chunks);
+    if (!audioBuffer.length) return res.status(400).json({ error: 'No audio data' });
+
+    const contentType = req.headers['x-audio-type'] || 'audio/webm';
+    // Pick filename extension based on mime type so Whisper identifies format correctly
+    const ext = contentType.includes('mp4') ? 'mp4'
+              : contentType.includes('ogg') ? 'ogg'
+              : contentType.includes('wav') ? 'wav'
+              : 'webm';
+
+    console.log(`🎤 Whisper transcribe: ${audioBuffer.length} bytes [${contentType}]`);
+
+    // Build multipart form for OpenAI Whisper API
+    const boundary = '----RoleKraftWhisper' + Date.now();
+    const part1 = Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="audio.${ext}"\r\n` +
+      `Content-Type: ${contentType}\r\n\r\n`
+    );
+    const part2 = Buffer.from(
+      `\r\n--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="model"\r\n\r\n` +
+      `whisper-1\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="language"\r\n\r\n` +
+      `en\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="response_format"\r\n\r\n` +
+      `json\r\n` +
+      `--${boundary}--\r\n`
+    );
+    const body = Buffer.concat([part1, audioBuffer, part2]);
+
+    const https = require('https');
+    const transcript = await new Promise((resolve, reject) => {
+      const r2 = https.request({
+        hostname: 'api.openai.com',
+        path: '/v1/audio/transcriptions',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': body.length
+        }
+      }, (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (r.statusCode !== 200) {
+              console.error('Whisper error', r.statusCode, data.slice(0, 200));
+              reject(new Error('whisper_upstream_' + r.statusCode));
+            } else {
+              resolve(parsed.text || '');
+            }
+          } catch(e) { reject(e); }
+        });
+      });
+      r2.on('error', reject);
+      r2.write(body);
+      r2.end();
+    });
+
+    console.log(`✅ Whisper transcribed: "${transcript.slice(0, 80)}"`);
+    res.json({ text: transcript });
+  } catch(err) {
+    console.error('Transcribe error:', err.message);
+    res.status(500).json({ error: 'transcribe_failed' });
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // MOCK INTERVIEW ROUTES  (Pro + Premium)
 // ══════════════════════════════════════════════════════

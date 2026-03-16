@@ -3720,6 +3720,8 @@ function setMockQuestionLoading() {
 
 var _mockPregenCache = null;   // { type, diff, numQ, promise, text, ttsBlob }
 var _mockPregenTimer = null;
+var _typewriterTimer = null;
+var _typewriterGen   = 0; // separate generation counter just for typewriter
 
 // Pre-generate Q1 in background as soon as user settles on settings
 // Called when any setup dropdown changes, debounced 600ms

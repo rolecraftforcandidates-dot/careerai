@@ -3188,8 +3188,9 @@ function showMockHome() {
   document.querySelectorAll('.mock-mode-btn').forEach(function(b){b.classList.remove('active');});
   document.getElementById('mockModeNow').classList.add('active');
   renderMockHistory();
-  // Re-sync free status from server so banner reflects latest usage
   syncMockFreeStatus(function() { refreshMockFreeUI(); });
+  // Pre-generate next Q1 in background so next session starts instantly
+  setTimeout(function() { triggerMockPregen(); }, 800);
 }
 
 // ── DATE GRID ──
@@ -3366,17 +3367,22 @@ function startMockInterview() {
   // Use pre-generated Q1 if available and config matches
   var cacheKey = type + '|' + diff + '|' + numQ;
   if (_mockPregenCache && _mockPregenCache.key === cacheKey && _mockPregenCache.text) {
-    // Q1 already ready — instant display
+    // Q1 text AND possibly TTS already ready — show instantly, no avatar/loading at all
     console.log('⚡ Using pre-generated Q1 — instant!');
     var pregenText = _mockPregenCache.text;
-    var pregenBlob = _mockPregenCache.ttsBlob || (useVoice ? prefetchTTS(pregenText) : null);
+    var pregenBlob = _mockPregenCache.ttsBlob || null;
     var s = _mockSession;
     s.history.push({ role: 'assistant', content: pregenText, isQuestion: true });
     s.questions[0] = pregenText;
+    // Show question card immediately — skip avatar entirely
+    var avatar = document.getElementById('mockThinkingAvatar');
+    var qCard  = document.getElementById('mockQCard');
+    if (avatar) avatar.classList.remove('active');
+    if (qCard)  qCard.style.display = 'block';
     setMockQuestion(pregenText, 0, pregenBlob);
-    _mockPregenCache = null; // consumed
+    _mockPregenCache = null;
   } else if (_mockPregenCache && _mockPregenCache.key === cacheKey && _mockPregenCache.promise) {
-    // Q1 in-flight — attach to existing promise instead of making new API call
+    // Q1 API call in-flight — show avatar briefly, attach to existing promise
     console.log('⚡ Q1 pre-gen in-flight — attaching...');
     setMockQuestionLoading();
     var capturedQ = _mockSession.currentQ;
@@ -3386,7 +3392,7 @@ function startMockInterview() {
       var s = _mockSession;
       s.history.push({ role: 'assistant', content: text, isQuestion: true });
       s.questions[0] = text;
-      var blobP = useVoice ? prefetchTTS(text) : null;
+      var blobP = useVoice ? (prefetchTTS(text)) : null;
       setMockQuestion(text, 0, blobP);
     }).catch(function() {
       if (!_mockSession) return;
@@ -3394,7 +3400,7 @@ function startMockInterview() {
     });
     _mockPregenCache = null;
   } else {
-    // No pre-gen available — normal flow
+    // No pre-gen — normal flow with avatar
     loadMockQuestion(0);
   }
 }
@@ -3689,10 +3695,12 @@ function setMockQuestionLoading() {
   // Cycling labels — makes the wait feel purposeful
   var label = document.getElementById('mockThinkingLabel');
   var labelSets = {
-    1: ['Reviewing your resume...', 'Crafting your first question...', 'Personalising to your role...'],
+    1: ['Reviewing your profile...', 'Crafting your first question...', 'Almost ready...'],
     other: [
-      'Reviewing your answer...', 'Preparing question ' + qNum + ' of ' + numQ + '...', 'Thinking about the next topic...',
-      'Selecting the best follow-up...', 'Adjusting to your level...'
+      'Preparing question ' + qNum + ' of ' + numQ + '...',
+      'Selecting the next topic...',
+      'Adjusting to your level...',
+      'Almost ready...'
     ]
   };
   var labels = qNum === 1 ? labelSets[1] : labelSets.other;
@@ -3734,7 +3742,6 @@ function triggerMockPregen() {
     var useVoice = (document.getElementById('mockVoice') || {}).value === 'on';
     var candidateName = ((document.getElementById('userName')||{}).textContent||'there').trim().split(' ')[0]||'there';
 
-    // Don't re-fetch if same config already cached or in-flight
     var cacheKey = type + '|' + diff + '|' + numQ;
     if (_mockPregenCache && _mockPregenCache.key === cacheKey && _mockPregenCache.promise) return;
 
@@ -3753,18 +3760,19 @@ function triggerMockPregen() {
     _mockPregenCache = { key: cacheKey, type: type, diff: diff, numQ: numQ, useVoice: useVoice, candidateName: candidateName, promise: promise, text: null, ttsBlob: null };
 
     promise.then(function(d) {
-      if (!_mockPregenCache || _mockPregenCache.key !== cacheKey) return; // stale
+      if (!_mockPregenCache || _mockPregenCache.key !== cacheKey) return;
       var text = cleanMockText(d.response);
       if (!text) return;
       _mockPregenCache.text = text;
       console.log('✅ Q1 pre-generated:', text.slice(0, 60) + '...');
-      // Also pre-fetch TTS if voice is on
+      // Immediately start TTS fetch in parallel — by the time user clicks Start, audio ready too
       if (useVoice) {
         _mockPregenCache.ttsBlob = prefetchTTS(text);
+        console.log('🔊 TTS pre-fetch started for Q1');
       }
     }).catch(function(e) {
       console.warn('Pre-gen failed (non-fatal):', e.message);
-      _mockPregenCache = null; // clear so it retries on start
+      _mockPregenCache = null;
     });
   }, 600);
 }
@@ -3781,24 +3789,26 @@ function setMockQuestion(text, idx, blobPromise) {
   if (qCard)  qCard.style.display = 'block';
   if (bar)    { bar.classList.remove('running'); bar.style.width = '0%'; }
 
+  // Always hide dots — avatar is the only loading state now
   var dots = document.getElementById('mockThinkingDots');
+  if (dots) dots.style.display = 'none';
   var hintCard = document.getElementById('mockHintCard');
   if (hintCard) hintCard.style.display = 'none';
 
   // Kill any running typewriter and blank the text
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
-  _typewriterGen++; // invalidate previous typewriter tick chain
-  var myGen = _typewriterGen; // capture NOW — before any async callbacks
+  _typewriterGen++;
+  var myGen = _typewriterGen; // capture NOW
   document.getElementById('mockQText').textContent = '';
 
   function startTypewriter() {
     var el = document.getElementById('mockQText');
     if (!el) return;
-    if (_typewriterGen !== myGen) return; // already invalidated before audio even played
+    if (_typewriterGen !== myGen) return;
     var i = 0;
     var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
     function tick() {
-      if (_typewriterGen !== myGen) return; // newer question took over — stop silently
+      if (_typewriterGen !== myGen) return;
       if (i <= text.length) {
         el.textContent = text.slice(0, i);
         i++;
@@ -3810,14 +3820,11 @@ function setMockQuestion(text, idx, blobPromise) {
 
   var useVoice = _mockSession && _mockSession.useVoice;
   if (useVoice) {
-    if (dots) dots.style.display = 'inline-flex';
-    speakMockText(text, blobPromise || null, function onPlay() {
-      if (_typewriterGen !== myGen) return; // skip happened while audio was loading
-      if (dots) dots.style.display = 'none';
-      startTypewriter();
-    });
+    // Start typewriter immediately — don't wait for audio to begin
+    // Audio plays in parallel; typewriter starts now so user sees text right away
+    startTypewriter();
+    speakMockText(text, blobPromise || null, null);
   } else {
-    if (dots) dots.style.display = 'none';
     startTypewriter();
   }
 }
@@ -4017,6 +4024,7 @@ function endMockEarly() {
 function endMockSession() {
   var s = _mockSession;
   _ttsAborted = true; // kill any pending API responses — session is over
+  _mockPregenCache = null; // clear so next session pre-generates fresh
   stopAllAudio();
 
   // Capture elapsed BEFORE stopMockTimer (which resets it for free users)

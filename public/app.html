@@ -366,8 +366,6 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 @keyframes avatarBreathe{0%,100%{transform:scale(1);opacity:0.9}50%{transform:scale(1.04);opacity:1}}
 @keyframes thinkingPulse{0%,100%{opacity:0.4}50%{opacity:1}}
 @keyframes thinkingBar{0%{width:0%}100%{width:100%}}
-.mock-thinking-avatar{display:none;flex-direction:column;align-items:center;padding:28px 20px 22px;gap:0}
-.mock-thinking-avatar.active{display:flex}
 .mock-avatar-ring{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--teal),#5048e5);display:flex;align-items:center;justify-content:center;animation:avatarBreathe 2.5s ease-in-out infinite;position:relative;flex-shrink:0}
 .mock-avatar-ring::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(0,179,138,0.3);animation:avatarBreathe 2.5s ease-in-out infinite 0.5s}
 .mock-avatar-initials{font-size:1.5rem;font-weight:800;color:white;letter-spacing:1px}
@@ -375,6 +373,12 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 .mock-thinking-bar{width:160px;height:3px;background:var(--border);border-radius:3px;margin-top:10px;overflow:hidden}
 .mock-thinking-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),#5048e5);border-radius:3px;width:0%}
 .mock-thinking-bar-fill.running{animation:thinkingBar 2.5s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){
+  .mock-avatar-ring,.mock-avatar-ring::after,.mock-thinking-label,.mock-thinking-bar-fill.running{animation:none}
+  .mock-avatar-ring{opacity:1;transform:none}
+  .mock-thinking-label{opacity:0.7}
+  .mock-thinking-bar-fill.running{width:60%}
+}
 .mock-timer{font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:700;color:#00e5a0;letter-spacing:3px}
 .mock-q-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px;border-left:4px solid var(--teal)}
 .mock-q-num{font-size:0.68rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--teal);margin-bottom:8px}
@@ -976,7 +980,7 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
           </div>
 
           <!-- Interviewer thinking avatar — shown while loading any question -->
-          <div class="mock-q-card mock-thinking-avatar" id="mockThinkingAvatar">
+          <div id="mockThinkingAvatar" style="display:none;flex-direction:column;align-items:center;padding:28px 20px 22px;gap:0;background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:16px">
             <div class="mock-avatar-ring">
               <span class="mock-avatar-initials" id="mockAvatarInitials">AI</span>
             </div>
@@ -3320,13 +3324,22 @@ function startMockInterview() {
   var useVoice = document.getElementById('mockVoice').value === 'on';
   var candidateName = ((document.getElementById('userName')||{}).textContent||'there').trim().split(' ')[0]||'there';
 
-  // ── iOS TTS unlock: iOS blocks speechSynthesis unless triggered by a direct user tap.
-  // Speaking an empty utterance here (inside the button click handler) unlocks it for
-  // all subsequent calls in this session.
-  if (useVoice && window.speechSynthesis) {
-    var unlock = new SpeechSynthesisUtterance('');
-    unlock.volume = 0;
-    speechSynthesis.speak(unlock);
+  // ── iOS audio unlock — must happen inside a direct user tap (Start button click)
+  // iOS Safari/Chrome blocks Audio() autoplay unless triggered this way
+  if (useVoice) {
+    // Unlock Web Speech API
+    if (window.speechSynthesis) {
+      var unlock = new SpeechSynthesisUtterance('');
+      unlock.volume = 0;
+      speechSynthesis.speak(unlock);
+    }
+    // Unlock HTMLAudioElement (needed for ElevenLabs Audio() playback on iOS)
+    try {
+      var silentAudio = new Audio();
+      silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      silentAudio.volume = 0;
+      silentAudio.play().catch(function(){});
+    } catch(e) {}
   }
 
   // Pre-load ElevenLabs config (key + voice ID) from server so first question is ready
@@ -3377,7 +3390,7 @@ function startMockInterview() {
     // Show question card immediately — skip avatar entirely
     var avatar = document.getElementById('mockThinkingAvatar');
     var qCard  = document.getElementById('mockQCard');
-    if (avatar) avatar.classList.remove('active');
+    if (avatar) avatar.style.display='none';
     if (qCard)  qCard.style.display = 'block';
     setMockQuestion(pregenText, 0, pregenBlob);
     _mockPregenCache = null;
@@ -3682,7 +3695,7 @@ function setMockQuestionLoading() {
   var qCard = document.getElementById('mockQCard');
   var avatar = document.getElementById('mockThinkingAvatar');
   if (qCard) qCard.style.display = 'none';
-  if (avatar) avatar.classList.add('active');
+  if (avatar) avatar.style.display='flex';
 
   // Set avatar initials from interviewer name
   var initials = document.getElementById('mockAvatarInitials');
@@ -3711,7 +3724,7 @@ function setMockQuestionLoading() {
   if (window._thinkingLabelTimer) clearInterval(window._thinkingLabelTimer);
   window._thinkingLabelTimer = setInterval(function() {
     if (!document.getElementById('mockThinkingAvatar') ||
-        !document.getElementById('mockThinkingAvatar').classList.contains('active')) {
+        document.getElementById('mockThinkingAvatar').style.display === 'none') {
       clearInterval(window._thinkingLabelTimer);
       return;
     }
@@ -3801,7 +3814,7 @@ function setMockQuestion(text, idx, blobPromise) {
     // Hide avatar, show question card
     var avatar = document.getElementById('mockThinkingAvatar');
     var qCard  = document.getElementById('mockQCard');
-    if (avatar) avatar.classList.remove('active');
+    if (avatar) avatar.style.display='none';
     if (qCard)  qCard.style.display = 'block';
 
     if (_typewriterGen !== myGen) return;
@@ -3828,7 +3841,7 @@ function setMockQuestion(text, idx, blobPromise) {
       // Q1: text + audio both pre-fetched — reveal immediately in sync
       var avatar = document.getElementById('mockThinkingAvatar');
       var qCard  = document.getElementById('mockQCard');
-      if (avatar) avatar.classList.remove('active');
+      if (avatar) avatar.style.display='none';
       if (qCard)  qCard.style.display = 'block';
       revealQuestion();
       speakMockText(text, blobPromise || null, null);
@@ -3844,7 +3857,7 @@ function setMockQuestion(text, idx, blobPromise) {
     // No voice — hide avatar and show text immediately
     var avatar = document.getElementById('mockThinkingAvatar');
     var qCard  = document.getElementById('mockQCard');
-    if (avatar) avatar.classList.remove('active');
+    if (avatar) avatar.style.display='none';
     if (qCard)  qCard.style.display = 'block';
     revealQuestion();
   }
@@ -4214,7 +4227,7 @@ function stopAllAudio() {
   var avatar = document.getElementById('mockThinkingAvatar');
   var qCard  = document.getElementById('mockQCard');
   var bar    = document.getElementById('mockThinkingBarFill');
-  if (avatar) avatar.classList.remove('active');
+  if (avatar) avatar.style.display='none';
   if (qCard)  { qCard.style.display = 'block'; }
   if (bar)    { bar.classList.remove('running'); bar.style.width = '0%'; }
   var el = document.getElementById('mockQText');

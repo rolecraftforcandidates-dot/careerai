@@ -3715,7 +3715,7 @@ function loadMockQuestion(idx) {
   document.getElementById('mockAnswerBox').style.display = '';
   document.getElementById('mockWordCount').textContent = '0 words';
   _srFinalText = '';
-  // Reset mic UI state
+  // Reset mic UI
   showRecordingUI(false);
   showTranscribingUI(false);
   stopRecTimer();
@@ -3727,8 +3727,12 @@ function loadMockQuestion(idx) {
   document.getElementById('mockNextBtn').style.display = 'none';
   document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
 
+  // Avatar is already showing from caller (skipMockQuestion/startMockInterview)
+  // Only call showAvatarWithLabels here for Q1 (direct start) where no caller set it
   var action = (idx === 0) ? 'start' : 'next';
-  setMockQuestionLoading();
+  if (idx === 0) {
+    showAvatarWithLabels(1, s.numQ);
+  }
 
   // Capture the question index at call time — guard against stale responses
   // if user skips again before this response arrives
@@ -3920,12 +3924,9 @@ function setMockQuestion(text, idx, blobPromise) {
       });
     }
   } else {
-    // No voice — show avatar briefly (400ms) then reveal text smoothly
-    // This ensures the avatar is always visible during API wait
-    setTimeout(function() {
-      if (_typewriterGen !== myGen) return;
-      revealQuestion();
-    }, 400);
+    // No voice — reveal text immediately
+    // Avatar was already shown by setMockQuestionLoading() before this was called
+    revealQuestion();
   }
 }
 
@@ -4054,30 +4055,50 @@ function showMockNextBtn(isLast) {
     nBtn.style.display = 'inline-flex';
     nBtn.onclick = isLast
       ? function() { endMockSession(); }
-      : function() {
-          // Immediately hide feedback and show avatar so user sees transition right away
-          document.getElementById('mockFeedbackBox').style.display = 'none';
-          document.getElementById('mockAnswerBox').value = '';
-          document.getElementById('mockAnswerBox').style.display = '';
-          document.getElementById('mockWordCount').textContent = '0 words';
-          nBtn.style.display = 'none';
-          setMockQuestionLoading();
-          nextMockQuestion();
-        };
+      : function() { nextMockQuestion(); };
   }
   document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'none');
 }
 
+// Show avatar with cycling labels — centralised so all flows use same logic
+function showAvatarWithLabels(qNum, numQ) {
+  var qCard  = document.getElementById('mockQCard');
+  var avatar = document.getElementById('mockThinkingAvatar');
+  var bar    = document.getElementById('mockThinkingBarFill');
+  if (qCard)  qCard.style.display  = 'none';
+  if (avatar) avatar.style.display = 'flex';
+  if (bar)    { bar.style.width = '0%'; bar.classList.add('running'); }
+
+  var labelEl = document.getElementById('mockThinkingLabel');
+  var labels = qNum === 1
+    ? ['Reviewing your resume...', 'Personalising to your role...', 'Crafting your first question...', 'Almost ready...']
+    : ['Reviewing your answer...', 'Preparing question ' + qNum + ' of ' + numQ + '...', 'Selecting the next topic...', 'Adjusting to your level...', 'Almost ready...'];
+
+  var idx = 0;
+  if (labelEl) labelEl.textContent = labels[0];
+  if (window._thinkingLabelTimer) clearInterval(window._thinkingLabelTimer);
+  window._thinkingLabelTimer = setInterval(function() {
+    var av = document.getElementById('mockThinkingAvatar');
+    if (!av || av.style.display === 'none') { clearInterval(window._thinkingLabelTimer); return; }
+    idx = (idx + 1) % labels.length;
+    if (labelEl) labelEl.textContent = labels[idx];
+  }, 1800);
+
+  // Hide dots and hint
+  var dots = document.getElementById('mockThinkingDots');
+  if (dots) dots.style.display = 'none';
+  var hintCard = document.getElementById('mockHintCard');
+  if (hintCard) hintCard.style.display = 'none';
+}
+
 function skipMockQuestion() {
-  stopAllAudio(); // immediately kill audio + typewriter
+  stopAllAudio();
   var s = _mockSession;
   s.questions[s.currentQ] = s.questions[s.currentQ] || '(skipped)';
   s.answers[s.currentQ]   = '(skipped)';
   s.scores[s.currentQ]    = 0;
   s.feedbacks[s.currentQ] = 'Question skipped.';
-  // Fire skip action to API (non-blocking) so history stays consistent
   callMockChat('skip', 'I want to skip this question').catch(function(){});
-  // Always load a fresh question — never reuse current question from history
   s.currentQ++;
   if (s.currentQ >= s.numQ) { endMockSession(); return; }
   document.getElementById('mockLiveQProg').textContent = 'Q ' + (s.currentQ+1) + ' of ' + s.numQ;
@@ -4085,45 +4106,40 @@ function skipMockQuestion() {
   document.getElementById('mockFeedbackBox').style.display = 'none';
   document.getElementById('mockSubmitBtn').disabled = false;
   document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockAnswerBox').style.display = '';
   document.getElementById('mockWordCount').textContent = '0 words';
   _srFinalText = '';
   document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
   document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
-  setMockQuestionLoading();
-  loadMockQuestion(s.currentQ); // always fresh — never take from history on skip
+  showAvatarWithLabels(s.currentQ + 1, s.numQ);
+  loadMockQuestion(s.currentQ);
 }
 
 function nextMockQuestion() {
   var s = _mockSession;
   s.currentQ++;
-  if (s.currentQ >= s.numQ) {
-    endMockSession();
-    return;
-  }
+  if (s.currentQ >= s.numQ) { endMockSession(); return; }
+
   document.getElementById('mockLiveQProg').textContent = 'Q ' + (s.currentQ+1) + ' of ' + s.numQ;
   document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
   document.getElementById('mockFeedbackBox').style.display = 'none';
   document.getElementById('mockSubmitBtn').disabled = false;
-
-  // For Q2+: the follow-up question was already delivered in the previous callMockChat response
-  // Just reset the answer box and re-speak the last interviewer message
   document.getElementById('mockAnswerBox').value = '';
+  document.getElementById('mockAnswerBox').style.display = '';
   document.getElementById('mockWordCount').textContent = '0 words';
   _srFinalText = '';
   document.getElementById('mockNextBtn') && (document.getElementById('mockNextBtn').style.display = 'none');
   document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'inline-flex');
 
-  // If no new question was pushed into history by the last chat response, fetch one
+  // Always show avatar with correct labels for this question number
+  showAvatarWithLabels(s.currentQ + 1, s.numQ);
+
+  // If question already in history, show it after brief avatar display
   var lastMsg = s.history[s.history.length - 1];
   if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isQuestion) {
     var q = lastMsg.content;
     s.questions[s.currentQ] = q;
-    document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
-    setMockQuestionLoading(); // show avatar immediately
     var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
-    // Call setMockQuestion immediately — it handles timing internally:
-    // voice mode: avatar stays until audio ready (3-4s)
-    // no-voice: avatar shows 400ms then text appears
     setMockQuestion(q, s.currentQ, blobP);
   } else {
     loadMockQuestion(s.currentQ);

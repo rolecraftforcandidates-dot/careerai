@@ -3782,14 +3782,10 @@ function setMockQuestion(text, idx, blobPromise) {
 
   // Stop cycling labels + hide avatar, show question card
   if (window._thinkingLabelTimer) { clearInterval(window._thinkingLabelTimer); window._thinkingLabelTimer = null; }
-  var avatar = document.getElementById('mockThinkingAvatar');
-  var qCard  = document.getElementById('mockQCard');
-  var bar    = document.getElementById('mockThinkingBarFill');
-  if (avatar) avatar.classList.remove('active');
-  if (qCard)  qCard.style.display = 'block';
-  if (bar)    { bar.classList.remove('running'); bar.style.width = '0%'; }
+  var bar = document.getElementById('mockThinkingBarFill');
+  if (bar) { bar.classList.remove('running'); bar.style.width = '0%'; }
 
-  // Always hide dots — avatar is the only loading state now
+  // Always hide dots
   var dots = document.getElementById('mockThinkingDots');
   if (dots) dots.style.display = 'none';
   var hintCard = document.getElementById('mockHintCard');
@@ -3798,13 +3794,19 @@ function setMockQuestion(text, idx, blobPromise) {
   // Kill any running typewriter and blank the text
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
   _typewriterGen++;
-  var myGen = _typewriterGen; // capture NOW
+  var myGen = _typewriterGen;
   document.getElementById('mockQText').textContent = '';
 
-  function startTypewriter() {
+  function revealQuestion() {
+    // Hide avatar, show question card
+    var avatar = document.getElementById('mockThinkingAvatar');
+    var qCard  = document.getElementById('mockQCard');
+    if (avatar) avatar.classList.remove('active');
+    if (qCard)  qCard.style.display = 'block';
+
+    if (_typewriterGen !== myGen) return;
     var el = document.getElementById('mockQText');
     if (!el) return;
-    if (_typewriterGen !== myGen) return;
     var i = 0;
     var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
     function tick() {
@@ -3819,13 +3821,32 @@ function setMockQuestion(text, idx, blobPromise) {
   }
 
   var useVoice = _mockSession && _mockSession.useVoice;
+  var isQ1 = (idx === 0);
+
   if (useVoice) {
-    // Start typewriter immediately — don't wait for audio to begin
-    // Audio plays in parallel; typewriter starts now so user sees text right away
-    startTypewriter();
-    speakMockText(text, blobPromise || null, null);
+    if (isQ1) {
+      // Q1: text + audio both pre-fetched — reveal immediately in sync
+      var avatar = document.getElementById('mockThinkingAvatar');
+      var qCard  = document.getElementById('mockQCard');
+      if (avatar) avatar.classList.remove('active');
+      if (qCard)  qCard.style.display = 'block';
+      revealQuestion();
+      speakMockText(text, blobPromise || null, null);
+    } else {
+      // Q2+: keep avatar visible while audio loads, reveal text + play audio together
+      // Avatar is already showing from setMockQuestionLoading
+      speakMockText(text, blobPromise || null, function onAudioReady() {
+        if (_typewriterGen !== myGen) return;
+        revealQuestion(); // show text exactly when audio starts playing
+      });
+    }
   } else {
-    startTypewriter();
+    // No voice — hide avatar and show text immediately
+    var avatar = document.getElementById('mockThinkingAvatar');
+    var qCard  = document.getElementById('mockQCard');
+    if (avatar) avatar.classList.remove('active');
+    if (qCard)  qCard.style.display = 'block';
+    revealQuestion();
   }
 }
 

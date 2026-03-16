@@ -3327,19 +3327,17 @@ function startMockInterview() {
   // ── iOS audio unlock — must happen inside a direct user tap (Start button click)
   // iOS Safari/Chrome blocks Audio() autoplay unless triggered this way
   if (useVoice) {
-    // Unlock Web Speech API
+    // Create/resume AudioContext inside user gesture — stays unlocked for whole session
+    try {
+      var ctx = getAudioCtx();
+      if (ctx.state === 'suspended') ctx.resume().catch(function(){});
+    } catch(e) {}
+    // Also unlock Web Speech API
     if (window.speechSynthesis) {
       var unlock = new SpeechSynthesisUtterance('');
       unlock.volume = 0;
       speechSynthesis.speak(unlock);
     }
-    // Unlock HTMLAudioElement (needed for ElevenLabs Audio() playback on iOS)
-    try {
-      var silentAudio = new Audio();
-      silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      silentAudio.volume = 0;
-      silentAudio.play().catch(function(){});
-    } catch(e) {}
   }
 
   // Pre-load ElevenLabs config (key + voice ID) from server so first question is ready
@@ -4223,19 +4221,67 @@ function stopAllAudio() {
   _typewriterGen++;
   if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
   if (window._thinkingLabelTimer) { clearInterval(window._thinkingLabelTimer); window._thinkingLabelTimer = null; }
-  // Hide avatar, show blank question card
+  stopAudioCtxSource();
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
+  if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+  // Hide avatar, blank question text
   var avatar = document.getElementById('mockThinkingAvatar');
   var qCard  = document.getElementById('mockQCard');
   var bar    = document.getElementById('mockThinkingBarFill');
-  if (avatar) avatar.style.display='none';
-  if (qCard)  { qCard.style.display = 'block'; }
+  if (avatar) avatar.style.display = 'none';
+  if (qCard)  qCard.style.display = 'block';
   if (bar)    { bar.classList.remove('running'); bar.style.width = '0%'; }
   var el = document.getElementById('mockQText');
   if (el) el.textContent = '';
   var dots = document.getElementById('mockThinkingDots');
   if (dots) dots.style.display = 'none';
-  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
-  if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
+}
+// AudioContext stays unlocked once created inside a user gesture (Start button tap)
+// Unlike new Audio(), it doesn't get suspended between async calls on iOS
+var _audioCtx = null;
+var _audioSource = null;
+
+function getAudioCtx() {
+  if (!_audioCtx || _audioCtx.state === 'closed') {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume().catch(function(){});
+  }
+  return _audioCtx;
+}
+
+function stopAudioCtxSource() {
+  if (_audioSource) {
+    try { _audioSource.stop(); } catch(e) {}
+    _audioSource.disconnect();
+    _audioSource = null;
+  }
+}
+
+function playBlobWithAudioCtx(blob, onPlay, onEnded, onError) {
+  var ctx = getAudioCtx();
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    ctx.decodeAudioData(e.target.result, function(buffer) {
+      stopAudioCtxSource();
+      var source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      _audioSource = source;
+      if (onPlay) onPlay();
+      source.onended = function() {
+        _audioSource = null;
+        if (onEnded) onEnded();
+      };
+      source.start(0);
+    }, function(err) {
+      console.warn('AudioContext decode failed:', err);
+      if (onError) onError();
+    });
+  };
+  reader.onerror = function() { if (onError) onError(); };
+  reader.readAsArrayBuffer(blob);
 }
 
 // ── prefetchTTS — start fetching audio immediately, returns Promise<blob|null> ──
@@ -4258,20 +4304,18 @@ function prefetchTTS(text) {
   });
 }
 
-// ── speakMockText — generation-guarded so skip/next never overlaps previous audio ──
-// Browser TTS fallback removed — ElevenLabs only. On failure, typewriter still runs.
+// ── speakMockText — generation-guarded, iOS-safe via AudioContext ──
 function speakMockText(text, blobPromise, onPlay) {
   if (!_mockSession || !_mockSession.useVoice || !text) {
-    if (onPlay) onPlay(); // no voice — still trigger typewriter
+    if (onPlay) onPlay();
     return;
   }
 
   // Stop anything currently playing
+  stopAudioCtxSource();
   if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch(e){} }
 
-  // Tag this call with a generation number — if a newer call arrives before this
-  // promise resolves, myGeneration !== _ttsGeneration and we discard silently
   _ttsAborted = false;
   _ttsGeneration++;
   var myGeneration = _ttsGeneration;
@@ -4282,32 +4326,44 @@ function speakMockText(text, blobPromise, onPlay) {
   var promise = blobPromise || prefetchTTS(clean);
 
   promise.then(function(blob) {
-    // Stale — a newer question was requested while this was fetching
     if (_ttsAborted || _ttsGeneration !== myGeneration) return;
 
     if (!blob) {
-      // ElevenLabs failed — start typewriter silently, no robotic fallback
       if (onPlay) onPlay();
       return;
     }
 
-    var url = URL.createObjectURL(blob);
-    var audio = new Audio(url);
-    _ttsAudio = audio;
+    if (_ttsAborted || _ttsGeneration !== myGeneration) return;
 
-    audio.onplay  = function() { if (onPlay) onPlay(); };
-    audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
-    audio.onerror = function() {
-      URL.revokeObjectURL(url); _ttsAudio = null;
-      if (onPlay) onPlay(); // audio failed — still start typewriter
-    };
-
-    // One final stale check before playing
-    if (_ttsAborted || _ttsGeneration !== myGeneration) { URL.revokeObjectURL(url); return; }
-
-    audio.play().catch(function() {
-      if (onPlay) onPlay(); // autoplay blocked — still show typewriter
-    });
+    // Try AudioContext first (iOS-safe), fallback to Audio() for desktop
+    var useAudioCtx = !!(window.AudioContext || window.webkitAudioContext);
+    if (useAudioCtx) {
+      playBlobWithAudioCtx(blob,
+        function onStart() { if (_ttsGeneration === myGeneration && onPlay) onPlay(); },
+        function onEnd()   { /* nothing needed */ },
+        function onErr()   {
+          // AudioContext failed — fallback to Audio()
+          console.warn('AudioContext playback failed, trying Audio()');
+          var url = URL.createObjectURL(blob);
+          var audio = new Audio(url);
+          _ttsAudio = audio;
+          audio.onplay  = function() { if (onPlay) onPlay(); };
+          audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
+          audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; if (onPlay) onPlay(); };
+          audio.play().catch(function() { if (onPlay) onPlay(); });
+        }
+      );
+    } else {
+      // Older browser — use Audio() directly
+      var url = URL.createObjectURL(blob);
+      var audio = new Audio(url);
+      _ttsAudio = audio;
+      audio.onplay  = function() { if (onPlay) onPlay(); };
+      audio.onended = function() { URL.revokeObjectURL(url); _ttsAudio = null; };
+      audio.onerror = function() { URL.revokeObjectURL(url); _ttsAudio = null; if (onPlay) onPlay(); };
+      if (_ttsAborted || _ttsGeneration !== myGeneration) { URL.revokeObjectURL(url); return; }
+      audio.play().catch(function() { if (onPlay) onPlay(); });
+    }
   });
 }
 

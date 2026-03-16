@@ -3439,12 +3439,12 @@ function startMockInterview() {
     var s = _mockSession;
     s.history.push({ role: 'assistant', content: pregenText, isQuestion: true });
     s.questions[0] = pregenText;
-    // Show avatar briefly for smooth UX transition then reveal question
-    setMockQuestionLoading();
-    setTimeout(function() {
-      if (!_mockSession) return;
-      setMockQuestion(pregenText, 0, pregenBlob);
-    }, 600);
+    // Q1 is ready — no avatar, show question + play audio immediately
+    var avatar = document.getElementById('mockThinkingAvatar');
+    var qCard  = document.getElementById('mockQCard');
+    if (avatar) avatar.style.display = 'none';
+    if (qCard)  qCard.style.display  = 'block';
+    setMockQuestion(pregenText, 0, pregenBlob);
     _mockPregenCache = null;
   } else if (_mockPregenCache && _mockPregenCache.key === cacheKey && _mockPregenCache.promise) {
     // Q1 API call in-flight — show avatar briefly, attach to existing promise
@@ -4052,7 +4052,18 @@ function showMockNextBtn(isLast) {
   if (nBtn) {
     nBtn.innerHTML = isLast ? 'See Results &#127942;' : 'Next Question &#8594;';
     nBtn.style.display = 'inline-flex';
-    nBtn.onclick = isLast ? function() { endMockSession(); } : function() { nextMockQuestion(); };
+    nBtn.onclick = isLast
+      ? function() { endMockSession(); }
+      : function() {
+          // Immediately hide feedback and show avatar so user sees transition right away
+          document.getElementById('mockFeedbackBox').style.display = 'none';
+          document.getElementById('mockAnswerBox').value = '';
+          document.getElementById('mockAnswerBox').style.display = '';
+          document.getElementById('mockWordCount').textContent = '0 words';
+          nBtn.style.display = 'none';
+          setMockQuestionLoading();
+          nextMockQuestion();
+        };
   }
   document.getElementById('mockHintBtn') && (document.getElementById('mockHintBtn').style.display = 'none');
 }
@@ -4108,7 +4119,11 @@ function nextMockQuestion() {
     var q = lastMsg.content;
     s.questions[s.currentQ] = q;
     document.getElementById('mockQNum').textContent = 'QUESTION ' + (s.currentQ+1) + ' OF ' + s.numQ;
+    setMockQuestionLoading(); // show avatar immediately
     var blobP = (_mockSession && _mockSession.useVoice) ? prefetchTTS(q) : null;
+    // Call setMockQuestion immediately — it handles timing internally:
+    // voice mode: avatar stays until audio ready (3-4s)
+    // no-voice: avatar shows 400ms then text appears
     setMockQuestion(q, s.currentQ, blobP);
   } else {
     loadMockQuestion(s.currentQ);

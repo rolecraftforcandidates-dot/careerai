@@ -3540,7 +3540,7 @@ function toggleMockMic() {
         if (MediaRecorder.isTypeSupported(mimeOptions[i])) { mimeType = mimeOptions[i]; break; }
       }
 
-      _mediaRecorder = new MediaRecorder(mimeType ? { mimeType: mimeType } : {});
+      _mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
 
       _mediaRecorder.ondataavailable = function(e) {
         if (e.data && e.data.size > 0) _audioChunks.push(e.data);
@@ -3612,7 +3612,14 @@ function toggleMockMic() {
       _mediaRecorder.start(250);
     })
     .catch(function(err) {
-      showMockMicToast('Microphone access denied. Please allow microphone access in your browser settings.');
+      console.warn('Mic error:', err.name, err.message);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showMockMicToast('Microphone access denied. Please allow microphone access in your browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        showMockMicToast('No microphone found. Please connect a microphone and try again.');
+      } else {
+        showMockMicToast('Could not access microphone: ' + (err.message || err.name) + '. Please try again.');
+      }
     });
 }
 

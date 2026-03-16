@@ -3433,19 +3433,18 @@ function startMockInterview() {
   // Use pre-generated Q1 if available and config matches
   var cacheKey = type + '|' + diff + '|' + numQ;
   if (_mockPregenCache && _mockPregenCache.key === cacheKey && _mockPregenCache.text) {
-    // Q1 text AND possibly TTS already ready — show instantly, no avatar/loading at all
     console.log('⚡ Using pre-generated Q1 — instant!');
     var pregenText = _mockPregenCache.text;
     var pregenBlob = _mockPregenCache.ttsBlob || null;
     var s = _mockSession;
     s.history.push({ role: 'assistant', content: pregenText, isQuestion: true });
     s.questions[0] = pregenText;
-    // Show question card immediately — skip avatar entirely
-    var avatar = document.getElementById('mockThinkingAvatar');
-    var qCard  = document.getElementById('mockQCard');
-    if (avatar) avatar.style.display='none';
-    if (qCard)  qCard.style.display = 'block';
-    setMockQuestion(pregenText, 0, pregenBlob);
+    // Show avatar briefly for smooth UX transition then reveal question
+    setMockQuestionLoading();
+    setTimeout(function() {
+      if (!_mockSession) return;
+      setMockQuestion(pregenText, 0, pregenBlob);
+    }, 600);
     _mockPregenCache = null;
   } else if (_mockPregenCache && _mockPregenCache.key === cacheKey && _mockPregenCache.promise) {
     // Q1 API call in-flight — show avatar briefly, attach to existing promise
@@ -3781,11 +3780,17 @@ function setMockQuestionLoading() {
   // Cycling labels — makes the wait feel purposeful
   var label = document.getElementById('mockThinkingLabel');
   var labelSets = {
-    1: ['Reviewing your profile...', 'Crafting your first question...', 'Almost ready...'],
+    1: [
+      'Reviewing your resume...',
+      'Personalising to your role...',
+      'Crafting your first question...',
+      'Almost ready...'
+    ],
     other: [
+      'Reviewing your answer...',
       'Preparing question ' + qNum + ' of ' + numQ + '...',
       'Selecting the next topic...',
-      'Adjusting to your level...',
+      'Adjusting difficulty to your level...',
       'Almost ready...'
     ]
   };
@@ -3866,15 +3871,14 @@ function triggerMockPregen() {
 function setMockQuestion(text, idx, blobPromise) {
   text = cleanMockText(text);
 
-  // Stop cycling labels + hide avatar, show question card
+  // Stop cycling labels and progress bar
   if (window._thinkingLabelTimer) { clearInterval(window._thinkingLabelTimer); window._thinkingLabelTimer = null; }
   var bar = document.getElementById('mockThinkingBarFill');
   if (bar) { bar.classList.remove('running'); bar.style.width = '0%'; }
 
-  // Always hide dots
-  var dots = document.getElementById('mockThinkingDots');
-  if (dots) dots.style.display = 'none';
+  var dots    = document.getElementById('mockThinkingDots');
   var hintCard = document.getElementById('mockHintCard');
+  if (dots)     dots.style.display = 'none';
   if (hintCard) hintCard.style.display = 'none';
 
   // Kill any running typewriter and blank the text
@@ -3884,12 +3888,10 @@ function setMockQuestion(text, idx, blobPromise) {
   document.getElementById('mockQText').textContent = '';
 
   function revealQuestion() {
-    // Hide avatar, show question card
     var avatar = document.getElementById('mockThinkingAvatar');
     var qCard  = document.getElementById('mockQCard');
-    if (avatar) avatar.style.display='none';
-    if (qCard)  qCard.style.display = 'block';
-
+    if (avatar) avatar.style.display = 'none';
+    if (qCard)  qCard.style.display  = 'block';
     if (_typewriterGen !== myGen) return;
     var el = document.getElementById('mockQText');
     if (!el) return;
@@ -3897,42 +3899,33 @@ function setMockQuestion(text, idx, blobPromise) {
     var speed = Math.max(16, Math.min(40, Math.round(4000 / Math.max(text.length, 1))));
     function tick() {
       if (_typewriterGen !== myGen) return;
-      if (i <= text.length) {
-        el.textContent = text.slice(0, i);
-        i++;
-        _typewriterTimer = setTimeout(tick, speed);
-      }
+      if (i <= text.length) { el.textContent = text.slice(0, i); i++; _typewriterTimer = setTimeout(tick, speed); }
     }
     tick();
   }
 
   var useVoice = _mockSession && _mockSession.useVoice;
-  var isQ1 = (idx === 0);
+  var isQ1     = (idx === 0);
 
   if (useVoice) {
     if (isQ1) {
-      // Q1: text + audio both pre-fetched — reveal immediately in sync
-      var avatar = document.getElementById('mockThinkingAvatar');
-      var qCard  = document.getElementById('mockQCard');
-      if (avatar) avatar.style.display='none';
-      if (qCard)  qCard.style.display = 'block';
+      // Q1 pre-generated — reveal instantly, audio plays in parallel
       revealQuestion();
       speakMockText(text, blobPromise || null, null);
     } else {
-      // Q2+: keep avatar visible while audio loads, reveal text + play audio together
-      // Avatar is already showing from setMockQuestionLoading
+      // Q2+: avatar stays visible while TTS audio loads, reveal both together
       speakMockText(text, blobPromise || null, function onAudioReady() {
         if (_typewriterGen !== myGen) return;
-        revealQuestion(); // show text exactly when audio starts playing
+        revealQuestion();
       });
     }
   } else {
-    // No voice — hide avatar and show text immediately
-    var avatar = document.getElementById('mockThinkingAvatar');
-    var qCard  = document.getElementById('mockQCard');
-    if (avatar) avatar.style.display='none';
-    if (qCard)  qCard.style.display = 'block';
-    revealQuestion();
+    // No voice — show avatar briefly (400ms) then reveal text smoothly
+    // This ensures the avatar is always visible during API wait
+    setTimeout(function() {
+      if (_typewriterGen !== myGen) return;
+      revealQuestion();
+    }, 400);
   }
 }
 

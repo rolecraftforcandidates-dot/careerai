@@ -405,6 +405,12 @@
     .btn-primary { padding: 14px 24px; font-size: 0.95rem; }
     .cta-section { padding: 80px 6%; }
   }
+  /* Mock Interview Demo animations */
+  @keyframes livePulse{0%,100%{opacity:0.5;transform:scale(0.95)}50%{opacity:1;transform:scale(1.05)}}
+  @keyframes avatarPulse{0%,100%{transform:scale(1);opacity:0.85}50%{transform:scale(1.05);opacity:1}}
+  @keyframes textFade{0%,100%{opacity:0.4}50%{opacity:1}}
+  @keyframes waveAnim{0%,100%{transform:scaleY(0.25)}50%{transform:scaleY(1)}}
+  @keyframes demoBarFill{from{width:0%}to{width:var(--target-w)}}
 </style>
 </head>
 <body>
@@ -631,6 +637,108 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- MOCK INTERVIEW DEMO — animated product preview -->
+<section style="background:#0a0a14;padding:100px 6%;overflow:hidden;position:relative">
+  <!-- Background glow -->
+  <div style="position:absolute;top:10%;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(0,179,138,0.12) 0%,transparent 70%);pointer-events:none"></div>
+
+  <div style="max-width:1100px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:56px">
+      <div class="section-tag reveal" style="color:#00b38a;border-color:rgba(0,179,138,0.3)">// Live Demo</div>
+      <h2 class="section-title reveal" style="color:#fff">SEE THE AI INTERVIEWER<br><span style="color:#00b38a">IN ACTION</span></h2>
+      <p class="section-desc reveal" style="color:#8888aa">Watch a real mock interview session — AI questions, voice response, instant scoring</p>
+    </div>
+
+    <!-- Demo window -->
+    <div class="reveal" style="max-width:780px;margin:0 auto;background:#111120;border-radius:20px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 40px 100px rgba(0,0,0,0.6);overflow:hidden">
+
+      <!-- Window chrome -->
+      <div style="background:#1a1a2e;padding:14px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:12px;height:12px;border-radius:50%;background:#e84040;opacity:0.8"></div>
+        <div style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
+        <div style="width:12px;height:12px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
+        <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.72rem;color:#4444666">rolekraft.com/mock-interview</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="background:#ff4444;color:#fff;font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:100px;letter-spacing:1px;animation:livePulse 2s ease-in-out infinite">● LIVE</div>
+        </div>
+      </div>
+
+      <!-- Top bar -->
+      <div style="background:#13131f;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:0.72rem;color:#5048e5;font-weight:700;letter-spacing:1px">TECHNICAL · MID</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:0.72rem;color:#888;font-family:'DM Mono',monospace" id="demoQProg">Q 1 of 8</div>
+          <div style="font-family:'DM Mono',monospace;font-size:0.82rem;color:#00b38a;font-weight:700" id="demoTimer">00:00</div>
+          <div style="padding:4px 12px;border:1px solid rgba(232,64,64,0.4);border-radius:6px;color:#e84040;font-size:0.7rem;font-weight:600">End</div>
+        </div>
+      </div>
+
+      <!-- Main demo area -->
+      <div style="padding:24px 28px 28px">
+
+        <!-- AI Thinking Avatar -->
+        <div id="demoAvatar" style="display:none;flex-direction:column;align-items:center;padding:32px 20px;gap:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;margin-bottom:16px">
+          <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;animation:avatarPulse 2.5s ease-in-out infinite;position:relative">
+            <span style="font-size:1.5rem;font-weight:800;color:white">AI</span>
+            <div style="position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(0,179,138,0.3);animation:avatarPulse 2.5s ease-in-out infinite 0.6s"></div>
+          </div>
+          <div id="demoAvatarLabel" style="font-size:0.82rem;color:#8888aa;margin-top:14px;animation:textFade 1.8s ease-in-out infinite">Reviewing your profile...</div>
+          <div style="width:140px;height:3px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:12px;overflow:hidden">
+            <div id="demoProgressBar" style="height:100%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;width:0%;transition:width 0.3s"></div>
+          </div>
+        </div>
+
+        <!-- Question card -->
+        <div id="demoQCard" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:4px solid #00b38a;border-radius:14px;padding:20px 24px;margin-bottom:16px;min-height:80px">
+          <div style="font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;font-weight:700;margin-bottom:10px" id="demoQLabel">QUESTION 1 OF 8</div>
+          <div style="font-size:0.97rem;font-weight:600;line-height:1.65;color:#e8e8f0;min-height:2rem" id="demoQText"></div>
+        </div>
+
+        <!-- Answer area -->
+        <div id="demoAnswerArea" style="display:none;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px 20px;margin-bottom:16px">
+          <div style="font-size:0.75rem;font-weight:600;color:#666;margin-bottom:10px">YOUR ANSWER</div>
+          <div id="demoAnswerText" style="font-size:0.88rem;color:#aaa;line-height:1.7;min-height:40px"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+            <div id="demoMicIndicator" style="display:none;align-items:center;gap:8px">
+              <div style="width:9px;height:9px;border-radius:50%;background:#e84040;animation:livePulse 1s ease-in-out infinite"></div>
+              <div style="display:flex;align-items:center;gap:2px;height:24px" id="demoWaveform"></div>
+              <span style="font-size:0.72rem;color:#e84040;font-weight:700;font-family:'DM Mono',monospace" id="demoRecTimer">0:00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback card -->
+        <div id="demoFeedback" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.06),rgba(80,72,229,0.04));border:1px solid rgba(0,179,138,0.2);border-radius:14px;padding:18px 20px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div id="demoScorePill" style="font-size:0.75rem;font-weight:700;padding:5px 14px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;border:1px solid rgba(0,179,138,0.3)">🤖 Score: -</div>
+          </div>
+          <div id="demoFeedbackText" style="font-size:0.84rem;line-height:1.65;color:#aaa"></div>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="demoActions">
+          <div id="demoSubmitBtn" style="padding:10px 22px;border:none;border-radius:10px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:700;cursor:default;opacity:0.5">Submit Answer →</div>
+          <div id="demoMicBtn" style="padding:10px 18px;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;background:rgba(255,255,255,0.04);font-size:0.84rem;font-weight:600;color:#aaa;cursor:default">🎤 Start Speaking</div>
+          <div id="demoNextBtn" style="display:none;padding:10px 22px;border:none;border-radius:10px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:700;cursor:default">Next Question →</div>
+        </div>
+      </div>
+
+      <!-- Replay button -->
+      <div style="text-align:center;padding:0 28px 24px">
+        <button onclick="restartMockDemo()" id="demoReplayBtn" style="display:none;padding:9px 24px;border:1.5px solid rgba(0,179,138,0.4);border-radius:100px;background:rgba(0,179,138,0.08);color:#00b38a;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer">↺ Watch Again</button>
+      </div>
+    </div>
+
+    <!-- CTA below demo -->
+    <div style="text-align:center;margin-top:48px" class="reveal">
+      <p style="color:#666;font-size:0.88rem;margin-bottom:20px">This is what your actual mock interview looks like — personalised to your role and resume</p>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block">Try Your Free Mock Interview →</a>
     </div>
   </div>
 </section>
@@ -965,6 +1073,263 @@
     }, { passive:false });
   });
   startCycle();
+
+/* ══ MOCK INTERVIEW DEMO ENGINE ══ */
+(function() {
+  var _demoTimer = null;
+  var _demoSecs  = 0;
+  var _demoTimerInt = null;
+  var _recSecs = 0;
+  var _recInt  = null;
+  var _started = false;
+
+  // Demo script — 3 questions, realistic flow
+  var demoScript = [
+    {
+      q: 'Hi Vibhav! Great to have you here. I can see you\'re working at Barclays as an AVP. Can you walk me through the most impactful data pipeline you\'ve built — what problem it solved and how you measured success?',
+      answer: 'I built an automated ETL pipeline on AWS using Glue and S3 that reduced manual reconciliation time from 4 hours to 15 minutes daily. We tracked success by data accuracy rate, which went from 94% to 99.8%, and time saved for the regulatory reporting team.',
+      score: 82,
+      feedback: '✅ Strong — quantified impact clearly with before/after metrics. Good use of specific AWS services. To improve: mention the scale of data processed and team collaboration aspect.'
+    },
+    {
+      q: 'Good answer! Now let\'s go deeper — how did you handle data quality issues and schema drift in that pipeline? What monitoring did you put in place?',
+      answer: 'We implemented Great Expectations for data validation with alerting via SNS. For schema drift we used AWS Glue Schema Registry. Daily quality reports were sent to Slack automatically.',
+      score: 88,
+      feedback: '✅ Excellent — demonstrates real production knowledge. Great Expectations + Schema Registry shows strong tooling awareness. Consider adding how you handled incidents when quality checks failed in production.'
+    },
+    {
+      q: 'Impressive! Final question — tell me about a time you had a disagreement with a stakeholder about a technical approach. How did you resolve it?',
+      answer: 'Our compliance team wanted to store raw PII in S3 for audit purposes, but I felt it was a security risk. I presented alternatives — using tokenisation and audit logs instead — and backed it with a risk assessment. They agreed after seeing the compliance framework alignment.',
+      score: 91,
+      feedback: '✅ Outstanding behavioral answer — clear STAR structure, showed technical leadership without being confrontational. You also demonstrated compliance awareness which is critical for your domain.'
+    }
+  ];
+
+  var demoStep = 0; // which question
+  var demoPhase = 'start'; // start → thinking → question → answering → recording → scored → next
+
+  function el(id) { return document.getElementById(id); }
+
+  function setAvatar(show, label) {
+    var av = el('demoAvatar');
+    if (!av) return;
+    av.style.display = show ? 'flex' : 'none';
+    if (label && el('demoAvatarLabel')) el('demoAvatarLabel').textContent = label;
+  }
+
+  function setQCard(show) {
+    var qc = el('demoQCard');
+    if (qc) qc.style.display = show ? 'block' : 'none';
+  }
+
+  function typeText(elId, text, speed, done) {
+    var target = el(elId);
+    if (!target) { if (done) done(); return; }
+    target.textContent = '';
+    var i = 0;
+    var t = setInterval(function() {
+      if (i <= text.length) {
+        target.textContent = text.slice(0, i);
+        i++;
+      } else {
+        clearInterval(t);
+        if (done) done();
+      }
+    }, speed);
+    return t;
+  }
+
+  function animateProgressBar(duration) {
+    var bar = el('demoProgressBar');
+    if (!bar) return;
+    bar.style.width = '0%';
+    var start = Date.now();
+    var t = setInterval(function() {
+      var pct = Math.min(100, ((Date.now() - start) / duration) * 100);
+      bar.style.width = pct + '%';
+      if (pct >= 100) clearInterval(t);
+    }, 50);
+  }
+
+  var avatarLabels = {
+    0: ['Reviewing your resume...', 'Personalising to your role...', 'Crafting your first question...', 'Almost ready...'],
+    1: ['Reviewing your answer...', 'Preparing question 2 of 8...', 'Selecting the next topic...', 'Almost ready...'],
+    2: ['Great answer! Preparing question 3 of 8...', 'Adjusting to your level...', 'Almost ready...']
+  };
+  var _labelTimer = null;
+
+  function startAvatarLabels(qIdx) {
+    if (_labelTimer) clearInterval(_labelTimer);
+    var labels = avatarLabels[qIdx] || avatarLabels[0];
+    var idx = 0;
+    if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[0];
+    _labelTimer = setInterval(function() {
+      idx = (idx + 1) % labels.length;
+      if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[idx];
+    }, 1800);
+  }
+
+  function stopAvatarLabels() {
+    if (_labelTimer) { clearInterval(_labelTimer); _labelTimer = null; }
+  }
+
+  function buildWaveform() {
+    var wf = el('demoWaveform');
+    if (!wf) return;
+    wf.innerHTML = '';
+    for (var i = 0; i < 12; i++) {
+      var bar = document.createElement('div');
+      var h = [12, 20, 8, 18, 24, 14, 22, 10, 18, 26, 12, 16][i];
+      bar.style.cssText = 'width:3px;border-radius:2px;background:#e84040;opacity:0.7;transform-origin:center;height:' + h + 'px;animation:waveAnim 0.55s ease-in-out infinite ' + (i * 0.05) + 's';
+      wf.appendChild(bar);
+    }
+  }
+
+  function startRecordingUI(done) {
+    var mic = el('demoMicIndicator');
+    var btn = el('demoMicBtn');
+    if (mic) { buildWaveform(); mic.style.display = 'flex'; }
+    if (btn) { btn.style.borderColor = 'rgba(232,64,64,0.5)'; btn.style.color = '#e84040'; btn.textContent = '⬛ Stop Recording'; }
+    _recSecs = 0;
+    _recInt = setInterval(function() {
+      _recSecs++;
+      var m = Math.floor(_recSecs / 60), s = _recSecs % 60;
+      if (el('demoRecTimer')) el('demoRecTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      if (_recSecs >= 5) {
+        clearInterval(_recInt);
+        stopRecordingUI();
+        if (done) done();
+      }
+    }, 400); // fast-forward for demo
+  }
+
+  function stopRecordingUI() {
+    var mic = el('demoMicIndicator');
+    var btn = el('demoMicBtn');
+    if (mic) mic.style.display = 'none';
+    if (btn) { btn.style.borderColor = 'rgba(255,255,255,0.12)'; btn.style.color = '#aaa'; btn.textContent = '🎤 Start Speaking'; }
+  }
+
+  function startMainTimer() {
+    _demoSecs = 0;
+    if (_demoTimerInt) clearInterval(_demoTimerInt);
+    _demoTimerInt = setInterval(function() {
+      _demoSecs++;
+      var m = Math.floor(_demoSecs / 60), s = _demoSecs % 60;
+      if (el('demoTimer')) el('demoTimer').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+  }
+
+  function runStep(qIdx) {
+    var script = demoScript[qIdx];
+    if (!script) { showComplete(); return; }
+
+    // Update Q progress
+    if (el('demoQProg')) el('demoQProg').textContent = 'Q ' + (qIdx + 1) + ' of 8';
+    if (el('demoQLabel')) el('demoQLabel').textContent = 'QUESTION ' + (qIdx + 1) + ' OF 8';
+
+    // Phase 1: Show avatar thinking (2.5s)
+    setAvatar(true);
+    setQCard(false);
+    if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'none';
+    if (el('demoFeedback'))   el('demoFeedback').style.display   = 'none';
+    if (el('demoNextBtn'))    el('demoNextBtn').style.display    = 'none';
+    if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity  = '0.5';
+    startAvatarLabels(qIdx);
+    animateProgressBar(2500);
+
+    setTimeout(function() {
+      // Phase 2: Hide avatar, show question with typewriter
+      stopAvatarLabels();
+      setAvatar(false);
+      setQCard(true);
+      if (el('demoQText')) el('demoQText').textContent = '';
+      typeText('demoQText', script.q, 22, function() {
+        // Phase 3: Show answer area, simulate recording
+        if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'block';
+        if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
+        if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity = '1';
+
+        setTimeout(function() {
+          // Start recording simulation
+          startRecordingUI(function() {
+            // Phase 4: Transcribing → show answer text
+            if (el('demoAnswerText')) {
+              typeText('demoAnswerText', script.answer, 18, function() {
+                // Phase 5: Submit → show feedback
+                if (el('demoSubmitBtn')) el('demoSubmitBtn').style.opacity = '0.5';
+                setTimeout(function() {
+                  if (el('demoFeedback')) el('demoFeedback').style.display = 'block';
+                  var pillEl = el('demoScorePill');
+                  var scoreColor = script.score >= 85 ? '#00b38a' : script.score >= 70 ? '#ffbd2e' : '#e84040';
+                  var scoreLabel = script.score >= 85 ? '🤩 Excellent' : script.score >= 70 ? '👍 Good' : '📋 Needs Work';
+                  if (pillEl) {
+                    pillEl.textContent = scoreLabel + ' — ' + script.score + '/100';
+                    pillEl.style.color = scoreColor;
+                    pillEl.style.borderColor = scoreColor + '55';
+                    pillEl.style.background  = scoreColor + '18';
+                  }
+                  typeText('demoFeedbackText', script.feedback, 14, function() {
+                    // Show Next button
+                    if (qIdx < demoScript.length - 1) {
+                      if (el('demoNextBtn')) el('demoNextBtn').style.display = 'block';
+                      setTimeout(function() {
+                        runStep(qIdx + 1);
+                      }, 2800);
+                    } else {
+                      showComplete();
+                    }
+                  });
+                }, 800);
+              });
+            }
+          });
+        }, 1200);
+      });
+    }, 2600);
+  }
+
+  function showComplete() {
+    if (_demoTimerInt) clearInterval(_demoTimerInt);
+    if (el('demoQText'))    el('demoQText').textContent    = '🎉 Interview complete! Your overall score: 87/100 — Interview Ready';
+    if (el('demoQCard'))    el('demoQCard').style.borderLeftColor = '#00b38a';
+    if (el('demoActions'))  el('demoActions').style.display = 'none';
+    if (el('demoReplayBtn')) el('demoReplayBtn').style.display = 'inline-block';
+  }
+
+  window.restartMockDemo = function() {
+    if (_demoTimerInt) clearInterval(_demoTimerInt);
+    if (_recInt) clearInterval(_recInt);
+    if (_labelTimer) clearInterval(_labelTimer);
+    _demoSecs = 0;
+    if (el('demoTimer'))    el('demoTimer').textContent    = '00:00';
+    if (el('demoQText'))    el('demoQText').textContent    = '';
+    if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
+    if (el('demoFeedback'))  el('demoFeedback').style.display  = 'none';
+    if (el('demoNextBtn'))   el('demoNextBtn').style.display   = 'none';
+    if (el('demoActions'))   el('demoActions').style.display   = 'flex';
+    if (el('demoReplayBtn')) el('demoReplayBtn').style.display = 'none';
+    if (el('demoQCard'))     el('demoQCard').style.borderLeftColor = '#00b38a';
+    startMainTimer();
+    runStep(0);
+  };
+
+  // Auto-start when section scrolls into view
+  var demoSection = document.querySelector('#demoQCard');
+  if (demoSection) {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting && !_started) {
+          _started = true;
+          startMainTimer();
+          setTimeout(function() { runStep(0); }, 600);
+          obs.disconnect();
+        }
+      });
+    }, { threshold: 0.3 });
+    obs.observe(demoSection);
+  }
+})();
 </script>
 </body>
 </html>

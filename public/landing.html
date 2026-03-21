@@ -706,7 +706,8 @@
 <!-- Mobile responsive for demo grid -->
 <style>
 @media(max-width:768px){
-  .demo-grid{grid-template-columns:1fr!important;gap:24px!important}
+  .demo-grid{grid-template-columns:1fr!important}
+  .demo-grid > div:nth-child(2){margin-top:32px}
 }
 </style>
 
@@ -1453,152 +1454,102 @@
     runStep(0);
   };
 
-  // ── Pause / Resume based on visibility ──
-  // All active timeouts/intervals tracked here so we can cancel on pause
-  var _activeTimers  = [];   // setTimeout handles
-  var _activeIntervals = []; // setInterval handles
-  var _isPaused = false;
-  var _pendingResume = null; // function to call when resuming
+  // ── Simple visibility-based pause ──
+  // All timers keep running but skip their work when not visible
+  // This avoids the complexity of cancelling/restarting timer chains
+  var _isVisible = false;
 
-  // Wrapped setTimeout/setInterval that register themselves for cancellation
-  function demoTimeout(fn, ms) {
-    var id = setTimeout(function() {
-      _activeTimers = _activeTimers.filter(function(t){ return t !== id; });
-      if (!_isPaused) fn();
-    }, ms);
-    _activeTimers.push(id);
-    return id;
-  }
-
-  function demoInterval(fn, ms) {
-    var id = setInterval(function() {
-      if (!_isPaused) fn();
-    }, ms);
-    _activeIntervals.push(id);
-    return id;
-  }
-
-  function pauseDemo() {
-    if (_isPaused) return;
-    _isPaused = true;
-    // Cancel all pending timeouts
-    _activeTimers.forEach(function(id) { clearTimeout(id); });
-    _activeTimers = [];
-    // Stop all intervals (typewriters, timers, label cyclers)
-    _activeIntervals.forEach(function(id) { clearInterval(id); });
-    _activeIntervals = [];
-    if (_demoTimerInt) { clearInterval(_demoTimerInt); _demoTimerInt = null; }
-    if (_recInt)       { clearInterval(_recInt); _recInt = null; }
-    if (_labelTimer)   { clearInterval(_labelTimer); _labelTimer = null; }
-  }
-
-  function resumeDemo() {
-    if (!_isPaused) return;
-    _isPaused = false;
-    // Restart main timer
-    if (_started && !_demoTimerInt) startMainTimer();
-    // If there's a pending continuation, run it
-    if (_pendingResume) {
-      var fn = _pendingResume;
-      _pendingResume = null;
-      demoTimeout(fn, 400);
-    }
-  }
-
-  // Patch typeText to use tracked intervals and support pause
   function typeText(elId, text, speed, done) {
     var target = el(elId);
     if (!target) { if (done) done(); return; }
     target.textContent = '';
     var i = 0;
     var id = setInterval(function() {
-      if (_isPaused) return; // freeze in place while paused
+      if (!_isVisible) return; // freeze in place when scrolled away
       if (i <= text.length) {
         target.textContent = text.slice(0, i);
         i++;
       } else {
         clearInterval(id);
-        _activeIntervals = _activeIntervals.filter(function(t){ return t !== id; });
         if (done) done();
       }
     }, speed);
-    _activeIntervals.push(id);
-    return id;
   }
 
-  // Patch animateProgressBar to respect pause
   function animateProgressBar(duration) {
     var bar = el('demoProgressBar');
     if (!bar) return;
     bar.style.width = '0%';
-    var start = Date.now();
-    var pausedAt = 0;
-    var elapsed = 0;
+    var accumulated = 0;
+    var lastTick = Date.now();
     var id = setInterval(function() {
-      if (_isPaused) return;
-      elapsed = Date.now() - start;
-      var pct = Math.min(100, (elapsed / duration) * 100);
+      if (!_isVisible) { lastTick = Date.now(); return; } // don't accumulate time while hidden
+      accumulated += Date.now() - lastTick;
+      lastTick = Date.now();
+      var pct = Math.min(100, (accumulated / duration) * 100);
       bar.style.width = pct + '%';
-      if (pct >= 100) { clearInterval(id); _activeIntervals = _activeIntervals.filter(function(t){ return t !== id; }); }
+      if (pct >= 100) clearInterval(id);
     }, 50);
-    _activeIntervals.push(id);
   }
 
-  // Patch startAvatarLabels to use tracked interval
   function startAvatarLabels(qIdx) {
     if (_labelTimer) { clearInterval(_labelTimer); _labelTimer = null; }
     var labels = avatarLabels[qIdx] || avatarLabels[0];
     var idx = 0;
     if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[0];
-    var id = setInterval(function() {
-      if (_isPaused) return;
+    _labelTimer = setInterval(function() {
+      if (!_isVisible) return;
       idx = (idx + 1) % labels.length;
       if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[idx];
     }, 1800);
-    _labelTimer = id;
-    _activeIntervals.push(id);
   }
 
-  // Patch startRecordingUI to use tracked interval and respect pause
   function startRecordingUI(done) {
     var mic = el('demoMicIndicator');
     var btn = el('demoMicBtn');
     if (mic) { buildWaveform(); mic.style.display = 'flex'; }
     if (btn) { btn.style.borderColor = 'rgba(232,64,64,0.5)'; btn.style.color = '#e84040'; btn.textContent = '⬛ Stop Recording'; }
     _recSecs = 0;
-    var id = setInterval(function() {
-      if (_isPaused) return;
+    _recInt = setInterval(function() {
+      if (!_isVisible) return;
       _recSecs++;
       var m = Math.floor(_recSecs / 60), s = _recSecs % 60;
       if (el('demoRecTimer')) el('demoRecTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
       if (_recSecs >= 5) {
-        clearInterval(id);
-        _activeIntervals = _activeIntervals.filter(function(t){ return t !== id; });
+        clearInterval(_recInt); _recInt = null;
         stopRecordingUI();
         if (done) done();
       }
     }, 400);
-    _recInt = id;
-    _activeIntervals.push(id);
   }
 
-  // Patch startMainTimer to use tracked interval
   function startMainTimer() {
     if (_demoTimerInt) clearInterval(_demoTimerInt);
-    var id = setInterval(function() {
-      if (_isPaused) return;
+    _demoTimerInt = setInterval(function() {
+      if (!_isVisible) return;
       _demoSecs++;
       var m = Math.floor(_demoSecs / 60), s = _demoSecs % 60;
       if (el('demoTimer')) el('demoTimer').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
     }, 1000);
-    _demoTimerInt = id;
   }
 
-  // Patch runStep to use demoTimeout
+  function demoDelay(ms, fn) {
+    // Polls every 100ms, only fires fn when visible AND delay elapsed (in visible time)
+    var elapsed = 0;
+    var id = setInterval(function() {
+      if (!_isVisible) return;
+      elapsed += 100;
+      if (elapsed >= ms) {
+        clearInterval(id);
+        fn();
+      }
+    }, 100);
+  }
+
   function runStep(qIdx) {
     var script = demoScript[qIdx];
     if (!script) { showComplete(); return; }
-    if (el('demoQProg')) el('demoQProg').textContent = 'Q ' + (qIdx + 1) + ' of 8';
+    if (el('demoQProg'))  el('demoQProg').textContent  = 'Q ' + (qIdx + 1) + ' of 8';
     if (el('demoQLabel')) el('demoQLabel').textContent = 'QUESTION ' + (qIdx + 1) + ' OF 8';
     setAvatar(true);
     setQCard(false);
@@ -1608,7 +1559,7 @@
     if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity  = '0.5';
     startAvatarLabels(qIdx);
     animateProgressBar(2500);
-    demoTimeout(function() {
+    demoDelay(2600, function() {
       stopAvatarLabels();
       setAvatar(false);
       setQCard(true);
@@ -1617,11 +1568,11 @@
         if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'block';
         if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
         if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity = '1';
-        demoTimeout(function() {
+        demoDelay(1200, function() {
           startRecordingUI(function() {
             typeText('demoAnswerText', script.answer, 18, function() {
               if (el('demoSubmitBtn')) el('demoSubmitBtn').style.opacity = '0.5';
-              demoTimeout(function() {
+              demoDelay(800, function() {
                 if (el('demoFeedback')) el('demoFeedback').style.display = 'block';
                 var pillEl = el('demoScorePill');
                 var scoreColor = script.score >= 85 ? '#00b38a' : script.score >= 70 ? '#ffbd2e' : '#e84040';
@@ -1635,38 +1586,33 @@
                 typeText('demoFeedbackText', script.feedback, 14, function() {
                   if (qIdx < demoScript.length - 1) {
                     if (el('demoNextBtn')) el('demoNextBtn').style.display = 'block';
-                    demoTimeout(function() { runStep(qIdx + 1); }, 2800);
+                    demoDelay(2800, function() { runStep(qIdx + 1); });
                   } else {
                     showComplete();
                   }
                 });
-              }, 800);
+              });
             });
           });
-        }, 1200);
+        });
       });
-    }, 2600);
+    });
   }
 
-  // IntersectionObserver — start on first view, pause/resume on scroll
+  // IntersectionObserver — start on first view, pause/resume via _isVisible flag
   var demoSection = document.querySelector('#demoQCard');
   if (demoSection) {
     var obs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-          if (!_started) {
-            _started = true;
-            _demoSecs = 0;
-            startMainTimer();
-            demoTimeout(function() { runStep(0); }, 600);
-          } else {
-            resumeDemo();
-          }
-        } else {
-          if (_started) pauseDemo();
+        _isVisible = entry.isIntersecting;
+        if (entry.isIntersecting && !_started) {
+          _started = true;
+          _demoSecs = 0;
+          startMainTimer();
+          demoDelay(600, function() { runStep(0); });
         }
       });
-    }, { threshold: 0.1 }); // 10% visible = consider "in view"
+    }, { threshold: 0.15 });
     obs.observe(demoSection);
   }
 })();

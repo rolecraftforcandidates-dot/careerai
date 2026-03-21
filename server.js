@@ -105,24 +105,24 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       const authSetup = user['AuthSetup'] || 'pending';
       if (authSetup === 'pending') {
         try {
-          const allRows = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:A' });
-          const rowIdx  = (allRows.data.values || []).findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
-          if (rowIdx > 0) {
-            // Find or create AuthSetup column (S = col 19, index 18)
-            const hdrsResp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!1:1' });
-            const hdrs     = (hdrsResp.data.values || [[]])[0] || [];
-            let authIdx    = hdrs.indexOf('AuthSetup');
+          const sc       = getSheetsClient();
+          const allRows  = await sc.spreadsheets.values.get({ spreadsheetId: process.env.SHEET_ID, range: 'Users!A:A' });
+          const rowIdx   = (allRows.data.values || []).findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+          if (rowIdx >= 1) { // rowIdx 0 = header, so >= 1 is a real data row
+            const hdrsResp  = await sc.spreadsheets.values.get({ spreadsheetId: process.env.SHEET_ID, range: 'Users!1:1' });
+            const hdrs      = (hdrsResp.data.values || [[]])[0] || [];
+            let authIdx     = hdrs.indexOf('AuthSetup');
             if (authIdx === -1) authIdx = 18; // default to S col
             const colLetter = String.fromCharCode(65 + authIdx);
-            await sheets.spreadsheets.values.update({
-              spreadsheetId: SHEET_ID,
+            await sc.spreadsheets.values.update({
+              spreadsheetId: process.env.SHEET_ID,
               range: `Users!${colLetter}${rowIdx + 1}`,
               valueInputOption: 'RAW',
               requestBody: { values: [['complete']] }
             });
             console.log(`✅ AuthSetup marked complete for ${email} via Google`);
           }
-        } catch(e) { console.warn('AuthSetup update failed (non-fatal):', e.message); }
+        } catch(e) { console.warn('AuthSetup Google update failed (non-fatal):', e.message); }
       }
 
       const sessionUser = {
@@ -531,15 +531,16 @@ app.post('/api/login', async (req, res) => {
     // Mark AuthSetup complete in sheet if it was pending
     if ((user['AuthSetup'] || 'pending') === 'pending') {
       try {
-        const allRows = await readSheetRaw('Users!A:A');
-        const rowIdx  = (allRows || []).findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
-        if (rowIdx > 0) {
-          const hdrsResp = await getSheetsClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!1:1' });
-          const hdrs     = (hdrsResp.data.values || [[]])[0] || [];
-          let authIdx    = hdrs.indexOf('AuthSetup');
+        const sc      = getSheetsClient();
+        const allRows = await sc.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:A' });
+        const rowIdx  = (allRows.data.values || []).findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+        if (rowIdx >= 1) {
+          const hdrsResp  = await sc.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!1:1' });
+          const hdrs      = (hdrsResp.data.values || [[]])[0] || [];
+          let authIdx     = hdrs.indexOf('AuthSetup');
           if (authIdx === -1) authIdx = 18;
           const colLetter = String.fromCharCode(65 + authIdx);
-          await getSheetsClient().spreadsheets.values.update({
+          await sc.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
             range: `Users!${colLetter}${rowIdx + 1}`,
             valueInputOption: 'RAW',

@@ -451,7 +451,7 @@
 </section>
 
 <!-- MOCK INTERVIEW DEMO + DASHBOARD SHOWCASE -->
-<section style="background:#0a0a14;padding:90px 4%;overflow:hidden;position:relative">
+<section id="mockDemoSection" style="background:#0a0a14;padding:90px 4%;overflow:hidden;position:relative">
   <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(0,179,138,0.10) 0%,transparent 70%);pointer-events:none"></div>
 
   <div style="max-width:1280px;margin:0 auto">
@@ -467,7 +467,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start" class="demo-grid">
 
       <!-- LEFT: Mock interview demo -->
-      <div class="reveal">
+      <div>
         <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;margin-bottom:12px;font-weight:700">// MOCK INTERVIEW — LIVE</div>
         <div style="background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden">
 
@@ -535,7 +535,7 @@
       </div>
 
       <!-- RIGHT: Dashboard screen carousel -->
-      <div class="reveal">
+      <div>
         <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#5048e5;margin-bottom:12px;font-weight:700">// YOUR DASHBOARD</div>
 
         <!-- Screen tabs -->
@@ -696,7 +696,7 @@
     </div>
 
     <!-- CTA -->
-    <div style="text-align:center;margin-top:52px" class="reveal">
+    <div style="text-align:center;margin-top:52px">
       <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block;font-size:1rem;padding:16px 42px">Start Free — Try The AI Interviewer →</a>
       <div style="margin-top:12px;font-size:0.78rem;color:#555">Personalised to your resume · No credit card · 2 mins to set up</div>
     </div>
@@ -1599,8 +1599,10 @@
     });
   }
 
-  // IntersectionObserver — start on first view, pause/resume via _isVisible flag
-  var demoSection = document.querySelector('#demoQCard');
+  // IntersectionObserver — watch the whole demo section, not individual card
+  // demoQCard is inside a reveal div (opacity:0 initially) — watching it causes
+  // false triggers before the user sees it
+  var demoSection = document.getElementById('mockDemoSection');
   if (demoSection) {
     var obs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
@@ -1609,10 +1611,10 @@
           _started = true;
           _demoSecs = 0;
           startMainTimer();
-          demoDelay(600, function() { runStep(0); });
+          demoDelay(800, function() { runStep(0); });
         }
       });
-    }, { threshold: 0.15 });
+    }, { threshold: 0.2 });
     obs.observe(demoSection);
   }
 })();

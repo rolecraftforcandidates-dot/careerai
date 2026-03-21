@@ -706,7 +706,7 @@
 <!-- Mobile responsive for demo grid -->
 <style>
 @media(max-width:768px){
-  .demo-grid{grid-template-columns:1fr!important}
+  .demo-grid{grid-template-columns:1fr!important;gap:24px!important}
 }
 </style>
 
@@ -1398,52 +1398,12 @@
     if (qc) qc.style.display = show ? 'block' : 'none';
   }
 
-  function typeText(elId, text, speed, done) {
-    var target = el(elId);
-    if (!target) { if (done) done(); return; }
-    target.textContent = '';
-    var i = 0;
-    var t = setInterval(function() {
-      if (i <= text.length) {
-        target.textContent = text.slice(0, i);
-        i++;
-      } else {
-        clearInterval(t);
-        if (done) done();
-      }
-    }, speed);
-    return t;
-  }
-
-  function animateProgressBar(duration) {
-    var bar = el('demoProgressBar');
-    if (!bar) return;
-    bar.style.width = '0%';
-    var start = Date.now();
-    var t = setInterval(function() {
-      var pct = Math.min(100, ((Date.now() - start) / duration) * 100);
-      bar.style.width = pct + '%';
-      if (pct >= 100) clearInterval(t);
-    }, 50);
-  }
-
   var avatarLabels = {
     0: ['Reviewing your resume...', 'Personalising to your role...', 'Crafting your first question...', 'Almost ready...'],
     1: ['Reviewing your answer...', 'Preparing question 2 of 8...', 'Selecting the next topic...', 'Almost ready...'],
     2: ['Great answer! Preparing question 3 of 8...', 'Adjusting to your level...', 'Almost ready...']
   };
   var _labelTimer = null;
-
-  function startAvatarLabels(qIdx) {
-    if (_labelTimer) clearInterval(_labelTimer);
-    var labels = avatarLabels[qIdx] || avatarLabels[0];
-    var idx = 0;
-    if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[0];
-    _labelTimer = setInterval(function() {
-      idx = (idx + 1) % labels.length;
-      if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[idx];
-    }, 1800);
-  }
 
   function stopAvatarLabels() {
     if (_labelTimer) { clearInterval(_labelTimer); _labelTimer = null; }
@@ -1461,24 +1421,6 @@
     }
   }
 
-  function startRecordingUI(done) {
-    var mic = el('demoMicIndicator');
-    var btn = el('demoMicBtn');
-    if (mic) { buildWaveform(); mic.style.display = 'flex'; }
-    if (btn) { btn.style.borderColor = 'rgba(232,64,64,0.5)'; btn.style.color = '#e84040'; btn.textContent = '⬛ Stop Recording'; }
-    _recSecs = 0;
-    _recInt = setInterval(function() {
-      _recSecs++;
-      var m = Math.floor(_recSecs / 60), s = _recSecs % 60;
-      if (el('demoRecTimer')) el('demoRecTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
-      if (_recSecs >= 5) {
-        clearInterval(_recInt);
-        stopRecordingUI();
-        if (done) done();
-      }
-    }, 400); // fast-forward for demo
-  }
-
   function stopRecordingUI() {
     var mic = el('demoMicIndicator');
     var btn = el('demoMicBtn');
@@ -1486,25 +1428,178 @@
     if (btn) { btn.style.borderColor = 'rgba(255,255,255,0.12)'; btn.style.color = '#aaa'; btn.textContent = '🎤 Start Speaking'; }
   }
 
-  function startMainTimer() {
-    _demoSecs = 0;
+  function showComplete() {
     if (_demoTimerInt) clearInterval(_demoTimerInt);
-    _demoTimerInt = setInterval(function() {
+    if (el('demoQText'))     el('demoQText').textContent    = '🎉 Interview complete! Your overall score: 87/100 — Interview Ready';
+    if (el('demoQCard'))     el('demoQCard').style.borderLeftColor = '#00b38a';
+    if (el('demoActions'))   el('demoActions').style.display = 'none';
+    if (el('demoReplayBtn')) el('demoReplayBtn').style.display = 'inline-block';
+  }
+
+  window.restartMockDemo = function() {
+    pauseDemo();
+    _isPaused = false;
+    _activeTimers = []; _activeIntervals = [];
+    _demoSecs = 0;
+    if (el('demoTimer'))      el('demoTimer').textContent      = '00:00';
+    if (el('demoQText'))      el('demoQText').textContent      = '';
+    if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
+    if (el('demoFeedback'))   el('demoFeedback').style.display   = 'none';
+    if (el('demoNextBtn'))    el('demoNextBtn').style.display    = 'none';
+    if (el('demoActions'))    el('demoActions').style.display    = 'flex';
+    if (el('demoReplayBtn'))  el('demoReplayBtn').style.display  = 'none';
+    if (el('demoQCard'))      el('demoQCard').style.borderLeftColor = '#00b38a';
+    startMainTimer();
+    runStep(0);
+  };
+
+  // ── Pause / Resume based on visibility ──
+  // All active timeouts/intervals tracked here so we can cancel on pause
+  var _activeTimers  = [];   // setTimeout handles
+  var _activeIntervals = []; // setInterval handles
+  var _isPaused = false;
+  var _pendingResume = null; // function to call when resuming
+
+  // Wrapped setTimeout/setInterval that register themselves for cancellation
+  function demoTimeout(fn, ms) {
+    var id = setTimeout(function() {
+      _activeTimers = _activeTimers.filter(function(t){ return t !== id; });
+      if (!_isPaused) fn();
+    }, ms);
+    _activeTimers.push(id);
+    return id;
+  }
+
+  function demoInterval(fn, ms) {
+    var id = setInterval(function() {
+      if (!_isPaused) fn();
+    }, ms);
+    _activeIntervals.push(id);
+    return id;
+  }
+
+  function pauseDemo() {
+    if (_isPaused) return;
+    _isPaused = true;
+    // Cancel all pending timeouts
+    _activeTimers.forEach(function(id) { clearTimeout(id); });
+    _activeTimers = [];
+    // Stop all intervals (typewriters, timers, label cyclers)
+    _activeIntervals.forEach(function(id) { clearInterval(id); });
+    _activeIntervals = [];
+    if (_demoTimerInt) { clearInterval(_demoTimerInt); _demoTimerInt = null; }
+    if (_recInt)       { clearInterval(_recInt); _recInt = null; }
+    if (_labelTimer)   { clearInterval(_labelTimer); _labelTimer = null; }
+  }
+
+  function resumeDemo() {
+    if (!_isPaused) return;
+    _isPaused = false;
+    // Restart main timer
+    if (_started && !_demoTimerInt) startMainTimer();
+    // If there's a pending continuation, run it
+    if (_pendingResume) {
+      var fn = _pendingResume;
+      _pendingResume = null;
+      demoTimeout(fn, 400);
+    }
+  }
+
+  // Patch typeText to use tracked intervals and support pause
+  function typeText(elId, text, speed, done) {
+    var target = el(elId);
+    if (!target) { if (done) done(); return; }
+    target.textContent = '';
+    var i = 0;
+    var id = setInterval(function() {
+      if (_isPaused) return; // freeze in place while paused
+      if (i <= text.length) {
+        target.textContent = text.slice(0, i);
+        i++;
+      } else {
+        clearInterval(id);
+        _activeIntervals = _activeIntervals.filter(function(t){ return t !== id; });
+        if (done) done();
+      }
+    }, speed);
+    _activeIntervals.push(id);
+    return id;
+  }
+
+  // Patch animateProgressBar to respect pause
+  function animateProgressBar(duration) {
+    var bar = el('demoProgressBar');
+    if (!bar) return;
+    bar.style.width = '0%';
+    var start = Date.now();
+    var pausedAt = 0;
+    var elapsed = 0;
+    var id = setInterval(function() {
+      if (_isPaused) return;
+      elapsed = Date.now() - start;
+      var pct = Math.min(100, (elapsed / duration) * 100);
+      bar.style.width = pct + '%';
+      if (pct >= 100) { clearInterval(id); _activeIntervals = _activeIntervals.filter(function(t){ return t !== id; }); }
+    }, 50);
+    _activeIntervals.push(id);
+  }
+
+  // Patch startAvatarLabels to use tracked interval
+  function startAvatarLabels(qIdx) {
+    if (_labelTimer) { clearInterval(_labelTimer); _labelTimer = null; }
+    var labels = avatarLabels[qIdx] || avatarLabels[0];
+    var idx = 0;
+    if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[0];
+    var id = setInterval(function() {
+      if (_isPaused) return;
+      idx = (idx + 1) % labels.length;
+      if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[idx];
+    }, 1800);
+    _labelTimer = id;
+    _activeIntervals.push(id);
+  }
+
+  // Patch startRecordingUI to use tracked interval and respect pause
+  function startRecordingUI(done) {
+    var mic = el('demoMicIndicator');
+    var btn = el('demoMicBtn');
+    if (mic) { buildWaveform(); mic.style.display = 'flex'; }
+    if (btn) { btn.style.borderColor = 'rgba(232,64,64,0.5)'; btn.style.color = '#e84040'; btn.textContent = '⬛ Stop Recording'; }
+    _recSecs = 0;
+    var id = setInterval(function() {
+      if (_isPaused) return;
+      _recSecs++;
+      var m = Math.floor(_recSecs / 60), s = _recSecs % 60;
+      if (el('demoRecTimer')) el('demoRecTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      if (_recSecs >= 5) {
+        clearInterval(id);
+        _activeIntervals = _activeIntervals.filter(function(t){ return t !== id; });
+        stopRecordingUI();
+        if (done) done();
+      }
+    }, 400);
+    _recInt = id;
+    _activeIntervals.push(id);
+  }
+
+  // Patch startMainTimer to use tracked interval
+  function startMainTimer() {
+    if (_demoTimerInt) clearInterval(_demoTimerInt);
+    var id = setInterval(function() {
+      if (_isPaused) return;
       _demoSecs++;
       var m = Math.floor(_demoSecs / 60), s = _demoSecs % 60;
       if (el('demoTimer')) el('demoTimer').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
     }, 1000);
+    _demoTimerInt = id;
   }
 
+  // Patch runStep to use demoTimeout
   function runStep(qIdx) {
     var script = demoScript[qIdx];
     if (!script) { showComplete(); return; }
-
-    // Update Q progress
     if (el('demoQProg')) el('demoQProg').textContent = 'Q ' + (qIdx + 1) + ' of 8';
     if (el('demoQLabel')) el('demoQLabel').textContent = 'QUESTION ' + (qIdx + 1) + ' OF 8';
-
-    // Phase 1: Show avatar thinking (2.5s)
     setAvatar(true);
     setQCard(false);
     if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'none';
@@ -1513,96 +1608,65 @@
     if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity  = '0.5';
     startAvatarLabels(qIdx);
     animateProgressBar(2500);
-
-    setTimeout(function() {
-      // Phase 2: Hide avatar, show question with typewriter
+    demoTimeout(function() {
       stopAvatarLabels();
       setAvatar(false);
       setQCard(true);
       if (el('demoQText')) el('demoQText').textContent = '';
       typeText('demoQText', script.q, 22, function() {
-        // Phase 3: Show answer area, simulate recording
         if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'block';
         if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
         if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity = '1';
-
-        setTimeout(function() {
-          // Start recording simulation
+        demoTimeout(function() {
           startRecordingUI(function() {
-            // Phase 4: Transcribing → show answer text
-            if (el('demoAnswerText')) {
-              typeText('demoAnswerText', script.answer, 18, function() {
-                // Phase 5: Submit → show feedback
-                if (el('demoSubmitBtn')) el('demoSubmitBtn').style.opacity = '0.5';
-                setTimeout(function() {
-                  if (el('demoFeedback')) el('demoFeedback').style.display = 'block';
-                  var pillEl = el('demoScorePill');
-                  var scoreColor = script.score >= 85 ? '#00b38a' : script.score >= 70 ? '#ffbd2e' : '#e84040';
-                  var scoreLabel = script.score >= 85 ? '🤩 Excellent' : script.score >= 70 ? '👍 Good' : '📋 Needs Work';
-                  if (pillEl) {
-                    pillEl.textContent = scoreLabel + ' — ' + script.score + '/100';
-                    pillEl.style.color = scoreColor;
-                    pillEl.style.borderColor = scoreColor + '55';
-                    pillEl.style.background  = scoreColor + '18';
+            typeText('demoAnswerText', script.answer, 18, function() {
+              if (el('demoSubmitBtn')) el('demoSubmitBtn').style.opacity = '0.5';
+              demoTimeout(function() {
+                if (el('demoFeedback')) el('demoFeedback').style.display = 'block';
+                var pillEl = el('demoScorePill');
+                var scoreColor = script.score >= 85 ? '#00b38a' : script.score >= 70 ? '#ffbd2e' : '#e84040';
+                var scoreLabel = script.score >= 85 ? '🤩 Excellent' : script.score >= 70 ? '👍 Good' : '📋 Needs Work';
+                if (pillEl) {
+                  pillEl.textContent = scoreLabel + ' — ' + script.score + '/100';
+                  pillEl.style.color = scoreColor;
+                  pillEl.style.borderColor = scoreColor + '55';
+                  pillEl.style.background  = scoreColor + '18';
+                }
+                typeText('demoFeedbackText', script.feedback, 14, function() {
+                  if (qIdx < demoScript.length - 1) {
+                    if (el('demoNextBtn')) el('demoNextBtn').style.display = 'block';
+                    demoTimeout(function() { runStep(qIdx + 1); }, 2800);
+                  } else {
+                    showComplete();
                   }
-                  typeText('demoFeedbackText', script.feedback, 14, function() {
-                    // Show Next button
-                    if (qIdx < demoScript.length - 1) {
-                      if (el('demoNextBtn')) el('demoNextBtn').style.display = 'block';
-                      setTimeout(function() {
-                        runStep(qIdx + 1);
-                      }, 2800);
-                    } else {
-                      showComplete();
-                    }
-                  });
-                }, 800);
-              });
-            }
+                });
+              }, 800);
+            });
           });
         }, 1200);
       });
     }, 2600);
   }
 
-  function showComplete() {
-    if (_demoTimerInt) clearInterval(_demoTimerInt);
-    if (el('demoQText'))    el('demoQText').textContent    = '🎉 Interview complete! Your overall score: 87/100 — Interview Ready';
-    if (el('demoQCard'))    el('demoQCard').style.borderLeftColor = '#00b38a';
-    if (el('demoActions'))  el('demoActions').style.display = 'none';
-    if (el('demoReplayBtn')) el('demoReplayBtn').style.display = 'inline-block';
-  }
-
-  window.restartMockDemo = function() {
-    if (_demoTimerInt) clearInterval(_demoTimerInt);
-    if (_recInt) clearInterval(_recInt);
-    if (_labelTimer) clearInterval(_labelTimer);
-    _demoSecs = 0;
-    if (el('demoTimer'))    el('demoTimer').textContent    = '00:00';
-    if (el('demoQText'))    el('demoQText').textContent    = '';
-    if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
-    if (el('demoFeedback'))  el('demoFeedback').style.display  = 'none';
-    if (el('demoNextBtn'))   el('demoNextBtn').style.display   = 'none';
-    if (el('demoActions'))   el('demoActions').style.display   = 'flex';
-    if (el('demoReplayBtn')) el('demoReplayBtn').style.display = 'none';
-    if (el('demoQCard'))     el('demoQCard').style.borderLeftColor = '#00b38a';
-    startMainTimer();
-    runStep(0);
-  };
-
-  // Auto-start when section scrolls into view
+  // IntersectionObserver — start on first view, pause/resume on scroll
   var demoSection = document.querySelector('#demoQCard');
   if (demoSection) {
     var obs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
-        if (entry.isIntersecting && !_started) {
-          _started = true;
-          startMainTimer();
-          setTimeout(function() { runStep(0); }, 600);
-          obs.disconnect();
+        if (entry.isIntersecting) {
+          if (!_started) {
+            _started = true;
+            _demoSecs = 0;
+            startMainTimer();
+            demoTimeout(function() { runStep(0); }, 600);
+          } else {
+            resumeDemo();
+          }
+        } else {
+          if (_started) pauseDemo();
         }
       });
-    }, { threshold: 0.3 });
+    }, { threshold: 0.1 }); // 10% visible = consider "in view"
     obs.observe(demoSection);
   }
 })();

@@ -488,8 +488,8 @@
               <div style="padding:3px 10px;border:1px solid rgba(232,64,64,0.4);border-radius:5px;color:#e84040;font-size:0.62rem;font-weight:600">End</div>
             </div>
           </div>
-          <!-- Demo area — fixed height so typewriter never pushes content below -->
-          <div style="padding:18px 20px 20px;height:380px;overflow:hidden;position:relative">
+          <!-- Demo area — auto height, content extends naturally -->
+          <div style="padding:18px 20px 20px">
             <!-- Avatar -->
             <div id="demoAvatar" style="display:none;flex-direction:column;align-items:center;padding:24px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:14px">
               <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;animation:avatarPulse 2.5s ease-in-out infinite;position:relative">
@@ -504,12 +504,12 @@
             <!-- Question card -->
             <div id="demoQCard" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:3px solid #00b38a;border-radius:12px;padding:16px 18px;margin-bottom:12px">
               <div style="font-size:0.56rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;font-weight:700;margin-bottom:8px" id="demoQLabel">QUESTION 1 OF 8</div>
-              <div style="font-size:0.86rem;font-weight:600;line-height:1.6;color:#e8e8f0;min-height:1.5rem;max-height:80px;overflow:hidden" id="demoQText"></div>
+              <div style="font-size:0.86rem;font-weight:600;line-height:1.6;color:#e8e8f0;min-height:1.5rem" id="demoQText"></div>
             </div>
             <!-- Answer area -->
             <div id="demoAnswerArea" style="display:none;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px 16px;margin-bottom:12px">
               <div style="font-size:0.65rem;font-weight:600;color:#555;margin-bottom:8px">YOUR ANSWER</div>
-              <div id="demoAnswerText" style="font-size:0.8rem;color:#aaa;line-height:1.65;min-height:32px;max-height:72px;overflow:hidden"></div>
+              <div id="demoAnswerText" style="font-size:0.8rem;color:#aaa;line-height:1.65;min-height:32px"></div>
               <div id="demoMicIndicator" style="display:none;align-items:center;gap:7px;margin-top:10px">
                 <div style="width:8px;height:8px;border-radius:50%;background:#e84040;animation:livePulse 1s ease-in-out infinite"></div>
                 <div style="display:flex;align-items:center;gap:2px;height:20px" id="demoWaveform"></div>
@@ -519,7 +519,7 @@
             <!-- Feedback -->
             <div id="demoFeedback" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.06),rgba(80,72,229,0.04));border:1px solid rgba(0,179,138,0.2);border-radius:12px;padding:14px 16px;margin-bottom:12px">
               <div id="demoScorePill" style="display:inline-block;font-size:0.68rem;font-weight:700;padding:4px 12px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;border:1px solid rgba(0,179,138,0.3);margin-bottom:10px">🤖 Score: -</div>
-              <div id="demoFeedbackText" style="font-size:0.76rem;line-height:1.6;color:#aaa;max-height:72px;overflow:hidden"></div>
+              <div id="demoFeedbackText" style="font-size:0.76rem;line-height:1.6;color:#aaa"></div>
             </div>
             <!-- Buttons -->
             <div style="display:flex;gap:8px;flex-wrap:wrap" id="demoActions">
@@ -536,6 +536,8 @@
 
       <!-- RIGHT: Dashboard screen carousel -->
       <div>
+        <!-- Sentinel: when this enters viewport on mobile, demo pauses -->
+        <div id="dashboardSentinel" style="height:1px;width:100%"></div>
         <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#5048e5;margin-bottom:12px;font-weight:700">// YOUR DASHBOARD</div>
 
         <!-- Screen tabs -->
@@ -1606,22 +1608,41 @@
     });
   }
 
-  // IntersectionObserver — watch only the left demo window column
-  // Pauses when demo column scrolls out of view, resumes when back
-  var demoSection = document.getElementById('demoWindowLeft');
-  if (demoSection) {
-    var obs = new IntersectionObserver(function(entries) {
+  // Two observers:
+  // 1. demoWindowLeft — starts demo when visible, resumes when scrolled back
+  // 2. dashboardSentinel — pauses demo when user reaches dashboard (mobile only)
+  var demoCol = document.getElementById('demoWindowLeft');
+  var dashSentinel = document.getElementById('dashboardSentinel');
+
+  if (demoCol) {
+    var demoObs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
-        _isVisible = entry.isIntersecting;
-        if (entry.isIntersecting && !_started) {
-          _started = true;
-          _demoSecs = 0;
-          startMainTimer();
-          demoDelay(800, function() { runStep(0); });
+        if (entry.isIntersecting) {
+          _isVisible = true;
+          if (!_started) {
+            _started = true;
+            _demoSecs = 0;
+            startMainTimer();
+            demoDelay(800, function() { runStep(0); });
+          }
+        } else {
+          _isVisible = false;
         }
       });
-    }, { threshold: 0.3 });
-    obs.observe(demoSection);
+    }, { threshold: 0.2 });
+    demoObs.observe(demoCol);
+  }
+
+  // On mobile, when dashboard scrolls into view, pause the demo
+  if (dashSentinel) {
+    var dashObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          _isVisible = false; // user has scrolled to dashboard — pause demo
+        }
+      });
+    }, { threshold: 0.5 });
+    dashObs.observe(dashSentinel);
   }
 })();
 </script>

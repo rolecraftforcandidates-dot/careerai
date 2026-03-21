@@ -1609,8 +1609,8 @@
   }
 
   // Two observers:
-  // 1. demoWindowLeft — starts demo when visible, resumes when scrolled back
-  // 2. dashboardSentinel — pauses demo when user reaches dashboard (mobile only)
+  // 1. demoWindowLeft — starts/resumes demo when visible, pauses when scrolled past
+  // 2. dashboardSentinel — pauses demo only when 50% of dashboard is visible (mobile)
   var demoCol = document.getElementById('demoWindowLeft');
   var dashSentinel = document.getElementById('dashboardSentinel');
 
@@ -1618,6 +1618,7 @@
     var demoObs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
         if (entry.isIntersecting) {
+          // Demo column visible — resume or start
           _isVisible = true;
           if (!_started) {
             _started = true;
@@ -1626,6 +1627,9 @@
             demoDelay(800, function() { runStep(0); });
           }
         } else {
+          // Only pause if dashboard is NOT causing the pause
+          // (dashboard sentinel handles that separately)
+          // This fires when scrolled above the demo (user went back to hero)
           _isVisible = false;
         }
       });
@@ -1633,15 +1637,17 @@
     demoObs.observe(demoCol);
   }
 
-  // On mobile, when dashboard scrolls into view, pause the demo
+  // Dashboard sentinel — only pauses when user has scrolled 50% into dashboard
+  // Does NOT resume (demoWindowLeft observer handles resume when scrolling back up)
   if (dashSentinel) {
     var dashObs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
         if (entry.isIntersecting) {
-          _isVisible = false; // user has scrolled to dashboard — pause demo
+          _isVisible = false; // user deep in dashboard — pause demo
         }
+        // No else — resuming handled by demoWindowLeft entering view
       });
-    }, { threshold: 0.5 });
+    }, { threshold: 0.5, rootMargin: '0px 0px -30% 0px' }); // only when 50% visible AND 30% from bottom
     dashObs.observe(dashSentinel);
   }
 })();

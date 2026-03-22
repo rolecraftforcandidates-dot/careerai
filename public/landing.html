@@ -451,14 +451,11 @@
   </div>
 </section>
 
-<!-- MOCK INTERVIEW DEMO + DASHBOARD SHOWCASE -->
-<section id="mockDemoSection" style="background:#0a0a14;padding:90px 4%;overflow:hidden;position:relative">
-  <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(0,179,138,0.10) 0%,transparent 70%);pointer-events:none"></div>
-
-  <div style="max-width:1280px;margin:0 auto">
-
-    <!-- Header -->
-    <div style="text-align:center;margin-bottom:52px">
+<!-- MOCK INTERVIEW DEMO — full width section -->
+<section id="mockDemoSection" style="background:#0a0a14;padding:80px 4% 60px;overflow:hidden;position:relative">
+  <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(0,179,138,0.10) 0%,transparent 70%);pointer-events:none"></div>
+  <div style="max-width:800px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:40px">
       <div class="section-tag reveal" style="color:#00b38a;border-color:rgba(0,179,138,0.3)">// See It In Action</div>
       <h2 class="section-title reveal" style="color:#fff">THIS IS HOW YOUR REAL<br><span style="color:#00b38a">INTERVIEW WILL FEEL</span></h2>
       <p class="section-desc reveal" style="color:#8888aa">A preview of your AI mock interview — personalised to your resume and target role.<br>Questions, voice, scoring, feedback. All in one session.</p>
@@ -466,257 +463,154 @@
         🔒 Unlock full interview after resume upload — free
       </div>
     </div>
-
-    <!-- Two column layout: mock interview left, dashboard screens right -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start" class="demo-grid">
-
-      <!-- LEFT: Mock interview demo -->
-      <div id="demoWindowLeft">
-        <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;margin-bottom:12px;font-weight:700">// MOCK INTERVIEW — LIVE</div>
-        <div style="background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden">
-
-          <!-- Window chrome -->
-          <div style="background:#1a1a2e;padding:12px 18px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,0.06)">
-            <div style="width:10px;height:10px;border-radius:50%;background:#e84040;opacity:0.8"></div>
-            <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
-            <div style="width:10px;height:10px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
-            <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.65rem;color:#444466">rolekraft.com/mock-interview</div>
-            <div style="background:#ff4444;color:#fff;font-size:0.55rem;font-weight:700;padding:2px 7px;border-radius:100px;letter-spacing:1px;animation:livePulse 2s ease-in-out infinite">● LIVE</div>
-          </div>
-          <!-- Top bar -->
-          <div style="background:#13131f;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05)">
-            <div style="font-size:0.65rem;color:#5048e5;font-weight:700;letter-spacing:1px">TECHNICAL · MID</div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="font-size:0.65rem;color:#888;font-family:'DM Mono',monospace" id="demoQProg">Q 1 of 8</div>
-              <div style="font-family:'DM Mono',monospace;font-size:0.75rem;color:#00b38a;font-weight:700" id="demoTimer">00:00</div>
-              <div style="padding:3px 10px;border:1px solid rgba(232,64,64,0.4);border-radius:5px;color:#e84040;font-size:0.62rem;font-weight:600">End</div>
-            </div>
-          </div>
-          <!-- Demo area — auto height, content extends naturally -->
-          <div style="padding:18px 20px 20px">
-            <!-- Avatar -->
-            <div id="demoAvatar" style="display:none;flex-direction:column;align-items:center;padding:24px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:14px">
-              <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;animation:avatarPulse 2.5s ease-in-out infinite;position:relative">
-                <span style="font-size:1.2rem;font-weight:800;color:white">AI</span>
-                <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(0,179,138,0.3);animation:avatarPulse 2.5s ease-in-out infinite 0.6s"></div>
-              </div>
-              <div id="demoAvatarLabel" style="font-size:0.76rem;color:#8888aa;margin-top:12px;animation:textFade 1.8s ease-in-out infinite">Reviewing your profile...</div>
-              <div style="width:120px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:10px;overflow:hidden">
-                <div id="demoProgressBar" style="height:100%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:2px;width:0%"></div>
-              </div>
-            </div>
-            <!-- Question card -->
-            <div id="demoQCard" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:3px solid #00b38a;border-radius:12px;padding:16px 18px;margin-bottom:12px">
-              <div style="font-size:0.56rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;font-weight:700;margin-bottom:8px" id="demoQLabel">QUESTION 1 OF 8</div>
-              <div style="font-size:0.86rem;font-weight:600;line-height:1.6;color:#e8e8f0;min-height:1.5rem" id="demoQText"></div>
-            </div>
-            <!-- Answer area -->
-            <div id="demoAnswerArea" style="display:none;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px 16px;margin-bottom:12px">
-              <div style="font-size:0.65rem;font-weight:600;color:#555;margin-bottom:8px">YOUR ANSWER</div>
-              <div id="demoAnswerText" style="font-size:0.8rem;color:#aaa;line-height:1.65;min-height:32px"></div>
-              <div id="demoMicIndicator" style="display:none;align-items:center;gap:7px;margin-top:10px">
-                <div style="width:8px;height:8px;border-radius:50%;background:#e84040;animation:livePulse 1s ease-in-out infinite"></div>
-                <div style="display:flex;align-items:center;gap:2px;height:20px" id="demoWaveform"></div>
-                <span style="font-size:0.65rem;color:#e84040;font-weight:700;font-family:'DM Mono',monospace" id="demoRecTimer">0:00</span>
-              </div>
-            </div>
-            <!-- Feedback -->
-            <div id="demoFeedback" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.06),rgba(80,72,229,0.04));border:1px solid rgba(0,179,138,0.2);border-radius:12px;padding:14px 16px;margin-bottom:12px">
-              <div id="demoScorePill" style="display:inline-block;font-size:0.68rem;font-weight:700;padding:4px 12px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;border:1px solid rgba(0,179,138,0.3);margin-bottom:10px">🤖 Score: -</div>
-              <div id="demoFeedbackText" style="font-size:0.76rem;line-height:1.6;color:#aaa"></div>
-            </div>
-            <!-- Buttons -->
-            <div style="display:flex;gap:8px;flex-wrap:wrap" id="demoActions">
-              <div id="demoSubmitBtn" style="padding:8px 18px;border:none;border-radius:8px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-size:0.8rem;font-weight:700;opacity:0.5">Submit Answer →</div>
-              <div id="demoMicBtn" style="padding:8px 14px;border:1.5px solid rgba(255,255,255,0.12);border-radius:8px;background:rgba(255,255,255,0.04);font-size:0.78rem;font-weight:600;color:#aaa">🎤 Start Speaking</div>
-              <div id="demoNextBtn" style="display:none;padding:8px 18px;border:none;border-radius:8px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-size:0.8rem;font-weight:700">Next Question →</div>
-            </div>
-          </div>
-          <div style="text-align:center;padding:0 20px 16px">
-            <button onclick="restartMockDemo()" id="demoReplayBtn" style="display:none;padding:7px 20px;border:1.5px solid rgba(0,179,138,0.4);border-radius:100px;background:rgba(0,179,138,0.08);color:#00b38a;font-family:'DM Sans',sans-serif;font-size:0.76rem;font-weight:600;cursor:pointer">↺ Watch Again</button>
+    <div id="demoWindowLeft">
+      <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;margin-bottom:12px;font-weight:700">// MOCK INTERVIEW — LIVE PREVIEW</div>
+      <div style="background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden">
+        <div style="background:#1a1a2e;padding:12px 18px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <div style="width:10px;height:10px;border-radius:50%;background:#e84040;opacity:0.8"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
+          <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.65rem;color:#444466">rolekraft.com/mock-interview</div>
+          <div style="background:#ff4444;color:#fff;font-size:0.55rem;font-weight:700;padding:2px 7px;border-radius:100px;letter-spacing:1px;animation:livePulse 2s ease-in-out infinite">● LIVE</div>
+        </div>
+        <div style="background:#13131f;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05)">
+          <div style="font-size:0.65rem;color:#5048e5;font-weight:700;letter-spacing:1px">TECHNICAL · MID</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:0.65rem;color:#888;font-family:'DM Mono',monospace" id="demoQProg">Q 1 of 8</div>
+            <div style="font-family:'DM Mono',monospace;font-size:0.75rem;color:#00b38a;font-weight:700" id="demoTimer">00:00</div>
+            <div style="padding:3px 10px;border:1px solid rgba(232,64,64,0.4);border-radius:5px;color:#e84040;font-size:0.62rem;font-weight:600">End</div>
           </div>
         </div>
-      </div>
-
-      <!-- RIGHT: Dashboard screen carousel -->
-      <div>
-        <!-- Sentinel: when this enters viewport on mobile, demo pauses -->
-        <div id="dashboardSentinel" style="height:1px;width:100%"></div>
-        <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#5048e5;margin-bottom:4px;font-weight:700">// YOUR JOB PREP COMMAND CENTER</div>
-        <div style="font-size:0.76rem;color:#555;margin-bottom:14px">Know exactly what to fix. See which jobs you match. Track your readiness.</div>
-
-        <!-- Screen tabs -->
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="dashTabs">
-          <button onclick="showDashScreen(0)" class="dash-tab active" style="padding:5px 13px;border-radius:100px;border:1px solid rgba(0,179,138,0.5);background:rgba(0,179,138,0.12);color:#00b38a;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Plan</button>
-          <button onclick="showDashScreen(1)" class="dash-tab" style="padding:5px 13px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🤖 AI Score</button>
-          <button onclick="showDashScreen(2)" class="dash-tab" style="padding:5px 13px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">💼 Jobs</button>
-          <button onclick="showDashScreen(3)" class="dash-tab" style="padding:5px 13px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📄 Resume</button>
-        </div>
-
-        <!-- Screen container -->
-        <div style="background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden;min-height:420px">
-          <!-- Window chrome -->
-          <div style="background:#1a1a2e;padding:12px 18px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,0.06)">
-            <div style="width:10px;height:10px;border-radius:50%;background:#e84040;opacity:0.8"></div>
-            <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
-            <div style="width:10px;height:10px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
-            <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.65rem;color:#444466" id="dashScreenLabel">rolekraft.com/dashboard#plan</div>
-          </div>
-
-          <!-- Sidebar + content layout -->
-          <div style="display:flex;height:380px">
-            <!-- Mini sidebar -->
-            <div style="width:44px;background:#0d0d1a;border-right:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:14px">
-              <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;font-size:0.7rem">🏠</div>
-              <div id="sideIcon0" style="width:28px;height:28px;border-radius:8px;background:rgba(0,179,138,0.2);display:flex;align-items:center;justify-content:center;font-size:0.7rem">📋</div>
-              <div id="sideIcon1" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">🤖</div>
-              <div id="sideIcon2" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">💼</div>
-              <div id="sideIcon3" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">📄</div>
+        <div style="padding:20px 24px 24px">
+          <div id="demoAvatar" style="display:none;flex-direction:column;align-items:center;padding:28px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:14px">
+            <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;animation:avatarPulse 2.5s ease-in-out infinite;position:relative">
+              <span style="font-size:1.3rem;font-weight:800;color:white">AI</span>
+              <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(0,179,138,0.3);animation:avatarPulse 2.5s ease-in-out infinite 0.6s"></div>
             </div>
-
-            <!-- Screen panels -->
-            <div style="flex:1;overflow:hidden;position:relative">
-
-              <!-- SCREEN 0: Plan / Tasks -->
-              <div id="dashScreen0" style="position:absolute;inset:0;padding:16px;overflow:hidden">
-                <div style="font-size:0.6rem;font-family:'DM Mono',monospace;color:#00b38a;letter-spacing:2px;margin-bottom:12px">WEEK 2 · DAY 3 OF 7</div>
-                <div style="font-size:0.82rem;font-weight:700;color:#e8e8f0;margin-bottom:14px">Today's Tasks</div>
-                <!-- Task items with cursor animation -->
-                <div id="planTasks" style="display:flex;flex-direction:column;gap:8px"></div>
-              </div>
-
-              <!-- SCREEN 1: AI Score -->
-              <div id="dashScreen1" style="position:absolute;inset:0;padding:16px;overflow:hidden;display:none">
-                <div style="font-size:0.6rem;font-family:'DM Mono',monospace;color:#5048e5;letter-spacing:2px;margin-bottom:12px">AI ANSWER SCORING</div>
-                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px;margin-bottom:10px">
-                  <div style="font-size:0.76rem;font-weight:600;color:#e8e8f0;margin-bottom:6px">Q: Explain database indexing with a real example</div>
-                  <div style="font-size:0.72rem;color:#888;line-height:1.5;margin-bottom:10px">"We used B-tree indexes on our orders table at Barclays to speed up date-range queries from 8s to 0.3s..."</div>
-                  <div style="display:inline-block;padding:4px 12px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;font-size:0.68rem;font-weight:700;border:1px solid rgba(0,179,138,0.3)">🤩 Excellent — 91/100</div>
-                </div>
-                <!-- Score bars -->
-                <div style="display:flex;flex-direction:column;gap:8px">
-                  <div>
-                    <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#888;margin-bottom:4px"><span>Technical Accuracy</span><span style="color:#00b38a">94</span></div>
-                    <div style="background:rgba(255,255,255,0.06);border-radius:3px;height:4px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;transition:width 1.2s ease" data-w="94%"></div></div>
-                  </div>
-                  <div>
-                    <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#888;margin-bottom:4px"><span>Clarity</span><span style="color:#00b38a">88</span></div>
-                    <div style="background:rgba(255,255,255,0.06);border-radius:3px;height:4px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;transition:width 1.4s ease" data-w="88%"></div></div>
-                  </div>
-                  <div>
-                    <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#888;margin-bottom:4px"><span>Real-world Example</span><span style="color:#ffbd2e">76</span></div>
-                    <div style="background:rgba(255,255,255,0.06);border-radius:3px;height:4px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#ffbd2e,#f59e0b);border-radius:3px;transition:width 1.6s ease" data-w="76%"></div></div>
-                  </div>
-                </div>
-                <div style="margin-top:12px;padding:10px;background:rgba(80,72,229,0.08);border:1px solid rgba(80,72,229,0.2);border-radius:8px;font-size:0.7rem;color:#a78bfa;line-height:1.5">
-                  💡 Add a before/after metric to make your example more compelling
-                </div>
-              </div>
-
-              <!-- SCREEN 2: Jobs / Job Match -->
-              <div id="dashScreen2" style="position:absolute;inset:0;padding:16px;overflow:hidden;display:none">
-                <div style="font-size:0.6rem;font-family:'DM Mono',monospace;color:#5048e5;letter-spacing:2px;margin-bottom:12px">LIVE JOBS + AI MATCH <span style="background:linear-gradient(135deg,#5048e5,#00b38a);color:#fff;padding:1px 6px;border-radius:4px;font-size:0.55rem">PRO</span></div>
-                <!-- Job items -->
-                <div style="display:flex;flex-direction:column;gap:8px">
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,179,138,0.2);border-radius:10px;padding:12px">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-                      <div>
-                        <div style="font-size:0.76rem;font-weight:700;color:#e8e8f0">Senior Data Engineer</div>
-                        <div style="font-size:0.65rem;color:#888;margin-top:2px">Flipkart · Bangalore · ₹28-38L</div>
-                      </div>
-                      <div style="background:rgba(0,179,138,0.15);color:#00b38a;font-size:0.68rem;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid rgba(0,179,138,0.3);white-space:nowrap">92% match</div>
-                    </div>
-                    <div style="display:flex;gap:4px;flex-wrap:wrap">
-                      <span style="padding:2px 7px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.6rem;color:#aaa">AWS</span>
-                      <span style="padding:2px 7px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.6rem;color:#aaa">PySpark</span>
-                      <span style="padding:2px 7px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.6rem;color:#aaa">Airflow</span>
-                    </div>
-                  </div>
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-                      <div>
-                        <div style="font-size:0.76rem;font-weight:700;color:#e8e8f0">Data Engineer — Payments</div>
-                        <div style="font-size:0.65rem;color:#888;margin-top:2px">Razorpay · Remote · ₹22-30L</div>
-                      </div>
-                      <div style="background:rgba(255,189,46,0.15);color:#ffbd2e;font-size:0.68rem;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,189,46,0.3);white-space:nowrap">78% match</div>
-                    </div>
-                    <div style="display:flex;gap:4px;flex-wrap:wrap">
-                      <span style="padding:2px 7px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.6rem;color:#aaa">Kafka</span>
-                      <span style="padding:2px 7px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.6rem;color:#aaa">Python</span>
-                      <span style="padding:2px 7px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.6rem;color:#aaa">dbt</span>
-                    </div>
-                  </div>
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-                      <div>
-                        <div style="font-size:0.76rem;font-weight:700;color:#e8e8f0">Analytics Engineer</div>
-                        <div style="font-size:0.65rem;color:#888;margin-top:2px">CRED · Bangalore · ₹20-28L</div>
-                      </div>
-                      <div style="background:rgba(255,255,255,0.08);color:#888;font-size:0.68rem;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap">65% match</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- SCREEN 3: Resume / ATS -->
-              <div id="dashScreen3" style="position:absolute;inset:0;padding:16px;overflow:hidden;display:none">
-                <div style="font-size:0.6rem;font-family:'DM Mono',monospace;color:#00b38a;letter-spacing:2px;margin-bottom:12px">RESUME · ATS ANALYSIS</div>
-                <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
-                  <div style="position:relative;width:64px;height:64px;flex-shrink:0">
-                    <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg)">
-                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
-                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#scoreGrad)" stroke-width="3" stroke-dasharray="78 22" stroke-linecap="round"/>
-                      <defs><linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient></defs>
-                    </svg>
-                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:800;color:#00b38a">78</div>
-                  </div>
-                  <div>
-                    <div style="font-size:0.8rem;font-weight:700;color:#e8e8f0;margin-bottom:4px">ATS Score: 78/100</div>
-                    <div style="font-size:0.68rem;color:#888;line-height:1.5">Good foundation — 3 quick wins available</div>
-                  </div>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:6px">
-                  <div style="background:rgba(0,179,138,0.06);border:1px solid rgba(0,179,138,0.2);border-radius:8px;padding:9px 12px;font-size:0.7rem;color:#aaa;line-height:1.4">
-                    <span style="color:#00b38a;font-weight:700">✓ Strong:</span> Quantified achievements present in 4/6 roles
-                  </div>
-                  <div style="background:rgba(255,189,46,0.06);border:1px solid rgba(255,189,46,0.2);border-radius:8px;padding:9px 12px;font-size:0.7rem;color:#aaa;line-height:1.4">
-                    <span style="color:#ffbd2e;font-weight:700">⚠ Fix:</span> Add "data governance" & "regulatory reporting" keywords
-                  </div>
-                  <div style="background:rgba(255,189,46,0.06);border:1px solid rgba(255,189,46,0.2);border-radius:8px;padding:9px 12px;font-size:0.7rem;color:#aaa;line-height:1.4">
-                    <span style="color:#ffbd2e;font-weight:700">⚠ Fix:</span> Professional summary missing — add 3-line role-targeted summary
-                  </div>
-                </div>
-              </div>
-
+            <div id="demoAvatarLabel" style="font-size:0.8rem;color:#8888aa;margin-top:14px;animation:textFade 1.8s ease-in-out infinite">Reviewing your profile...</div>
+            <div style="width:140px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:12px;overflow:hidden">
+              <div id="demoProgressBar" style="height:100%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:2px;width:0%"></div>
             </div>
           </div>
+          <div id="demoQCard" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:3px solid #00b38a;border-radius:12px;padding:18px 22px;margin-bottom:14px">
+            <div style="font-size:0.58rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;font-weight:700;margin-bottom:10px" id="demoQLabel">QUESTION 1 OF 8</div>
+            <div style="font-size:0.95rem;font-weight:600;line-height:1.65;color:#e8e8f0;min-height:2rem" id="demoQText"></div>
+          </div>
+          <div id="demoAnswerArea" style="display:none;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+            <div style="font-size:0.65rem;font-weight:600;color:#555;margin-bottom:8px">YOUR ANSWER</div>
+            <div id="demoAnswerText" style="font-size:0.88rem;color:#aaa;line-height:1.7;min-height:36px"></div>
+            <div id="demoMicIndicator" style="display:none;align-items:center;gap:8px;margin-top:12px">
+              <div style="width:8px;height:8px;border-radius:50%;background:#e84040;animation:livePulse 1s ease-in-out infinite"></div>
+              <div style="display:flex;align-items:center;gap:2px;height:22px" id="demoWaveform"></div>
+              <span style="font-size:0.68rem;color:#e84040;font-weight:700;font-family:'DM Mono',monospace" id="demoRecTimer">0:00</span>
+            </div>
+          </div>
+          <div id="demoFeedback" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.06),rgba(80,72,229,0.04));border:1px solid rgba(0,179,138,0.2);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+            <div id="demoScorePill" style="display:inline-block;font-size:0.72rem;font-weight:700;padding:5px 14px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;border:1px solid rgba(0,179,138,0.3);margin-bottom:10px">🤖 Score: -</div>
+            <div id="demoFeedbackText" style="font-size:0.82rem;line-height:1.65;color:#aaa"></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap" id="demoActions">
+            <div id="demoSubmitBtn" style="padding:10px 22px;border:none;border-radius:9px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-size:0.85rem;font-weight:700;opacity:0.5">Submit Answer →</div>
+            <div id="demoMicBtn" style="padding:10px 16px;border:1.5px solid rgba(255,255,255,0.12);border-radius:9px;background:rgba(255,255,255,0.04);font-size:0.82rem;font-weight:600;color:#aaa">🎤 Start Speaking</div>
+            <div id="demoNextBtn" style="display:none;padding:10px 22px;border:none;border-radius:9px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-size:0.85rem;font-weight:700">Next Question →</div>
+          </div>
         </div>
-
-        <!-- Auto-cycle indicator -->
-        <div style="display:flex;justify-content:center;gap:6px;margin-top:14px" id="dashDots">
-          <div class="dash-dot active" style="width:20px;height:4px;border-radius:2px;background:#00b38a;transition:all 0.3s"></div>
-          <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
-          <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
-          <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+        <div style="text-align:center;padding:0 24px 20px">
+          <button onclick="restartMockDemo()" id="demoReplayBtn" style="display:none;padding:8px 22px;border:1.5px solid rgba(0,179,138,0.4);border-radius:100px;background:rgba(0,179,138,0.08);color:#00b38a;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer">↺ Watch Again</button>
         </div>
       </div>
     </div>
-
-    <!-- CTA -->
-    <div style="text-align:center;margin-top:52px">
+    <div style="text-align:center;margin-top:36px">
       <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block;font-size:1rem;padding:16px 42px">Start My Interview Preparation — Free →</a>
       <div style="margin-top:12px;font-size:0.78rem;color:#555">Personalised to your resume · No credit card · Ready in 2 minutes</div>
     </div>
   </div>
 </section>
 
-<!-- Mobile responsive for demo grid -->
-<style>
-@media(max-width:768px){
-  .demo-grid{grid-template-columns:1fr!important}
-  .demo-grid > div:nth-child(2){margin-top:32px}
-}
-</style>
+<!-- DIVIDER -->
+<div style="background:#0a0a14;padding:0 4%">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:20px;padding:24px 0;border-top:1px solid rgba(255,255,255,0.06)">
+    <div style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(80,72,229,0.3))"></div>
+    <div style="padding:10px 24px;background:rgba(80,72,229,0.1);border:1px solid rgba(80,72,229,0.25);border-radius:100px;font-size:0.7rem;font-family:'DM Mono',monospace;color:#a78bfa;font-weight:700;letter-spacing:2px;white-space:nowrap">⬇ YOUR JOB PREP COMMAND CENTER</div>
+    <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(80,72,229,0.3),transparent)"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD SHOWCASE — full width section -->
+<section id="dashboardSection" style="background:#0a0a14;padding:20px 4% 80px;overflow:hidden">
+  <div style="max-width:1100px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:28px">
+      <p style="color:#8888aa;font-size:0.9rem;max-width:560px;margin:0 auto;line-height:1.7">Track your resume gaps, readiness scores, matched jobs, and prep progress — all in one place while you prepare.</p>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center" id="dashTabs">
+      <button onclick="showDashScreen(0)" class="dash-tab active" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(0,179,138,0.5);background:rgba(0,179,138,0.12);color:#00b38a;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Prep Plan</button>
+      <button onclick="showDashScreen(1)" class="dash-tab" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🤖 AI Score</button>
+      <button onclick="showDashScreen(2)" class="dash-tab" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">💼 Live Jobs</button>
+      <button onclick="showDashScreen(3)" class="dash-tab" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📄 Resume ATS</button>
+    </div>
+    <div id="dashCaption" style="text-align:center;font-size:0.82rem;color:#5048e5;font-weight:600;margin-bottom:16px;min-height:20px">Know exactly what to prepare — day by day</div>
+    <div style="max-width:860px;margin:0 auto;background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden">
+      <div style="background:#1a1a2e;padding:12px 18px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#e84040;opacity:0.8"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
+        <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.65rem;color:#444466" id="dashScreenLabel">rolekraft.com/dashboard#plan</div>
+      </div>
+      <div style="display:flex;height:340px">
+        <div style="width:44px;background:#0d0d1a;border-right:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:14px">
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;font-size:0.7rem">🏠</div>
+          <div id="sideIcon0" style="width:28px;height:28px;border-radius:8px;background:rgba(0,179,138,0.2);display:flex;align-items:center;justify-content:center;font-size:0.7rem">📋</div>
+          <div id="sideIcon1" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">🤖</div>
+          <div id="sideIcon2" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">💼</div>
+          <div id="sideIcon3" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">📄</div>
+        </div>
+        <div style="flex:1;overflow:hidden;position:relative">
+          <div id="dashScreen0" style="position:absolute;inset:0;padding:20px;overflow:hidden">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#00b38a;letter-spacing:2px;margin-bottom:14px">WEEK 2 · DAY 3 OF 7</div>
+            <div style="font-size:0.88rem;font-weight:700;color:#e8e8f0;margin-bottom:16px">Today's Tasks</div>
+            <div id="planTasks" style="display:flex;flex-direction:column;gap:9px"></div>
+          </div>
+          <div id="dashScreen1" style="position:absolute;inset:0;padding:20px;overflow:hidden;display:none">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#5048e5;letter-spacing:2px;margin-bottom:14px">AI ANSWER SCORING</div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px;margin-bottom:12px">
+              <div style="font-size:0.8rem;font-weight:600;color:#e8e8f0;margin-bottom:6px">Q: Explain database indexing with a real example</div>
+              <div style="font-size:0.75rem;color:#888;line-height:1.5;margin-bottom:12px">"We used B-tree indexes on our orders table at Barclays to speed up date-range queries from 8s to 0.3s..."</div>
+              <div style="display:inline-block;padding:5px 14px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;font-size:0.72rem;font-weight:700;border:1px solid rgba(0,179,138,0.3)">🤩 Excellent — 91/100</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div><div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px"><span>Technical Accuracy</span><span style="color:#00b38a">94</span></div><div style="background:rgba(255,255,255,0.06);border-radius:3px;height:5px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;transition:width 1.2s ease" data-w="94%"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px"><span>Clarity of Answer</span><span style="color:#00b38a">88</span></div><div style="background:rgba(255,255,255,0.06);border-radius:3px;height:5px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;transition:width 1.4s ease" data-w="88%"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px"><span>Real-world Example</span><span style="color:#ffbd2e">76</span></div><div style="background:rgba(255,255,255,0.06);border-radius:3px;height:5px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#ffbd2e,#f59e0b);border-radius:3px;transition:width 1.6s ease" data-w="76%"></div></div></div>
+            </div>
+            <div style="margin-top:14px;padding:10px 14px;background:rgba(80,72,229,0.08);border:1px solid rgba(80,72,229,0.2);border-radius:8px;font-size:0.73rem;color:#a78bfa;line-height:1.5">💡 Add a before/after metric to make your example more compelling</div>
+          </div>
+          <div id="dashScreen2" style="position:absolute;inset:0;padding:20px;overflow:hidden;display:none">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#5048e5;letter-spacing:2px;margin-bottom:14px">LIVE JOBS + AI MATCH <span style="background:linear-gradient(135deg,#5048e5,#00b38a);color:#fff;padding:1px 6px;border-radius:4px;font-size:0.55rem">PRO</span></div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,179,138,0.2);border-radius:10px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px"><div><div style="font-size:0.8rem;font-weight:700;color:#e8e8f0">Senior Data Engineer</div><div style="font-size:0.67rem;color:#888;margin-top:2px">Flipkart · Bangalore · ₹28-38L</div></div><div style="background:rgba(0,179,138,0.15);color:#00b38a;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid rgba(0,179,138,0.3);white-space:nowrap">92% match</div></div><div style="display:flex;gap:4px;flex-wrap:wrap"><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">AWS</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">PySpark</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">Airflow</span></div></div>
+              <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px"><div><div style="font-size:0.8rem;font-weight:700;color:#e8e8f0">Data Engineer — Payments</div><div style="font-size:0.67rem;color:#888;margin-top:2px">Razorpay · Remote · ₹22-30L</div></div><div style="background:rgba(255,189,46,0.15);color:#ffbd2e;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid rgba(255,189,46,0.3);white-space:nowrap">78% match</div></div><div style="display:flex;gap:4px;flex-wrap:wrap"><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">Kafka</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">Python</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">dbt</span></div></div>
+            </div>
+          </div>
+          <div id="dashScreen3" style="position:absolute;inset:0;padding:20px;overflow:hidden;display:none">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#00b38a;letter-spacing:2px;margin-bottom:14px">RESUME · ATS ANALYSIS</div>
+            <div style="display:flex;align-items:center;gap:18px;margin-bottom:18px"><div style="position:relative;width:68px;height:68px;flex-shrink:0"><svg viewBox="0 0 36 36" style="width:68px;height:68px;transform:rotate(-90deg)"><circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/><circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#scoreGrad)" stroke-width="3" stroke-dasharray="78 22" stroke-linecap="round"/><defs><linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient></defs></svg><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.95rem;font-weight:800;color:#00b38a">78</div></div><div><div style="font-size:0.86rem;font-weight:700;color:#e8e8f0;margin-bottom:5px">ATS Score: 78/100</div><div style="font-size:0.72rem;color:#888;line-height:1.5">Good foundation — 3 quick wins available</div></div></div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="background:rgba(0,179,138,0.06);border:1px solid rgba(0,179,138,0.2);border-radius:8px;padding:10px 14px;font-size:0.73rem;color:#aaa;line-height:1.4"><span style="color:#00b38a;font-weight:700">✓ Strong:</span> Quantified achievements present in 4/6 roles</div>
+              <div style="background:rgba(255,189,46,0.06);border:1px solid rgba(255,189,46,0.2);border-radius:8px;padding:10px 14px;font-size:0.73rem;color:#aaa;line-height:1.4"><span style="color:#ffbd2e;font-weight:700">⚠ Fix:</span> Add "data governance" & "regulatory reporting" keywords</div>
+              <div style="background:rgba(255,189,46,0.06);border:1px solid rgba(255,189,46,0.2);border-radius:8px;padding:10px 14px;font-size:0.73rem;color:#aaa;line-height:1.4"><span style="color:#ffbd2e;font-weight:700">⚠ Fix:</span> Professional summary missing — add 3-line role-targeted summary</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:7px;margin-top:16px" id="dashDots">
+      <div class="dash-dot active" style="width:22px;height:4px;border-radius:2px;background:#00b38a;transition:all 0.3s"></div>
+      <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+      <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+      <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+    </div>
+  </div>
+</section>
 
 <!-- FEATURES — blue-black -->
 <section class="features-section">
@@ -1643,47 +1537,23 @@
     });
   }
 
-  // Two observers:
-  // 1. demoWindowLeft — starts/resumes demo when visible, pauses when scrolled past
-  // 2. dashboardSentinel — pauses demo only when 50% of dashboard is visible (mobile)
+  // Single IntersectionObserver on the demo window only
+  // Layout is now vertical stack so demo naturally scrolls in/out on ALL devices
+  // No sentinel needed — demo window leaving viewport = paused, entering = resumed/started
   var demoCol = document.getElementById('demoWindowLeft');
-  var dashSentinel = document.getElementById('dashboardSentinel');
-
   if (demoCol) {
     var demoObs = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-          // Demo column visible — resume or start
-          _isVisible = true;
-          if (!_started) {
-            _started = true;
-            _demoSecs = 0;
-            startMainTimer();
-            demoDelay(800, function() { runStep(0); });
-          }
-        } else {
-          // Only pause if dashboard is NOT causing the pause
-          // (dashboard sentinel handles that separately)
-          // This fires when scrolled above the demo (user went back to hero)
-          _isVisible = false;
+        _isVisible = entry.isIntersecting;
+        if (entry.isIntersecting && !_started) {
+          _started = true;
+          _demoSecs = 0;
+          startMainTimer();
+          demoDelay(800, function() { runStep(0); });
         }
       });
-    }, { threshold: 0.2 });
+    }, { threshold: 0.25 });
     demoObs.observe(demoCol);
-  }
-
-  // Dashboard sentinel — only pauses when user has scrolled 50% into dashboard
-  // Does NOT resume (demoWindowLeft observer handles resume when scrolling back up)
-  if (dashSentinel) {
-    var dashObs = new IntersectionObserver(function(entries) {
-      entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-          _isVisible = false; // user deep in dashboard — pause demo
-        }
-        // No else — resuming handled by demoWindowLeft entering view
-      });
-    }, { threshold: 0.5, rootMargin: '0px 0px -30% 0px' }); // only when 50% visible AND 30% from bottom
-    dashObs.observe(dashSentinel);
   }
 })();
 </script>

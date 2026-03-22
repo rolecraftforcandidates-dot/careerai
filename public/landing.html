@@ -55,19 +55,32 @@
   nav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 5%;
-    background: rgba(248,249,255,0.9);
+    padding: 14px 5%;
+    background: rgba(248,249,255,0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(0,0,0,0.07);
   }
   .logo { font-family: var(--heading); font-size: 1.6rem; letter-spacing: 2px; color: var(--accent); }
   .logo span { color: var(--text); }
+  .nav-right { display:flex; align-items:center; gap:12px; }
+  .nav-signin { font-size:0.84rem;color:var(--muted);text-decoration:none;font-weight:600;white-space:nowrap;border:1px solid var(--border);padding:9px 16px;border-radius:6px;transition:all 0.2s; }
+  .nav-signin:hover { border-color:var(--accent);color:var(--accent); }
   .nav-cta {
     background: var(--accent); color: #ffffff; font-weight: 700; font-size: 0.9rem;
-    padding: 12px 24px; border-radius: 6px; text-decoration: none; letter-spacing: 0.3px; transition: all 0.2s;
+    padding: 10px 20px; border-radius: 6px; text-decoration: none; letter-spacing: 0.3px; transition: all 0.2s;
     white-space: nowrap;
   }
   .nav-cta:hover { background: #00c99a; transform: translateY(-1px); }
+  .nav-cta-full { display:inline; }
+  .nav-cta-short { display:none; }
+  @media(max-width:540px){
+    nav { padding: 10px 4%; }
+    .nav-signin { font-size:0.78rem; padding:8px 12px; }
+    .nav-cta { font-size:0.78rem; padding:8px 12px; }
+    .nav-cta-full { display:none; }
+    .nav-cta-short { display:inline; }
+    .logo span { font-size:1.2rem; }
+  }
 
   /* ── HERO — dark base #0a0a0f ── */
   .hero {
@@ -419,7 +432,10 @@
 <!-- NAV -->
 <nav>
   <div class="logo" style="display:flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32" style="display:inline-block;vertical-align:middle;margin-right:8px"><defs><linearGradient id="lrkc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient><linearGradient id="lrkp" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#5048e5"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs><path d="M15 17 Q15 11 20 11 L28 11 Q33 11 33 17" fill="none" stroke="url(#lrkc)" stroke-width="3.5" stroke-linecap="round"/><rect x="6" y="18" width="36" height="26" rx="6" fill="url(#lrkc)"/><rect x="18" y="27" width="12" height="9" rx="3" fill="white" opacity="0.28"/><polygon points="45,3 18,26 26,29" fill="url(#lrkp)" opacity="0.92"/><polygon points="45,3 23,43 26,29" fill="white" opacity="0.42"/><polygon points="45,3 26,29 32,22" fill="url(#lrkp)" opacity="0.5"/></svg><span style="font-family:'Bebas Neue',cursive;font-size:1.5rem;letter-spacing:2px;background:linear-gradient(90deg,#00b38a,#5048e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ROLEKRAFT</span></div>
-  <a href="/app" style="font-size:0.84rem;color:var(--muted);text-decoration:none;margin-right:16px;font-weight:500">Sign In</a><a href="/register" target="_blank" rel="noopener" class="nav-cta">Check My Readiness →</a>
+  <div class="nav-right">
+    <a href="/app" class="nav-signin">Sign In</a>
+    <a href="/register" target="_blank" rel="noopener" class="nav-cta"><span class="nav-cta-full">Check My Readiness →</span><span class="nav-cta-short">Get Started →</span></a>
+  </div>
 </nav>
 
 <!-- HERO -->

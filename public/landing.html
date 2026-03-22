@@ -63,8 +63,9 @@
   .logo { font-family: var(--heading); font-size: 1.6rem; letter-spacing: 2px; color: var(--accent); }
   .logo span { color: var(--text); }
   .nav-cta {
-    background: var(--accent); color: #ffffff; font-weight: 600; font-size: 0.85rem;
-    padding: 10px 22px; border-radius: 4px; text-decoration: none; letter-spacing: 0.5px; transition: all 0.2s;
+    background: var(--accent); color: #ffffff; font-weight: 700; font-size: 0.9rem;
+    padding: 12px 24px; border-radius: 6px; text-decoration: none; letter-spacing: 0.3px; transition: all 0.2s;
+    white-space: nowrap;
   }
   .nav-cta:hover { background: #00c99a; transform: translateY(-1px); }
 
@@ -430,19 +431,20 @@
   <div class="orb orb2"></div>
   <div class="hero-content">
     <div class="badge">🚀 AI-Powered Job Preparation Platform</div>
-    <h1 id="heroHeadline" aria-label="FROM RESUME TO JOB OFFER — ALL IN ONE PLACE"></h1>
+    <h1 id="heroHeadline" aria-label="YOUR RESUME GOT YOU SHORTLISTED. NOW DON'T MESS UP THE INTERVIEW."></h1>
     <p class="hero-sub">
-      Most candidates fail in <strong>interviews</strong>, not resume screening.<br>
-      <span class="hl">Fix your resume</span> · <span class="hl">prepare for real interviews</span> · <span class="hl">practice with AI</span> · <span class="hl">match with jobs</span> — built for tech professionals who are serious about landing their next role.
+      <strong>Every interview you attend unprepared is a missed opportunity.</strong><br>
+      <span class="hl">Fix your resume</span> · <span class="hl">know what to prepare</span> · <span class="hl">practice with AI</span> · <span class="hl">match with real jobs</span> — the complete system to go from shortlisted to hired.
     </p>
     <div class="hero-ctas">
-      <a href="/register" target="_blank" rel="noopener" class="btn-primary">Check My Interview Readiness →</a>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="font-size:1.1rem;padding:18px 42px">Check My Interview Readiness — Free →</a>
       <a href="#how" class="btn-secondary">See How It Works</a>
     </div>
+    <div style="margin-top:18px;font-size:0.8rem;color:var(--muted)">No credit card · 2 minutes · Personalised to your resume</div>
     <div class="hero-stats">
-      <div class="stat"><div class="stat-num" data-target="5" data-suffix="">5</div><div class="stat-label">Steps to Job-Ready</div></div>
-      <div class="stat"><div class="stat-num" data-target="0" data-suffix="AI">AI</div><div class="stat-label">Mock Interviews</div></div>
-      <div class="stat"><div class="stat-num" data-target="100" data-suffix="%">100%</div><div class="stat-label">Free to Start</div></div>
+      <div class="stat"><div class="stat-num">5</div><div class="stat-label">Steps to Offer-Ready</div></div>
+      <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Mock Interviews</div></div>
+      <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Free to Start</div></div>
     </div>
   </div>
   <div class="scroll-hint">
@@ -451,11 +453,70 @@
   </div>
 </section>
 
+<!-- AHA MOMENT — real output examples, shows value before signup -->
+<section style="background:#fff;padding:48px 6%;border-bottom:1px solid var(--border)">
+  <div style="max-width:960px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:0.72rem;font-family:var(--mono);letter-spacing:2px;color:var(--muted);font-weight:600">// THIS IS WHAT YOU GET — BASED ON YOUR RESUME</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+
+      <!-- AHA 1: Resume improvement -->
+      <div style="background:#f8f9ff;border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#5048e5)"></div>
+        <div style="font-size:0.62rem;font-family:var(--mono);letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;font-weight:600">RESUME SCORE IMPROVEMENT</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+          <div style="text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#e84040">52</div>
+            <div style="font-size:0.62rem;color:var(--muted)">Before</div>
+          </div>
+          <div style="font-size:1.4rem;color:var(--muted)">→</div>
+          <div style="text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:var(--accent)">82</div>
+            <div style="font-size:0.62rem;color:var(--muted)">After</div>
+          </div>
+          <div style="flex:1;font-size:0.76rem;color:var(--text);line-height:1.5">Added "data governance" keywords + quantified 3 achievements</div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic">— Backend Engineer, 4 yrs experience</div>
+      </div>
+
+      <!-- AHA 2: Sample interview question generated from resume -->
+      <div style="background:#f8f9ff;border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#5048e5,var(--accent))"></div>
+        <div style="font-size:0.62rem;font-family:var(--mono);letter-spacing:1.5px;color:#5048e5;margin-bottom:10px;font-weight:600">TOP QUESTION GENERATED FROM YOUR RESUME</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text);line-height:1.55;margin-bottom:12px">"Walk me through how you optimised your AWS Glue pipeline — what was the bottleneck, what did you change, and how did you measure the improvement?"</div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic">— Generated for a Data Engineer targeting mid-senior roles</div>
+      </div>
+
+      <!-- AHA 3: Job match insight -->
+      <div style="background:#f8f9ff;border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#ffbd2e,var(--accent))"></div>
+        <div style="font-size:0.62rem;font-family:var(--mono);letter-spacing:1.5px;color:#f59e0b;margin-bottom:10px;font-weight:600">JOB MATCH ANALYSIS</div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:0.76rem;font-weight:700;color:var(--text);margin-bottom:4px">Senior Data Engineer @ Flipkart</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px"><div style="width:78%;height:100%;background:linear-gradient(90deg,var(--accent),#5048e5);border-radius:3px"></div></div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--accent)">78% match</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:#e84040;font-weight:600;margin-bottom:4px">⚠ Missing: Kafka, dbt, real-time pipelines</div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic">Add these 3 keywords to increase shortlist likelihood</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:28px">
+      <p style="font-size:0.88rem;color:var(--muted);margin-bottom:16px">This is generated from <em>your</em> resume — not a generic template.</p>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="font-size:1rem;padding:15px 36px">Get My Personalised Report →</a>
+    </div>
+  </div>
+</section>
+
 <!-- MOCK INTERVIEW DEMO — full width section -->
 <section id="mockDemoSection" style="background:#0a0a14;padding:80px 4% 60px;overflow:hidden;position:relative">
   <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(0,179,138,0.10) 0%,transparent 70%);pointer-events:none"></div>
   <div style="max-width:800px;margin:0 auto">
     <div style="text-align:center;margin-bottom:40px">
+      <div style="font-size:0.88rem;font-weight:700;color:#e84040;margin-bottom:14px;letter-spacing:0.3px">⚠ This is where most candidates fail — not knowing how to answer under pressure.</div>
       <div class="section-tag reveal" style="color:#00b38a;border-color:rgba(0,179,138,0.3)">// See It In Action</div>
       <h2 class="section-title reveal" style="color:#fff">THIS IS HOW YOUR REAL<br><span style="color:#00b38a">INTERVIEW WILL FEEL</span></h2>
       <p class="section-desc reveal" style="color:#8888aa">A preview of your AI mock interview — personalised to your resume and target role.<br>Questions, voice, scoring, feedback. All in one session.</p>
@@ -523,6 +584,7 @@
     <div style="text-align:center;margin-top:36px">
       <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block;font-size:1rem;padding:16px 42px">Start My Interview Preparation — Free →</a>
       <div style="margin-top:12px;font-size:0.78rem;color:#555">Personalised to your resume · No credit card · Ready in 2 minutes</div>
+      <div style="margin-top:10px;font-size:0.84rem;font-weight:600;color:#00b38a">Practice before your real interview. Not during it.</div>
     </div>
   </div>
 </section>
@@ -617,8 +679,8 @@
   <div class="container">
     <div class="features-header reveal">
       <div class="section-tag">// Your 5-Step Journey</div>
-      <h2 class="section-title">FROM RESUME TO<br>JOB OFFER</h2>
-      <p class="section-desc">You don't need more job applications. You need a complete system that fixes every gap between you and the offer.</p>
+      <h2 class="section-title">HERE'S EXACTLY HOW YOU GO<br>FROM RESUME → JOB OFFER</h2>
+      <p class="section-desc">You don't need more job applications. You need a complete system that closes every gap between you and the offer.</p>
     </div>
     <div class="features-grid">
       <div class="feature-card reveal">
@@ -861,6 +923,9 @@
         <div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--border);font-family:var(--mono);font-size:0.78rem;color:var(--accent);">
           ✓ OFFER-READY — Final Readiness Report Generated
         </div>
+        <div style="margin-top:16px;padding:12px 16px;background:rgba(0,179,138,0.06);border-radius:8px;font-size:0.78rem;color:var(--muted);line-height:1.6">
+          💡 <strong style="color:var(--text)">Based on your actual resume</strong> — questions, scoring, and job matching are all generated from your uploaded CV. Not a template.
+        </div>
       </div>
     </div>
   </div>
@@ -925,12 +990,15 @@
 <!-- FINAL CTA -->
 <section class="cta-section">
   <div style="position:relative;z-index:1;max-width:800px;margin:0 auto;">
-    <div class="section-tag reveal">// Make The Move</div>
-    <h2 class="section-title reveal">YOUR RESUME GETS YOU<br><span style="color:var(--accent)">SHORTLISTED.</span><br>WE GET YOU HIRED.</h2>
-    <p class="section-desc reveal" style="margin:16px auto 40px">Stop going into interviews unprepared. Upload your resume, get your readiness score, and start your AI-powered prep today — takes 2 minutes.</p>
+    <div class="section-tag reveal">// Your Next Move</div>
+    <h2 class="section-title reveal">DON'T GO INTO YOUR<br>NEXT INTERVIEW <span style="color:var(--accent)">GUESSING.</span></h2>
+    <p class="section-desc reveal" style="margin:16px auto 8px;font-size:1.1rem;font-weight:600">Prepare. Practice. Get hired.</p>
+    <p class="section-desc reveal" style="margin:0 auto 40px">Upload your resume in 2 minutes. Get your personalised readiness score, prep plan, and full AI mock interview — all free.</p>
     <div class="hero-ctas reveal">
-      <a href="/register" target="_blank" rel="noopener" class="btn-primary">Check My Job Readiness — Free →</a>
-      <a href="#how" class="btn-secondary">See How It Works</a>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="font-size:1.1rem;padding:18px 44px">Check My Job Readiness — Free →</a>
+    </div>
+    <div style="margin-top:20px;font-size:0.8rem;color:rgba(255,255,255,0.45)" class="reveal">
+      Personalised to your resume · Questions for your role · No credit card needed
     </div>
   </div>
 </section>
@@ -1033,11 +1101,13 @@
   headline.style.opacity = 1;
 
   const segments = [
-    { text: 'FROM RESUME', cls: null },
+    { text: 'YOUR RESUME', cls: null },
     { text: '__BR__', cls: null },
-    { text: 'TO JOB OFFER', cls: 'accent' },
+    { text: 'GOT YOU SHORTLISTED.', cls: null },
     { text: '__BR__', cls: null },
-    { text: 'ALL IN ONE PLACE', cls: null },
+    { text: "DON'T MESS UP", cls: null },
+    { text: '__BR__', cls: null },
+    { text: 'THE INTERVIEW.', cls: 'accent' },
   ];
 
   let allChars = [];

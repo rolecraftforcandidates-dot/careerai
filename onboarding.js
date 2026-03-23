@@ -986,11 +986,14 @@ async function writeBasicUser(sheets, sheetId, name, email, password, role, expe
       (resumeText || '').slice(0, 45000), // L: Resume Text — saved for Job Match
       'free',                             // M: Tier
       '',                                 // N: Tier Expiry
-      techStack || '',                    // O: Tech Stack  ← new column (add header in sheet)
-      String(experienceYears ?? ''),      // P: Experience Years ← new column (add header in sheet)
+      techStack || '',                    // O: Tech Stack
+      String(experienceYears ?? ''),      // P: Experience Years
+      '',                                 // Q: JM Usage
+      '',                                 // R: JM Month
+      'pending',                          // S: AuthSetup — 'pending' = first-time, no login yet
     ]]}
   });
-  console.log('✅ Basic user row created for', email, '| Tech:', techStack, '| Exp:', experience, experienceYears + 'yrs');
+  console.log('✅ Basic user row created for', email, '| Tech:', techStack, '| Exp:', experience, experienceYears + 'yrs | AuthSetup: pending');
 }
 
 // ── Update user row with extracted resume info after Phase 2 extraction ──

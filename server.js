@@ -101,6 +101,30 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         if (new Date(tierExpiry) < new Date()) activeTier = 'free';
       }
 
+      // Mark AuthSetup complete on first Google login
+      const authSetup = user['AuthSetup'] || 'pending';
+      if (authSetup === 'pending') {
+        try {
+          const sc       = getSheetsClient();
+          const allRows  = await sc.spreadsheets.values.get({ spreadsheetId: process.env.SHEET_ID, range: 'Users!A:A' });
+          const rowIdx   = (allRows.data.values || []).findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+          if (rowIdx >= 1) { // rowIdx 0 = header, so >= 1 is a real data row
+            const hdrsResp  = await sc.spreadsheets.values.get({ spreadsheetId: process.env.SHEET_ID, range: 'Users!1:1' });
+            const hdrs      = (hdrsResp.data.values || [[]])[0] || [];
+            let authIdx     = hdrs.indexOf('AuthSetup');
+            if (authIdx === -1) authIdx = 18; // default to S col
+            const colLetter = String.fromCharCode(65 + authIdx);
+            await sc.spreadsheets.values.update({
+              spreadsheetId: process.env.SHEET_ID,
+              range: `Users!${colLetter}${rowIdx + 1}`,
+              valueInputOption: 'RAW',
+              requestBody: { values: [['complete']] }
+            });
+            console.log(`✅ AuthSetup marked complete for ${email} via Google`);
+          }
+        } catch(e) { console.warn('AuthSetup Google update failed (non-fatal):', e.message); }
+      }
+
       const sessionUser = {
         email:       user.Email,
         name:        user.Name        || user['Full Name'] || '',
@@ -113,6 +137,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         tier:        activeTier,
         tierExpiry:  tierExpiry,
         authProvider: 'google',
+        authSetup:   'complete',
         needsOnboarding: !(user.Role || user['Target Role']) || user.Week === '0',
       };
 
@@ -264,6 +289,13 @@ async function readSheet(tabName) {
   );
 }
 
+// Raw sheet read — returns array of arrays (no header mapping)
+async function readSheetRaw(range) {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range });
+  return res.data.values || [];
+}
+
 // ── Helper: write a single cell ──
 async function writeCell(tabName, rowIndex, colIndex, value) {
   const sheets = getSheetsClient();
@@ -398,6 +430,32 @@ async function checkAndAdvanceWeek(email, currentWeek, weekStarted, sessionRef) 
 // AUTH ROUTES
 // ════════════════════════════════════════
 
+// ── buildSessionUser — shared helper to build session object from sheet row ──
+function buildSessionUser(user) {
+  const today = todayStr();
+  const weekStarted = user['Week Started'] || today;
+  const userTier    = (user.Tier || 'free').toLowerCase().trim();
+  const tierExpiry  = user['Tier Expiry'] || '';
+  let activeTier    = userTier;
+  if (userTier !== 'free' && tierExpiry) {
+    if (new Date(tierExpiry) < new Date()) activeTier = 'free';
+  }
+  return {
+    email:           user.Email,
+    name:            user.Name || user['Full Name'] || '',
+    role:            user.Role || user['Target Role'] || '',
+    experience:      user.Experience || '',
+    experienceYears: parseInt(user['Experience Years'] || '') || null,
+    techStack:       user['Tech Stack'] || '',
+    week:            parseInt(user.Week) || 1,
+    weekStarted:     weekStarted,
+    dayOfWeek:       Math.min(daysSince(weekStarted) + 1, 7),
+    tier:            activeTier,
+    tierExpiry:      tierExpiry,
+    authSetup:       user['AuthSetup'] || 'pending',
+  };
+}
+
 // POST /api/login
 app.post('/api/login', async (req, res) => {
   try {
@@ -467,7 +525,31 @@ app.post('/api/login', async (req, res) => {
       dayOfWeek:   Math.min(daysSince(weekStarted) + 1, 7),
       tier:        activeTier,
       tierExpiry:  tierExpiry,
+      authSetup:   'complete',
     };
+
+    // Mark AuthSetup complete in sheet if it was pending
+    if ((user['AuthSetup'] || 'pending') === 'pending') {
+      try {
+        const sc      = getSheetsClient();
+        const allRows = await sc.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!A:A' });
+        const rowIdx  = (allRows.data.values || []).findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+        if (rowIdx >= 1) {
+          const hdrsResp  = await sc.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!1:1' });
+          const hdrs      = (hdrsResp.data.values || [[]])[0] || [];
+          let authIdx     = hdrs.indexOf('AuthSetup');
+          if (authIdx === -1) authIdx = 18;
+          const colLetter = String.fromCharCode(65 + authIdx);
+          await sc.spreadsheets.values.update({
+            spreadsheetId: SHEET_ID,
+            range: `Users!${colLetter}${rowIdx + 1}`,
+            valueInputOption: 'RAW',
+            requestBody: { values: [['complete']] }
+          });
+          console.log(`✅ AuthSetup marked complete for ${email} via email login`);
+        }
+      } catch(e) { console.warn('AuthSetup email update failed (non-fatal):', e.message); }
+    }
     const sessionSize = JSON.stringify(req.session).length;
     console.log('📦 Session set for', user.Email, '| size:', sessionSize, 'bytes | user set:', !!req.session.user);
 
@@ -521,6 +603,55 @@ app.get('/api/debug', async (req, res) => {
     info.error = 'Sheets connection failed: ' + e.message;
   }
   res.json(info);
+});
+
+// POST /api/auth/set-password — first-time users set a password to secure account
+// Also marks AuthSetup=complete in sheet
+app.post('/api/auth/set-password', requireLogin, async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    if (!password || password.length < 6)
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    const email   = req.session.user.email;
+    const bcrypt  = require('bcryptjs');
+    const hashed  = await bcrypt.hash(password, 10);
+
+    // Find user row in sheet
+    const sheets  = getSheetsClient();
+    const rawRows = await readSheetRaw('Users!A:A');
+    const rowIdx  = rawRows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+    if (rowIdx === -1) return res.status(404).json({ error: 'User not found' });
+
+    const sheetRow = rowIdx + 1;
+
+    // Get headers to find Password and AuthSetup columns
+    const hdrsResp  = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'Users!1:1' });
+    const hdrs      = (hdrsResp.data.values || [[]])[0] || [];
+    const pwdIdx    = hdrs.indexOf('Password');
+    const authIdx   = hdrs.indexOf('AuthSetup');
+    const pwdCol    = String.fromCharCode(65 + (pwdIdx  === -1 ? 2  : pwdIdx));   // C default
+    const authCol   = String.fromCharCode(65 + (authIdx === -1 ? 18 : authIdx));  // S default
+
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: [
+          { range: `Users!${pwdCol}${sheetRow}`,  values: [[hashed]]    },
+          { range: `Users!${authCol}${sheetRow}`, values: [['complete']] },
+        ]
+      }
+    });
+
+    // Update session
+    req.session.user.authSetup = 'complete';
+    console.log(`✅ Password set + AuthSetup=complete for ${email}`);
+    res.json({ success: true });
+  } catch(err) {
+    console.error('set-password error:', err.message);
+    res.status(500).json({ error: 'Failed to save password' });
+  }
 });
 
 // POST /api/logout
@@ -1807,7 +1938,7 @@ app.get('/api/welcome/:token', async (req, res) => {
 });
 
 // POST /api/trigger-plan — called when user clicks "Go to Dashboard" on welcome page
-// This is what actually kicks off Phase 2 (plan generation)
+// Auto-logs in the user for first-time access — no login required
 app.post('/api/trigger-plan', async (req, res) => {
   const { token } = req.body || {};
   if (!token) return res.status(400).json({ error: 'No token' });
@@ -1821,19 +1952,40 @@ app.post('/api/trigger-plan', async (req, res) => {
   // Prevent double-triggering
   if (welcomeData.planTriggered) {
     console.log(`ℹ️  Plan already triggered for ${email} — skipping`);
+    // Still set session if not already set (page refresh case)
+    if (!req.session.user) {
+      try {
+        const users = await readSheet('Users');
+        const user  = users.find(u => (u.Email||'').toLowerCase() === email.toLowerCase());
+        if (user) req.session.user = buildSessionUser(user);
+      } catch(e) { console.warn('Session re-set on re-trigger failed:', e.message); }
+    }
     return res.json({ ok: true, alreadyTriggered: true });
   }
   welcomeData.planTriggered = true;
 
+  // ── Auto-login: set session so user goes straight to dashboard ──
+  // First time only — AuthSetup=pending means they haven't set up login yet
+  try {
+    const users = await readSheet('Users');
+    const user  = users.find(u => (u.Email||'').toLowerCase() === email.toLowerCase());
+    if (user) {
+      req.session.user = buildSessionUser(user);
+      req.session.user.authSetup = user['AuthSetup'] || 'pending';
+      console.log(`🔓 Auto-login set for first-time user: ${email}`);
+    }
+  } catch(e) {
+    console.warn('Auto-login session set failed (non-fatal):', e.message);
+  }
+
   console.log(`🚀 Plan generation triggered by user click for ${email}`);
   res.json({ ok: true });
 
-  // Run Phase 2 in background
+  // Run Phase 2 in background (already running from onboarding — this is safety fallback)
   const { triggerPhase2 } = require('./onboarding');
   triggerPhase2(email, getSheetsClient, SHEET_ID)
     .then(async () => {
       console.log(`✅ Phase 2 complete for ${email}`);
-      // Pre-generate free Days 1–3 resources right after plan is ready
       try {
         const userRows = await readSheet('Users');
         const uRow = userRows.find(r => (r.Email||'').toLowerCase() === email.toLowerCase());

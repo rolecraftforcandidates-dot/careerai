@@ -439,8 +439,16 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
 </head>
 <body>
 
+<!-- LOADING SCREEN — shown instantly, hidden once session check resolves -->
+<div id="appLoadingScreen" style="position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.25s">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44" style="margin-bottom:14px"><defs><linearGradient id="lrkc2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient></defs><rect x="6" y="18" width="36" height="26" rx="6" fill="url(#lrkc2)"/><rect x="18" y="27" width="12" height="9" rx="3" fill="white" opacity="0.3"/></svg>
+  <div style="font-family:'Bebas Neue',cursive;font-size:1.6rem;letter-spacing:3px;background:linear-gradient(90deg,#00b38a,#5048e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ROLEKRAFT</div>
+  <div style="width:32px;height:3px;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:2px;margin-top:16px;animation:loadBar 1.2s ease-in-out infinite"></div>
+</div>
+<style>@keyframes loadBar{0%,100%{opacity:0.3;transform:scaleX(0.5)}50%{opacity:1;transform:scaleX(1)}}</style>
+
 <!-- LOGIN -->
-<div id="loginPage">
+<div id="loginPage" style="display:none">
   <div class="login-page">
     <div class="login-orb"></div>
     <div class="login-orb"></div>
@@ -483,7 +491,8 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <input type="password" class="form-input" id="passInput" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password">
       </div>
       <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
-      <div class="login-hint">New user? <a href="https://tally.so/r/D4NpLX" target="_blank">Register via onboarding form</a></div>
+      <div class="login-hint">First time here? <a href="/auth/google" style="color:var(--teal);font-weight:600">Sign in with Google</a> using the email you registered with, or use the password from your welcome email.</div>
+      <div class="login-hint" style="margin-top:8px">New user? <a href="https://tally.so/r/D4NpLX" target="_blank">Register via onboarding form</a></div>
     </div>
   </div>
 </div>
@@ -530,6 +539,61 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);lin
         <div class="week-pill" id="dayPill" style="background:#f0f0f8;color:var(--muted)">DAY -</div>
       </div>
     </div>
+
+    <!-- Secure Account Banner — shown only for first-time users (authSetup=pending) -->
+    <div id="secureAccountBanner" style="display:none;background:linear-gradient(135deg,#fff8e1,#fff3cd);border-bottom:1px solid #f5c842;padding:10px 24px;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:1.1rem">🔐</span>
+      <span style="font-size:0.84rem;font-weight:600;color:#7c5a00;flex:1">Secure your account — set up login so you can always access your dashboard</span>
+      <button onclick="showSecureModal('google')" style="padding:7px 14px;background:#4285f4;color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#fff" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/></svg>
+        Continue with Google
+      </button>
+      <button onclick="showSecureModal('email')" style="padding:7px 14px;background:#fff;color:#7c5a00;border:1.5px solid #f5c842;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">
+        Set Email Password
+      </button>
+      <button onclick="dismissSecureBanner()" style="background:none;border:none;color:#a0855a;cursor:pointer;font-size:1.1rem;padding:4px">✕</button>
+    </div>
+
+    <!-- Secure Account Modal -->
+    <div id="secureOverlay" onclick="closeSecureModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;backdrop-filter:blur(4px)"></div>
+    <div id="secureModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;max-width:94vw;background:var(--card);border-radius:18px;z-index:201;box-shadow:0 20px 60px rgba(0,0,0,0.2);padding:32px 28px">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:2rem;margin-bottom:8px">🔐</div>
+        <div style="font-size:1.1rem;font-weight:800;margin-bottom:6px">Secure Your Account</div>
+        <div style="font-size:0.84rem;color:var(--muted)">Set up login so you can always come back to your dashboard</div>
+      </div>
+
+      <!-- Google option -->
+      <div id="secureGoogleSection">
+        <a href="/auth/google" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;border:1.5px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text);font-weight:600;font-size:0.9rem;margin-bottom:16px;transition:all 0.2s" onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.5 13 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 6.9-10.1 6.9-17z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.5 10.7l8-6z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-4.2-13.4-9.9l-8 6.2C6.5 42.5 14.6 48 24 48z"/></svg>
+          Continue with Google
+        </a>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:0.78rem;color:var(--muted)">or set a password</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+      </div>
+
+      <!-- Email + password option -->
+      <div id="secureEmailSection">
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.78rem;font-weight:600;color:var(--muted);margin-bottom:5px">YOUR EMAIL</div>
+          <input id="secureEmailInput" type="email" readonly style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.88rem;background:#f8f9fa;color:var(--muted);box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:16px">
+          <div style="font-size:0.78rem;font-weight:600;color:var(--muted);margin-bottom:5px">SET A PASSWORD</div>
+          <input id="securePasswordInput" type="password" placeholder="Min. 6 characters" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.88rem;outline:none;box-sizing:border-box" oninput="this.style.borderColor='var(--teal)'">
+        </div>
+        <button onclick="saveAccountPassword()" id="savePasswordBtn" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--teal),var(--purple));color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:0.92rem;font-weight:700;cursor:pointer">
+          Save Password &amp; Secure Account
+        </button>
+        <div id="secureMsg" style="margin-top:10px;font-size:0.82rem;text-align:center;display:none"></div>
+      </div>
+      <button onclick="closeSecureModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+
     <div class="content">
 
       <!-- OVERVIEW -->
@@ -1305,17 +1369,25 @@ window.addEventListener('DOMContentLoaded', function() {
   fetch('/api/me', { credentials:'include' })
     .then(function(r) {
       if (r.ok) return r.json().then(function(d) {
-        // Check if URL has a panel hash on load (e.g. from back navigation)
         var hashPanel = window.location.hash.replace('#','');
         if (d.tallyFormUrl) _tallyFormUrl = d.tallyFormUrl;
         showDashboard(d.user, hashPanel || 'overview');
       });
       else showLoginPage();
     })
-    .catch(function() { showLoginPage(); });
+    .catch(function() { showLoginPage(); })
+    .finally(function() { hideLoadingScreen(); });
 });
 
+function hideLoadingScreen() {
+  var el = document.getElementById('appLoadingScreen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
+}
+
 function showLoginPage() {
+  hideLoadingScreen();
   document.getElementById('loginPage').style.display = 'block';
 
   // Hide Google button only if explicitly disabled
@@ -1388,6 +1460,10 @@ function showDashboard(user, initialPanel) {
   setUserInfo(user);
   initTier(user.tier || 'free');
 
+  // Show "secure your account" banner for first-time users (authSetup=pending)
+  var banner = document.getElementById('secureAccountBanner');
+  if (banner) banner.style.display = (user.authSetup === 'pending') ? 'flex' : 'none';
+
   // Pre-warm Days 1-3 study resources for free users (background, non-blocking)
   if ((user.tier || 'free') === 'free') {
     fetch('/api/resources/preload-free', { credentials: 'include' }).catch(function(){});
@@ -1429,6 +1505,77 @@ function setUserInfo(u) {
   var expTag = u.experience || '';
   document.getElementById('planRoleTag').innerHTML = (u.role||'') + (expTag ? ' &middot; ' + expTag : '') + ' &middot; Week '+(u.week||1)+' of 4 &middot; Day '+day+' of 7';
   document.getElementById('statWeek').textContent   = 'W'+(u.week||1)+'D'+day;
+}
+
+// ── Secure Account Banner & Modal ──
+function showSecureModal(tab) {
+  var modal   = document.getElementById('secureModal');
+  var overlay = document.getElementById('secureOverlay');
+  var emailIn = document.getElementById('secureEmailInput');
+  if (emailIn && currentUser) emailIn.value = currentUser.email || '';
+  if (modal)   modal.style.display   = 'block';
+  if (overlay) overlay.style.display = 'block';
+  // Show/hide google section based on tab
+  var googleSec = document.getElementById('secureGoogleSection');
+  if (googleSec) googleSec.style.display = (tab === 'email') ? 'none' : 'block';
+}
+
+function closeSecureModal() {
+  document.getElementById('secureModal').style.display   = 'none';
+  document.getElementById('secureOverlay').style.display = 'none';
+  var msg = document.getElementById('secureMsg');
+  if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+}
+
+function dismissSecureBanner() {
+  var banner = document.getElementById('secureAccountBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+function saveAccountPassword() {
+  var pwd = (document.getElementById('securePasswordInput').value || '').trim();
+  var msg = document.getElementById('secureMsg');
+  var btn = document.getElementById('savePasswordBtn');
+  if (!pwd || pwd.length < 6) {
+    msg.textContent = 'Password must be at least 6 characters.';
+    msg.style.color = '#e84040';
+    msg.style.display = 'block';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  fetch('/api/auth/set-password', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pwd })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    btn.disabled = false;
+    btn.textContent = 'Save Password & Secure Account';
+    if (d.success) {
+      msg.textContent = '✅ Password saved! You can now log in with your email and password.';
+      msg.style.color = 'var(--teal)';
+      msg.style.display = 'block';
+      // Hide banner and update session
+      setTimeout(function() {
+        closeSecureModal();
+        dismissSecureBanner();
+        if (currentUser) currentUser.authSetup = 'complete';
+      }, 2000);
+    } else {
+      msg.textContent = d.error || 'Failed to save password. Please try again.';
+      msg.style.color = '#e84040';
+      msg.style.display = 'block';
+    }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Save Password & Secure Account';
+    msg.textContent = 'Network error. Please try again.';
+    msg.style.color = '#e84040';
+    msg.style.display = 'block';
+  });
 }
 
 // LOGIN

@@ -55,18 +55,32 @@
   nav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 5%;
-    background: rgba(248,249,255,0.9);
+    padding: 14px 5%;
+    background: rgba(248,249,255,0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(0,0,0,0.07);
   }
   .logo { font-family: var(--heading); font-size: 1.6rem; letter-spacing: 2px; color: var(--accent); }
   .logo span { color: var(--text); }
+  .nav-right { display:flex; align-items:center; gap:12px; }
+  .nav-signin { font-size:0.84rem;color:var(--muted);text-decoration:none;font-weight:600;white-space:nowrap;border:1px solid var(--border);padding:9px 16px;border-radius:6px;transition:all 0.2s; }
+  .nav-signin:hover { border-color:var(--accent);color:var(--accent); }
   .nav-cta {
-    background: var(--accent); color: #ffffff; font-weight: 600; font-size: 0.85rem;
-    padding: 10px 22px; border-radius: 4px; text-decoration: none; letter-spacing: 0.5px; transition: all 0.2s;
+    background: var(--accent); color: #ffffff; font-weight: 700; font-size: 0.9rem;
+    padding: 10px 20px; border-radius: 6px; text-decoration: none; letter-spacing: 0.3px; transition: all 0.2s;
+    white-space: nowrap;
   }
   .nav-cta:hover { background: #00c99a; transform: translateY(-1px); }
+  .nav-cta-full { display:inline; }
+  .nav-cta-short { display:none; }
+  @media(max-width:540px){
+    nav { padding: 10px 4%; }
+    .nav-signin { font-size:0.78rem; padding:8px 12px; }
+    .nav-cta { font-size:0.78rem; padding:8px 12px; }
+    .nav-cta-full { display:none; }
+    .nav-cta-short { display:inline; }
+    .logo span { font-size:1.2rem; }
+  }
 
   /* ── HERO — dark base #0a0a0f ── */
   .hero {
@@ -405,6 +419,12 @@
     .btn-primary { padding: 14px 24px; font-size: 0.95rem; }
     .cta-section { padding: 80px 6%; }
   }
+  /* Mock Interview Demo animations */
+  @keyframes livePulse{0%,100%{opacity:0.5;transform:scale(0.95)}50%{opacity:1;transform:scale(1.05)}}
+  @keyframes avatarPulse{0%,100%{transform:scale(1);opacity:0.85}50%{transform:scale(1.05);opacity:1}}
+  @keyframes textFade{0%,100%{opacity:0.4}50%{opacity:1}}
+  @keyframes waveAnim{0%,100%{transform:scaleY(0.25)}50%{transform:scaleY(1)}}
+  @keyframes demoBarFill{from{width:0%}to{width:var(--target-w)}}
 </style>
 </head>
 <body>
@@ -412,7 +432,10 @@
 <!-- NAV -->
 <nav>
   <div class="logo" style="display:flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32" style="display:inline-block;vertical-align:middle;margin-right:8px"><defs><linearGradient id="lrkc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient><linearGradient id="lrkp" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#5048e5"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs><path d="M15 17 Q15 11 20 11 L28 11 Q33 11 33 17" fill="none" stroke="url(#lrkc)" stroke-width="3.5" stroke-linecap="round"/><rect x="6" y="18" width="36" height="26" rx="6" fill="url(#lrkc)"/><rect x="18" y="27" width="12" height="9" rx="3" fill="white" opacity="0.28"/><polygon points="45,3 18,26 26,29" fill="url(#lrkp)" opacity="0.92"/><polygon points="45,3 23,43 26,29" fill="white" opacity="0.42"/><polygon points="45,3 26,29 32,22" fill="url(#lrkp)" opacity="0.5"/></svg><span style="font-family:'Bebas Neue',cursive;font-size:1.5rem;letter-spacing:2px;background:linear-gradient(90deg,#00b38a,#5048e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ROLEKRAFT</span></div>
-  <a href="/app" style="font-size:0.84rem;color:var(--muted);text-decoration:none;margin-right:16px;font-weight:500">Sign In</a><a href="/register" target="_blank" rel="noopener" class="nav-cta">Get Started →</a>
+  <div class="nav-right">
+    <a href="/app" class="nav-signin">Sign In</a>
+    <a href="/register" target="_blank" rel="noopener" class="nav-cta"><span class="nav-cta-full">Check My Readiness →</span><span class="nav-cta-short">Get Started →</span></a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -423,19 +446,21 @@
   <div class="orb orb1"></div>
   <div class="orb orb2"></div>
   <div class="hero-content">
-    <div class="badge">AI-Powered Interview Prep</div>
-    <h1 id="heroHeadline" aria-label="LAND YOUR NEXT TECH JOB IN 4 WEEKS"></h1>
+    <div class="badge">🚀 AI-Powered Job Preparation Platform</div>
+    <h1 id="heroHeadline" aria-label="YOUR RESUME GOT YOU SHORTLISTED. NOW DON'T MESS UP THE INTERVIEW."></h1>
     <p class="hero-sub">
-      <span class="hl">Structured interview roadmap</span> + <span class="hl">weekly practice questions</span> + <span class="hl">AI scoring</span> —<br>built for tech professionals ready to level up.
+      <strong>Every interview you attend unprepared is a missed opportunity.</strong><br>
+      <span class="hl">Fix your resume</span> · <span class="hl">know what to prepare</span> · <span class="hl">practice with AI</span> · <span class="hl">match with real jobs</span> — the complete system to go from shortlisted to hired.
     </p>
     <div class="hero-ctas">
-      <a href="/register" target="_blank" rel="noopener" class="btn-primary">Start Free → Review Resume</a>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="font-size:1.1rem;padding:18px 42px">Check My Interview Readiness — Free →</a>
       <a href="#how" class="btn-secondary">See How It Works</a>
     </div>
+    <div style="margin-top:18px;font-size:0.8rem;color:var(--muted)">No credit card · 2 minutes · Personalised to your resume</div>
     <div class="hero-stats">
-      <div class="stat"><div class="stat-num" data-target="4" data-suffix="">4</div><div class="stat-label">Week Program</div></div>
-      <div class="stat"><div class="stat-num" data-target="0" data-suffix="AI">AI</div><div class="stat-label">Scored Feedback</div></div>
-      <div class="stat"><div class="stat-num" data-target="100" data-suffix="%">100%</div><div class="stat-label">Free to Start</div></div>
+      <div class="stat"><div class="stat-num">5</div><div class="stat-label">Steps to Offer-Ready</div></div>
+      <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Mock Interviews</div></div>
+      <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Free to Start</div></div>
     </div>
   </div>
   <div class="scroll-hint">
@@ -444,47 +469,268 @@
   </div>
 </section>
 
+<!-- AHA MOMENT — real output examples, shows value before signup -->
+<section style="background:#fff;padding:48px 6%;border-bottom:1px solid var(--border)">
+  <div style="max-width:960px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:0.72rem;font-family:var(--mono);letter-spacing:2px;color:var(--muted);font-weight:600">// THIS IS WHAT YOU GET — BASED ON YOUR RESUME</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+
+      <!-- AHA 1: Resume improvement -->
+      <div style="background:#f8f9ff;border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#5048e5)"></div>
+        <div style="font-size:0.62rem;font-family:var(--mono);letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;font-weight:600">RESUME SCORE IMPROVEMENT</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+          <div style="text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#e84040">52</div>
+            <div style="font-size:0.62rem;color:var(--muted)">Before</div>
+          </div>
+          <div style="font-size:1.4rem;color:var(--muted)">→</div>
+          <div style="text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:var(--accent)">82</div>
+            <div style="font-size:0.62rem;color:var(--muted)">After</div>
+          </div>
+          <div style="flex:1;font-size:0.76rem;color:var(--text);line-height:1.5">Added "data governance" keywords + quantified 3 achievements</div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic">— Backend Engineer, 4 yrs experience</div>
+      </div>
+
+      <!-- AHA 2: Sample interview question generated from resume -->
+      <div style="background:#f8f9ff;border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#5048e5,var(--accent))"></div>
+        <div style="font-size:0.62rem;font-family:var(--mono);letter-spacing:1.5px;color:#5048e5;margin-bottom:10px;font-weight:600">TOP QUESTION GENERATED FROM YOUR RESUME</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text);line-height:1.55;margin-bottom:12px">"Walk me through how you optimised your AWS Glue pipeline — what was the bottleneck, what did you change, and how did you measure the improvement?"</div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic">— Generated for a Data Engineer targeting mid-senior roles</div>
+      </div>
+
+      <!-- AHA 3: Job match insight -->
+      <div style="background:#f8f9ff;border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#ffbd2e,var(--accent))"></div>
+        <div style="font-size:0.62rem;font-family:var(--mono);letter-spacing:1.5px;color:#f59e0b;margin-bottom:10px;font-weight:600">JOB MATCH ANALYSIS</div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:0.76rem;font-weight:700;color:var(--text);margin-bottom:4px">Senior Data Engineer @ Flipkart</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px"><div style="width:78%;height:100%;background:linear-gradient(90deg,var(--accent),#5048e5);border-radius:3px"></div></div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--accent)">78% match</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:#e84040;font-weight:600;margin-bottom:4px">⚠ Missing: Kafka, dbt, real-time pipelines</div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic">Add these 3 keywords to increase shortlist likelihood</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:28px">
+      <p style="font-size:0.88rem;color:var(--muted);margin-bottom:16px">This is generated from <em>your</em> resume — not a generic template.</p>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="font-size:1rem;padding:15px 36px">Get My Personalised Report →</a>
+    </div>
+  </div>
+</section>
+
+<!-- MOCK INTERVIEW DEMO — full width section -->
+<section id="mockDemoSection" style="background:#0a0a14;padding:80px 4% 60px;overflow:hidden;position:relative">
+  <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(0,179,138,0.10) 0%,transparent 70%);pointer-events:none"></div>
+  <div style="max-width:800px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:40px">
+      <div style="font-size:0.88rem;font-weight:700;color:#e84040;margin-bottom:14px;letter-spacing:0.3px">⚠ This is where most candidates fail — not knowing how to answer under pressure.</div>
+      <div class="section-tag reveal" style="color:#00b38a;border-color:rgba(0,179,138,0.3)">// See It In Action</div>
+      <h2 class="section-title reveal" style="color:#fff">THIS IS HOW YOUR REAL<br><span style="color:#00b38a">INTERVIEW WILL FEEL</span></h2>
+      <p class="section-desc reveal" style="color:#8888aa">A preview of your AI mock interview — personalised to your resume and target role.<br>Questions, voice, scoring, feedback. All in one session.</p>
+      <div class="reveal" style="display:inline-block;margin-top:16px;padding:8px 20px;background:rgba(0,179,138,0.08);border:1px solid rgba(0,179,138,0.25);border-radius:100px;font-size:0.78rem;color:#00b38a;font-weight:600">
+        🔒 Unlock full interview after resume upload — free
+      </div>
+    </div>
+    <div id="demoWindowLeft">
+      <div style="font-size:0.72rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;margin-bottom:12px;font-weight:700">// MOCK INTERVIEW — LIVE PREVIEW</div>
+      <div style="background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden">
+        <div style="background:#1a1a2e;padding:12px 18px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <div style="width:10px;height:10px;border-radius:50%;background:#e84040;opacity:0.8"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
+          <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.65rem;color:#444466">rolekraft.com/mock-interview</div>
+          <div style="background:#ff4444;color:#fff;font-size:0.55rem;font-weight:700;padding:2px 7px;border-radius:100px;letter-spacing:1px;animation:livePulse 2s ease-in-out infinite">● LIVE</div>
+        </div>
+        <div style="background:#13131f;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05)">
+          <div style="font-size:0.65rem;color:#5048e5;font-weight:700;letter-spacing:1px">TECHNICAL · MID</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:0.65rem;color:#888;font-family:'DM Mono',monospace" id="demoQProg">Q 1 of 8</div>
+            <div style="font-family:'DM Mono',monospace;font-size:0.75rem;color:#00b38a;font-weight:700" id="demoTimer">00:00</div>
+            <div style="padding:3px 10px;border:1px solid rgba(232,64,64,0.4);border-radius:5px;color:#e84040;font-size:0.62rem;font-weight:600">End</div>
+          </div>
+        </div>
+        <div style="padding:20px 24px 24px">
+          <div id="demoAvatar" style="display:none;flex-direction:column;align-items:center;padding:28px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;margin-bottom:14px">
+            <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;animation:avatarPulse 2.5s ease-in-out infinite;position:relative">
+              <span style="font-size:1.3rem;font-weight:800;color:white">AI</span>
+              <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(0,179,138,0.3);animation:avatarPulse 2.5s ease-in-out infinite 0.6s"></div>
+            </div>
+            <div id="demoAvatarLabel" style="font-size:0.8rem;color:#8888aa;margin-top:14px;animation:textFade 1.8s ease-in-out infinite">Reviewing your profile...</div>
+            <div style="width:140px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:12px;overflow:hidden">
+              <div id="demoProgressBar" style="height:100%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:2px;width:0%"></div>
+            </div>
+          </div>
+          <div id="demoQCard" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:3px solid #00b38a;border-radius:12px;padding:18px 22px;margin-bottom:14px">
+            <div style="font-size:0.58rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:#00b38a;font-weight:700;margin-bottom:10px" id="demoQLabel">QUESTION 1 OF 8</div>
+            <div style="font-size:0.95rem;font-weight:600;line-height:1.65;color:#e8e8f0;min-height:2rem" id="demoQText"></div>
+          </div>
+          <div id="demoAnswerArea" style="display:none;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+            <div style="font-size:0.65rem;font-weight:600;color:#555;margin-bottom:8px">YOUR ANSWER</div>
+            <div id="demoAnswerText" style="font-size:0.88rem;color:#aaa;line-height:1.7;min-height:36px"></div>
+            <div id="demoMicIndicator" style="display:none;align-items:center;gap:8px;margin-top:12px">
+              <div style="width:8px;height:8px;border-radius:50%;background:#e84040;animation:livePulse 1s ease-in-out infinite"></div>
+              <div style="display:flex;align-items:center;gap:2px;height:22px" id="demoWaveform"></div>
+              <span style="font-size:0.68rem;color:#e84040;font-weight:700;font-family:'DM Mono',monospace" id="demoRecTimer">0:00</span>
+            </div>
+          </div>
+          <div id="demoFeedback" style="display:none;background:linear-gradient(135deg,rgba(0,179,138,0.06),rgba(80,72,229,0.04));border:1px solid rgba(0,179,138,0.2);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+            <div id="demoScorePill" style="display:inline-block;font-size:0.72rem;font-weight:700;padding:5px 14px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;border:1px solid rgba(0,179,138,0.3);margin-bottom:10px">🤖 Score: -</div>
+            <div id="demoFeedbackText" style="font-size:0.82rem;line-height:1.65;color:#aaa"></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap" id="demoActions">
+            <div id="demoSubmitBtn" style="padding:10px 22px;border:none;border-radius:9px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-size:0.85rem;font-weight:700;opacity:0.5">Submit Answer →</div>
+            <div id="demoMicBtn" style="padding:10px 16px;border:1.5px solid rgba(255,255,255,0.12);border-radius:9px;background:rgba(255,255,255,0.04);font-size:0.82rem;font-weight:600;color:#aaa">🎤 Start Speaking</div>
+            <div id="demoNextBtn" style="display:none;padding:10px 22px;border:none;border-radius:9px;background:linear-gradient(135deg,#00b38a,#5048e5);color:#fff;font-size:0.85rem;font-weight:700">Next Question →</div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:0 24px 20px">
+          <button onclick="restartMockDemo()" id="demoReplayBtn" style="display:none;padding:8px 22px;border:1.5px solid rgba(0,179,138,0.4);border-radius:100px;background:rgba(0,179,138,0.08);color:#00b38a;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer">↺ Watch Again</button>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:36px">
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block;font-size:1rem;padding:16px 42px">Start My Interview Preparation — Free →</a>
+      <div style="margin-top:12px;font-size:0.78rem;color:#555">Personalised to your resume · No credit card · Ready in 2 minutes</div>
+      <div style="margin-top:10px;font-size:0.84rem;font-weight:600;color:#00b38a">Practice before your real interview. Not during it.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DIVIDER -->
+<div style="background:#0a0a14;padding:0 4%">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:20px;padding:24px 0;border-top:1px solid rgba(255,255,255,0.06)">
+    <div style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(80,72,229,0.3))"></div>
+    <div style="padding:10px 24px;background:rgba(80,72,229,0.1);border:1px solid rgba(80,72,229,0.25);border-radius:100px;font-size:0.7rem;font-family:'DM Mono',monospace;color:#a78bfa;font-weight:700;letter-spacing:2px;white-space:nowrap">⬇ YOUR JOB PREP COMMAND CENTER</div>
+    <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(80,72,229,0.3),transparent)"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD SHOWCASE — full width section -->
+<section id="dashboardSection" style="background:#0a0a14;padding:20px 4% 80px;overflow:hidden">
+  <div style="max-width:1100px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:28px">
+      <p style="color:#8888aa;font-size:0.9rem;max-width:560px;margin:0 auto;line-height:1.7">Track your resume gaps, readiness scores, matched jobs, and prep progress — all in one place while you prepare.</p>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center" id="dashTabs">
+      <button onclick="showDashScreen(0)" class="dash-tab active" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(0,179,138,0.5);background:rgba(0,179,138,0.12);color:#00b38a;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Prep Plan</button>
+      <button onclick="showDashScreen(1)" class="dash-tab" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🤖 AI Score</button>
+      <button onclick="showDashScreen(2)" class="dash-tab" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">💼 Live Jobs</button>
+      <button onclick="showDashScreen(3)" class="dash-tab" style="padding:7px 16px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#666;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📄 Resume ATS</button>
+    </div>
+    <div id="dashCaption" style="text-align:center;font-size:0.82rem;color:#5048e5;font-weight:600;margin-bottom:16px;min-height:20px">Know exactly what to prepare — day by day</div>
+    <div style="max-width:860px;margin:0 auto;background:#111120;border-radius:18px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 60px rgba(0,0,0,0.5);overflow:hidden">
+      <div style="background:#1a1a2e;padding:12px 18px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#e84040;opacity:0.8"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;opacity:0.8"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#00b38a;opacity:0.8"></div>
+        <div style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:0.65rem;color:#444466" id="dashScreenLabel">rolekraft.com/dashboard#plan</div>
+      </div>
+      <div style="display:flex;height:340px">
+        <div style="width:44px;background:#0d0d1a;border-right:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:14px">
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#00b38a,#5048e5);display:flex;align-items:center;justify-content:center;font-size:0.7rem">🏠</div>
+          <div id="sideIcon0" style="width:28px;height:28px;border-radius:8px;background:rgba(0,179,138,0.2);display:flex;align-items:center;justify-content:center;font-size:0.7rem">📋</div>
+          <div id="sideIcon1" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">🤖</div>
+          <div id="sideIcon2" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">💼</div>
+          <div id="sideIcon3" style="width:28px;height:28px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-size:0.7rem">📄</div>
+        </div>
+        <div style="flex:1;overflow:hidden;position:relative">
+          <div id="dashScreen0" style="position:absolute;inset:0;padding:20px;overflow:hidden">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#00b38a;letter-spacing:2px;margin-bottom:14px">WEEK 2 · DAY 3 OF 7</div>
+            <div style="font-size:0.88rem;font-weight:700;color:#e8e8f0;margin-bottom:16px">Today's Tasks</div>
+            <div id="planTasks" style="display:flex;flex-direction:column;gap:9px"></div>
+          </div>
+          <div id="dashScreen1" style="position:absolute;inset:0;padding:20px;overflow:hidden;display:none">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#5048e5;letter-spacing:2px;margin-bottom:14px">AI ANSWER SCORING</div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px;margin-bottom:12px">
+              <div style="font-size:0.8rem;font-weight:600;color:#e8e8f0;margin-bottom:6px">Q: Explain database indexing with a real example</div>
+              <div style="font-size:0.75rem;color:#888;line-height:1.5;margin-bottom:12px">"We used B-tree indexes on our orders table at Barclays to speed up date-range queries from 8s to 0.3s..."</div>
+              <div style="display:inline-block;padding:5px 14px;border-radius:100px;background:rgba(0,179,138,0.15);color:#00b38a;font-size:0.72rem;font-weight:700;border:1px solid rgba(0,179,138,0.3)">🤩 Excellent — 91/100</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div><div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px"><span>Technical Accuracy</span><span style="color:#00b38a">94</span></div><div style="background:rgba(255,255,255,0.06);border-radius:3px;height:5px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;transition:width 1.2s ease" data-w="94%"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px"><span>Clarity of Answer</span><span style="color:#00b38a">88</span></div><div style="background:rgba(255,255,255,0.06);border-radius:3px;height:5px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#00b38a,#5048e5);border-radius:3px;transition:width 1.4s ease" data-w="88%"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px"><span>Real-world Example</span><span style="color:#ffbd2e">76</span></div><div style="background:rgba(255,255,255,0.06);border-radius:3px;height:5px"><div class="score-bar-anim" style="height:100%;width:0%;background:linear-gradient(90deg,#ffbd2e,#f59e0b);border-radius:3px;transition:width 1.6s ease" data-w="76%"></div></div></div>
+            </div>
+            <div style="margin-top:14px;padding:10px 14px;background:rgba(80,72,229,0.08);border:1px solid rgba(80,72,229,0.2);border-radius:8px;font-size:0.73rem;color:#a78bfa;line-height:1.5">💡 Add a before/after metric to make your example more compelling</div>
+          </div>
+          <div id="dashScreen2" style="position:absolute;inset:0;padding:20px;overflow:hidden;display:none">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#5048e5;letter-spacing:2px;margin-bottom:14px">LIVE JOBS + AI MATCH <span style="background:linear-gradient(135deg,#5048e5,#00b38a);color:#fff;padding:1px 6px;border-radius:4px;font-size:0.55rem">PRO</span></div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,179,138,0.2);border-radius:10px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px"><div><div style="font-size:0.8rem;font-weight:700;color:#e8e8f0">Senior Data Engineer</div><div style="font-size:0.67rem;color:#888;margin-top:2px">Flipkart · Bangalore · ₹28-38L</div></div><div style="background:rgba(0,179,138,0.15);color:#00b38a;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid rgba(0,179,138,0.3);white-space:nowrap">92% match</div></div><div style="display:flex;gap:4px;flex-wrap:wrap"><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">AWS</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">PySpark</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">Airflow</span></div></div>
+              <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px"><div><div style="font-size:0.8rem;font-weight:700;color:#e8e8f0">Data Engineer — Payments</div><div style="font-size:0.67rem;color:#888;margin-top:2px">Razorpay · Remote · ₹22-30L</div></div><div style="background:rgba(255,189,46,0.15);color:#ffbd2e;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid rgba(255,189,46,0.3);white-space:nowrap">78% match</div></div><div style="display:flex;gap:4px;flex-wrap:wrap"><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">Kafka</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">Python</span><span style="padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.62rem;color:#aaa">dbt</span></div></div>
+            </div>
+          </div>
+          <div id="dashScreen3" style="position:absolute;inset:0;padding:20px;overflow:hidden;display:none">
+            <div style="font-size:0.62rem;font-family:'DM Mono',monospace;color:#00b38a;letter-spacing:2px;margin-bottom:14px">RESUME · ATS ANALYSIS</div>
+            <div style="display:flex;align-items:center;gap:18px;margin-bottom:18px"><div style="position:relative;width:68px;height:68px;flex-shrink:0"><svg viewBox="0 0 36 36" style="width:68px;height:68px;transform:rotate(-90deg)"><circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/><circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#scoreGrad)" stroke-width="3" stroke-dasharray="78 22" stroke-linecap="round"/><defs><linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient></defs></svg><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.95rem;font-weight:800;color:#00b38a">78</div></div><div><div style="font-size:0.86rem;font-weight:700;color:#e8e8f0;margin-bottom:5px">ATS Score: 78/100</div><div style="font-size:0.72rem;color:#888;line-height:1.5">Good foundation — 3 quick wins available</div></div></div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="background:rgba(0,179,138,0.06);border:1px solid rgba(0,179,138,0.2);border-radius:8px;padding:10px 14px;font-size:0.73rem;color:#aaa;line-height:1.4"><span style="color:#00b38a;font-weight:700">✓ Strong:</span> Quantified achievements present in 4/6 roles</div>
+              <div style="background:rgba(255,189,46,0.06);border:1px solid rgba(255,189,46,0.2);border-radius:8px;padding:10px 14px;font-size:0.73rem;color:#aaa;line-height:1.4"><span style="color:#ffbd2e;font-weight:700">⚠ Fix:</span> Add "data governance" & "regulatory reporting" keywords</div>
+              <div style="background:rgba(255,189,46,0.06);border:1px solid rgba(255,189,46,0.2);border-radius:8px;padding:10px 14px;font-size:0.73rem;color:#aaa;line-height:1.4"><span style="color:#ffbd2e;font-weight:700">⚠ Fix:</span> Professional summary missing — add 3-line role-targeted summary</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:7px;margin-top:16px" id="dashDots">
+      <div class="dash-dot active" style="width:22px;height:4px;border-radius:2px;background:#00b38a;transition:all 0.3s"></div>
+      <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+      <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+      <div class="dash-dot" style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all 0.3s"></div>
+    </div>
+  </div>
+</section>
+
 <!-- FEATURES — blue-black -->
 <section class="features-section">
   <div class="container">
     <div class="features-header reveal">
-      <div class="section-tag">// What You Get</div>
-      <h2 class="section-title">EVERYTHING YOU NEED<br>TO GET HIRED</h2>
-      <p class="section-desc">A complete system — not just a list of questions. Real structure, real feedback, real results.</p>
+      <div class="section-tag">// Your 5-Step Journey</div>
+      <h2 class="section-title">HERE'S EXACTLY HOW YOU GO<br>FROM RESUME → JOB OFFER</h2>
+      <p class="section-desc">You don't need more job applications. You need a complete system that closes every gap between you and the offer.</p>
     </div>
     <div class="features-grid">
       <div class="feature-card reveal">
         <div class="feature-icon">📄</div>
-        <h3>AI Resume Review</h3>
-        <p>Upload your resume and get instant ATS score, gap analysis, missing keywords and improvement tips — tailored for your target role.</p>
+        <h3>Step 1 — Fix Your Resume</h3>
+        <p>Upload your resume and instantly know your ATS score, missing keywords, and the exact 3 fixes that will get you more shortlists. Tailored to your target role.</p>
         <span class="free-tag">FREE FOREVER</span>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">🗺️</div>
-        <h3>28-Task 4-Week Plan</h3>
-        <p>A day-by-day structured preparation plan built around your specific role and tech stack — from core fundamentals to full interview simulation.</p>
+        <h3>Step 2 — Know What to Prepare</h3>
+        <p>Get a day-by-day 4-week preparation plan built around your role, tech stack, and experience — so you never wonder "what should I study today?"</p>
         <span class="free-tag">FREE FOREVER</span>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">❓</div>
-        <h3>28 Interview Questions</h3>
-        <p>7 questions per week — Technical, Behavioral, and System Design — increasing in difficulty each week to match your actual interview progression.</p>
+        <h3>Step 3 — Practice Real Questions</h3>
+        <p>28 interview questions — Technical, Behavioral, and System Design — increasing in difficulty each week. The kind that actually get asked at top companies.</p>
         <span class="free-tag">FREE FOREVER</span>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">🤖</div>
-        <h3>AI Answer Scoring</h3>
-        <p>Submit your written answers and receive a detailed AI score out of 100 — covering technical accuracy, clarity, structure, and depth with specific improvement tips.</p>
+        <h3>Step 4 — Practice With AI Interviewer</h3>
+        <p>Sit in a full mock interview with an AI that knows your resume. Voice questions, your spoken answers, instant score — so you know exactly where you'll lose points.</p>
       </div>
       <div class="feature-card reveal" style="border-color:rgba(80,72,229,0.2);background:linear-gradient(135deg,rgba(80,72,229,0.04),rgba(0,179,138,0.03))">
         <div class="feature-icon">🎯</div>
-        <h3>Job Match Analyser <span style="font-size:0.65rem;background:linear-gradient(135deg,#5048e5,#00b38a);color:white;padding:2px 8px;border-radius:100px;vertical-align:middle;font-weight:700;letter-spacing:1px">PRO</span></h3>
-        <p>Paste any job description and instantly get a match score, keywords you have vs missing, shortlist likelihood, and 3 specific resume tweaks for that exact job.</p>
+        <h3>Step 5 — Match to the Right Jobs <span style="font-size:0.65rem;background:linear-gradient(135deg,#5048e5,#00b38a);color:white;padding:2px 8px;border-radius:100px;vertical-align:middle;font-weight:700;letter-spacing:1px">PRO</span></h3>
+        <p>Paste any job description. Get your match score, missing keywords, shortlist likelihood, and 3 specific resume tweaks — <strong>before</strong> you apply. This is what increases your call-back rate.</p>
       </div>
       <div class="feature-card reveal" style="border-color:rgba(80,72,229,0.2);background:linear-gradient(135deg,rgba(80,72,229,0.04),rgba(0,179,138,0.03))">
         <div class="feature-icon">💼</div>
-        <h3>Live Job Listings + AI Match <span style="font-size:0.65rem;background:linear-gradient(135deg,#5048e5,#00b38a);color:white;padding:2px 8px;border-radius:100px;vertical-align:middle;font-weight:700;letter-spacing:1px">PRO</span></h3>
-        <p>Browse real job listings for your role updated daily. Each listing shows an AI match score against your resume — so you know exactly which jobs to apply for first.</p>
+        <h3>Apply Smarter, Not More <span style="font-size:0.65rem;background:linear-gradient(135deg,#5048e5,#00b38a);color:white;padding:2px 8px;border-radius:100px;vertical-align:middle;font-weight:700;letter-spacing:1px">PRO</span></h3>
+        <p>Browse live job listings updated daily. Each one shows your AI match score against your resume — so you spend time only on jobs you'll actually get called for.</p>
       </div>
     </div>
   </div>
@@ -495,25 +741,25 @@
   <div class="container">
     <div class="how-layout">
       <div>
-        <div class="section-tag reveal">// Process</div>
-        <h2 class="section-title reveal">HOW IT<br>WORKS</h2>
-        <p class="section-desc reveal">Each week follows the same powerful cycle — plan, practice, submit, improve.</p>
+        <div class="section-tag reveal">// The System</div>
+        <h2 class="section-title reveal">STOP GOING INTO<br>INTERVIEWS UNPREPARED</h2>
+        <p class="section-desc reveal">Every week follows the same proven cycle. By week 4 you'll have a score, not just a feeling.</p>
         <div class="how-steps">
           <div class="step reveal">
             <div class="step-num">01</div>
-            <div class="step-content"><h4>Follow the Weekly Plan</h4><p>Your structured prep schedule — topics, concepts, and milestones broken down day by day.</p></div>
+            <div class="step-content"><h4>Upload Resume → Get Gaps Instantly</h4><p>See your ATS score, missing keywords, and what's stopping you from getting shortlisted — in 60 seconds.</p></div>
           </div>
           <div class="step reveal">
             <div class="step-num">02</div>
-            <div class="step-content"><h4>Practice Real Questions</h4><p>Curated technical and behavioral questions — the kind that actually get asked at top companies.</p></div>
+            <div class="step-content"><h4>Follow Your Personalised Prep Plan</h4><p>A day-by-day roadmap built for your role. No guesswork — just clear daily tasks that build real interview strength.</p></div>
           </div>
           <div class="step reveal">
             <div class="step-num">03</div>
-            <div class="step-content"><h4>Submit Your Answers</h4><p>Write your answers and send them in. No judgment — just clean data for AI analysis.</p></div>
+            <div class="step-content"><h4>Answer Questions → Get AI Scored</h4><p>Submit written or spoken answers. Get a score out of 100 with specific feedback on what to improve — not generic advice.</p></div>
           </div>
           <div class="step reveal">
             <div class="step-num">04</div>
-            <div class="step-content"><h4>Get AI Feedback + Score</h4><p>Receive your scored evaluation — what was strong, what needs work, and exactly how to improve.</p></div>
+            <div class="step-content"><h4>Do a Full AI Mock Interview</h4><p>Sit through a real interview simulation — AI asks, you answer by voice, it scores you. Know exactly where you'll win or lose.</p></div>
           </div>
         </div>
       </div>
@@ -521,18 +767,18 @@
         <div class="terminal-bar">
           <div class="dot"></div><div class="dot"></div><div class="dot"></div>
         </div>
-        <div class="terminal-line"><span class="cmd">$ </span>analyzing answer submission...</div>
+        <div class="terminal-line"><span class="cmd">$ </span>analyzing interview answer...</div>
         <div class="terminal-line"><span class="ok">✓</span> Technical accuracy: <span class="hi">Strong</span></div>
         <div class="terminal-line"><span class="ok">✓</span> Clarity of explanation: <span class="hi">Good</span></div>
         <div class="terminal-line">⚠ Depth of examples: <span style="color:#ffbd2e">Needs work</span></div>
         <div class="terminal-line"><span class="ok">✓</span> Structure &amp; flow: <span class="hi">Excellent</span></div>
         <div class="terminal-line">&nbsp;</div>
-        <div class="terminal-line">Overall Score: <span class="score">78 / 100</span></div>
+        <div class="terminal-line">Interview Readiness: <span class="score">78 / 100</span></div>
         <div class="terminal-line">&nbsp;</div>
-        <div class="terminal-line" style="color:#5048e5">💡 Add STAR-format examples in</div>
-        <div class="terminal-line" style="color:#5048e5">&nbsp;&nbsp;&nbsp;&nbsp;your next submission</div>
+        <div class="terminal-line" style="color:#5048e5">💡 Add a real-world metric to back</div>
+        <div class="terminal-line" style="color:#5048e5">&nbsp;&nbsp;&nbsp;&nbsp;your technical answer</div>
         <div class="terminal-line">&nbsp;</div>
-        <div class="terminal-line"><span class="cmd">$ </span>Next question sent to inbox <span class="ok">✓</span></div>
+        <div class="terminal-line"><span class="cmd">$ </span>next question ready <span class="ok">✓</span></div>
       </div>
     </div>
   </div>
@@ -542,28 +788,28 @@
 <section class="plan-section" id="plan">
   <div class="container">
     <div class="plan-header reveal">
-      <div class="section-tag">// Curriculum</div>
-      <h2 class="section-title">YOUR 4-WEEK<br>ROADMAP</h2>
-      <p class="section-desc">Day-by-day structure with clear milestones and measurable outcomes every week.</p>
+      <div class="section-tag">// The Program</div>
+      <h2 class="section-title">4 WEEKS FROM<br>GAPS TO OFFER-READY</h2>
+      <p class="section-desc">Each week builds on the last. By week 4 you'll have a measurable readiness score — not just a feeling you might be ready.</p>
     </div>
     <div class="weeks-grid">
       <div class="week-card week-flip reveal">
         <div class="week-flip-inner">
           <div class="week-front">
             <div class="week-num">Week 01</div>
-            <div class="week-title">Build Foundations</div>
+            <div class="week-title">Fix the Foundation</div>
             <div class="week-items">
-              <div class="week-item">Resume alignment</div>
+              <div class="week-item">Resume ATS score + keyword gaps</div>
               <div class="week-item">Core concept revision</div>
-              <div class="week-item">Project clarity</div>
-              <div class="week-item">Mock Interview + AI Score</div>
+              <div class="week-item">Project narrative clarity</div>
+              <div class="week-item">First AI Mock Interview</div>
             </div>
-            <div class="week-badge">Baseline Set</div>
+            <div class="week-badge">Baseline Score Set</div>
           </div>
           <div class="week-back">
             <div class="week-back-icon">🧱</div>
             <div class="week-back-title">WEEK 1</div>
-            <div class="week-back-sub">Lay the groundwork. Align your resume, sharpen your core concepts, and get your first AI score.</div>
+            <div class="week-back-sub">Most candidates skip this. Fix your resume, understand your gaps, and get your first AI interview score before you apply anywhere.</div>
             <div class="week-back-hint">TAP AGAIN TO FLIP BACK</div>
           </div>
         </div>
@@ -572,19 +818,19 @@
         <div class="week-flip-inner">
           <div class="week-front">
             <div class="week-num">Week 02</div>
-            <div class="week-title">Strengthen Technical Depth</div>
+            <div class="week-title">Build Technical Depth</div>
             <div class="week-items">
-              <div class="week-item">Advanced topics</div>
+              <div class="week-item">Advanced domain topics</div>
               <div class="week-item">Scenario-based questions</div>
-              <div class="week-item">System thinking basics</div>
-              <div class="week-item">Mock Interview + Feedback</div>
+              <div class="week-item">System design basics</div>
+              <div class="week-item">AI Mock + Score Comparison</div>
             </div>
-            <div class="week-badge">Level Up</div>
+            <div class="week-badge">Depth Unlocked</div>
           </div>
           <div class="week-back">
             <div class="week-back-icon">⚙️</div>
             <div class="week-back-title">WEEK 2</div>
-            <div class="week-back-sub">Go deeper. Advanced topics, real scenarios, and system-level thinking to raise your technical bar.</div>
+            <div class="week-back-sub">Go from surface answers to real technical depth. Your week 2 AI score will already show improvement over week 1.</div>
             <div class="week-back-hint">TAP AGAIN TO FLIP BACK</div>
           </div>
         </div>
@@ -593,19 +839,19 @@
         <div class="week-flip-inner">
           <div class="week-front">
             <div class="week-num">Week 03</div>
-            <div class="week-title">Real Interview Practice</div>
+            <div class="week-title">Simulate Real Interviews</div>
             <div class="week-items">
-              <div class="week-item">Timed technical questions</div>
-              <div class="week-item">Behavioral mastery</div>
-              <div class="week-item">Case discussions</div>
-              <div class="week-item">Deep Mock + Evaluation</div>
+              <div class="week-item">Timed technical rounds</div>
+              <div class="week-item">Behavioral answer mastery</div>
+              <div class="week-item">Job description matching</div>
+              <div class="week-item">Full Mock + Detailed Eval</div>
             </div>
-            <div class="week-badge">Pressure Test</div>
+            <div class="week-badge">Pressure-Tested</div>
           </div>
           <div class="week-back">
             <div class="week-back-icon">🎯</div>
             <div class="week-back-title">WEEK 3</div>
-            <div class="week-back-sub">Simulate the real thing. Timed questions, behavioral rounds, and a deep mock under pressure.</div>
+            <div class="week-back-sub">Real interview conditions. Timed questions, behavioral rounds, and a deep AI mock with full evaluation. This is where confidence is built.</div>
             <div class="week-back-hint">TAP AGAIN TO FLIP BACK</div>
           </div>
         </div>
@@ -614,23 +860,54 @@
         <div class="week-flip-inner">
           <div class="week-front">
             <div class="week-num">Week 04</div>
-            <div class="week-title">Final Readiness</div>
+            <div class="week-title">Get Offer-Ready</div>
             <div class="week-items">
-              <div class="week-item">Rapid revision strategy</div>
-              <div class="week-item">Weak area improvement</div>
-              <div class="week-item">Negotiation preparation</div>
+              <div class="week-item">Weak area rapid fix</div>
+              <div class="week-item">Salary negotiation prep</div>
+              <div class="week-item">Live job match analysis</div>
               <div class="week-item">Final Mock + Readiness Report</div>
             </div>
-            <div class="week-badge">Ready 🚀</div>
+            <div class="week-badge">Offer Ready 🚀</div>
           </div>
           <div class="week-back">
             <div class="week-back-icon">🚀</div>
             <div class="week-back-title">WEEK 4</div>
-            <div class="week-back-sub">Polish and launch. Fix weak areas, prep for negotiation, and get your final readiness report.</div>
+            <div class="week-back-sub">Fix the last gaps, prep your negotiation, match against real job listings, and get your final readiness report. Now apply with confidence.</div>
             <div class="week-back-hint">TAP AGAIN TO FLIP BACK</div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP — social proof + reality check -->
+<section style="background:#f8f9ff;padding:60px 6%;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:40px">
+      <div class="section-tag reveal" style="margin:0 auto 12px">// Reality Check</div>
+      <h2 style="font-family:var(--heading);font-size:clamp(1.8rem,4vw,2.8rem);color:var(--text)" class="reveal">WHY MOST CANDIDATES<br>FAIL INTERVIEWS</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px">
+      <div class="reveal" style="background:white;border-radius:14px;padding:22px;border:1px solid var(--border);border-left:4px solid #e84040">
+        <div style="font-size:1.8rem;font-weight:800;color:#e84040;margin-bottom:6px">73%</div>
+        <div style="font-size:0.88rem;font-weight:600;color:var(--text);margin-bottom:4px">fail technical rounds</div>
+        <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">Not because they don't know the subject — because they've never practised answering out loud under pressure.</div>
+      </div>
+      <div class="reveal" style="background:white;border-radius:14px;padding:22px;border:1px solid var(--border);border-left:4px solid #ffbd2e">
+        <div style="font-size:1.8rem;font-weight:800;color:#f59e0b;margin-bottom:6px">68%</div>
+        <div style="font-size:0.88rem;font-weight:600;color:var(--text);margin-bottom:4px">send generic resumes</div>
+        <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">The same resume to every job. Missing the exact keywords ATS systems filter on — rejected before a human reads it.</div>
+      </div>
+      <div class="reveal" style="background:white;border-radius:14px;padding:22px;border:1px solid var(--border);border-left:4px solid #00b38a">
+        <div style="font-size:1.8rem;font-weight:800;color:#00b38a;margin-bottom:6px">4×</div>
+        <div style="font-size:0.88rem;font-weight:600;color:var(--text);margin-bottom:4px">higher offer rate</div>
+        <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">Candidates who do structured mock interview practice are significantly more likely to receive offers than those who don't.</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:36px" class="reveal">
+      <p style="font-size:0.95rem;font-weight:600;color:var(--text);margin-bottom:20px">RoleKraft fixes all three. In one platform. Free to start.</p>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block">Prepare Me for Interviews →</a>
     </div>
   </div>
 </section>
@@ -640,27 +917,30 @@
   <div class="container">
     <div class="results-layout">
       <div>
-        <div class="section-tag reveal">// Outcomes</div>
-        <h2 class="section-title reveal">WHAT YOU<br>ACHIEVE</h2>
-        <p class="section-desc reveal">By week 4, you won't just feel ready — you'll have the scores to prove it.</p>
+        <div class="section-tag reveal">// What Changes</div>
+        <h2 class="section-title reveal">YOU DON'T NEED MORE<br>APPLICATIONS</h2>
+        <p class="section-desc reveal">You need better preparation. By week 4, you'll have scores — not just confidence.</p>
         <div class="results-list">
-          <div class="result-item reveal"><div class="result-icon">🧠</div><div class="result-text">Stronger technical clarity in your domain</div></div>
-          <div class="result-item reveal"><div class="result-icon">💬</div><div class="result-text">Noticeably improved answer quality &amp; structure</div></div>
-          <div class="result-item reveal"><div class="result-icon">🎯</div><div class="result-text">Real, measurable interview readiness</div></div>
-          <div class="result-item reveal"><div class="result-icon">📈</div><div class="result-text">Clear data on your improvement areas</div></div>
+          <div class="result-item reveal"><div class="result-icon">📊</div><div class="result-text">Know your exact interview readiness score before you apply</div></div>
+          <div class="result-item reveal"><div class="result-icon">🎯</div><div class="result-text">Match your resume to job descriptions — increase shortlist rate</div></div>
+          <div class="result-item reveal"><div class="result-icon">🎤</div><div class="result-text">Practice answering out loud — stop freezing in real interviews</div></div>
+          <div class="result-item reveal"><div class="result-icon">📈</div><div class="result-text">Track improvement week-over-week with real data, not guesswork</div></div>
         </div>
       </div>
       <div class="score-visual reveal" id="scoreVisual">
-        <div class="score-title">// PROGRESS TRACKER — WEEK 4</div>
+        <div class="score-title">// INTERVIEW READINESS — WEEK 4</div>
         <div class="score-bars">
-          <div class="score-row"><div class="score-label"><span>Technical Depth</span><span>92/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="92%"></div></div></div>
-          <div class="score-row"><div class="score-label"><span>Communication</span><span>88/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="88%"></div></div></div>
-          <div class="score-row"><div class="score-label"><span>Behavioral Answers</span><span>85/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="85%"></div></div></div>
-          <div class="score-row"><div class="score-label"><span>Problem Solving</span><span>90/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="90%"></div></div></div>
-          <div class="score-row"><div class="score-label"><span>Overall Readiness</span><span>89/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="89%"></div></div></div>
+          <div class="score-row"><div class="score-label"><span>Technical Answers</span><span>92/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="92%"></div></div></div>
+          <div class="score-row"><div class="score-label"><span>Behavioral Clarity</span><span>88/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="88%"></div></div></div>
+          <div class="score-row"><div class="score-label"><span>Resume–Job Match</span><span>85/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="85%"></div></div></div>
+          <div class="score-row"><div class="score-label"><span>Under Pressure</span><span>90/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="90%"></div></div></div>
+          <div class="score-row"><div class="score-label"><span>Overall Job Readiness</span><span>89/100</span></div><div class="score-bar-bg"><div class="score-bar-fill" data-w="89%"></div></div></div>
         </div>
         <div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--border);font-family:var(--mono);font-size:0.78rem;color:var(--accent);">
-          ✓ INTERVIEW READY — Readiness Report Generated
+          ✓ OFFER-READY — Final Readiness Report Generated
+        </div>
+        <div style="margin-top:16px;padding:12px 16px;background:rgba(0,179,138,0.06);border-radius:8px;font-size:0.78rem;color:var(--muted);line-height:1.6">
+          💡 <strong style="color:var(--text)">Based on your actual resume</strong> — questions, scoring, and job matching are all generated from your uploaded CV. Not a template.
         </div>
       </div>
     </div>
@@ -671,36 +951,36 @@
 <section class="pricing-section" id="pricing">
   <div class="container">
     <div class="pricing-header reveal">
-      <div class="section-tag">// What You Get — Free</div>
-      <h2 class="section-title">EVERYTHING YOU NEED,<br><span style="color:var(--accent)">FREE TO START</span></h2>
-      <p class="section-desc">Upload your resume and get your personalised interview prep plan — no credit card, no catch.</p>
+      <div class="section-tag">// Start Free</div>
+      <h2 class="section-title">EVERYTHING TO GET YOU<br><span style="color:var(--accent)">INTERVIEW-READY</span></h2>
+      <p class="section-desc">Upload your resume. Get your interview readiness score, prep plan, and AI feedback — no credit card, no catch.</p>
     </div>
     <div style="max-width:680px;margin:0 auto">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:40px">
         <div class="reveal" style="background:white;border-radius:16px;padding:24px;border:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,0.04)">
           <div style="font-size:1.5rem;margin-bottom:10px">📄</div>
-          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">ATS Resume Review</div>
-          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">Instant score + 5 specific improvement tips tailored to your role</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">Resume Gap Analysis</div>
+          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">ATS score + 5 specific fixes that will get you more shortlists — tailored to your role</div>
         </div>
         <div class="reveal" style="background:white;border-radius:16px;padding:24px;border:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,0.04)">
           <div style="font-size:1.5rem;margin-bottom:10px">🗓️</div>
-          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">30-Day Prep Plan</div>
-          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">28 daily tasks built for your specific role and experience level</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">4-Week Prep Roadmap</div>
+          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">28 daily tasks built for your role — no more "what should I study today?"</div>
         </div>
         <div class="reveal" style="background:white;border-radius:16px;padding:24px;border:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,0.04)">
           <div style="font-size:1.5rem;margin-bottom:10px">❓</div>
-          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">Interview Questions</div>
-          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">28 real interview questions across 4 weeks — technical, behavioral, system design</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">Real Interview Questions</div>
+          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">28 questions across 4 weeks — technical, behavioral, system design — the kind that get asked</div>
         </div>
         <div class="reveal" style="background:white;border-radius:16px;padding:24px;border:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,0.04)">
           <div style="font-size:1.5rem;margin-bottom:10px">🤖</div>
-          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">AI Answer Scoring</div>
-          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">Submit answers, get detailed AI feedback and improvement scores</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">AI Mock Interview + Score</div>
+          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">Sit a full interview with AI — voice answers, instant scoring, know where you lose points</div>
         </div>
         <div class="reveal" style="background:white;border-radius:16px;padding:24px;border:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,0.04)">
           <div style="font-size:1.5rem;margin-bottom:10px">📚</div>
-          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">Study Resources</div>
-          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">Curated cheatsheets and reading material for every task</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:0.95rem">Topic Cheatsheets</div>
+          <div style="font-size:0.82rem;color:#6b6b8a;line-height:1.5">Curated study material for every prep task — so you know exactly what to revise</div>
         </div>
         <div class="reveal" style="background:linear-gradient(135deg,rgba(80,72,229,0.06),rgba(0,179,138,0.04));border-radius:16px;padding:24px;border:1px solid rgba(80,72,229,0.2);box-shadow:0 2px 16px rgba(0,0,0,0.04);position:relative">
           <div style="position:absolute;top:-1px;right:16px;background:linear-gradient(135deg,#5048e5,#00b38a);color:white;font-size:0.6rem;font-weight:700;letter-spacing:1.5px;padding:3px 10px;border-radius:0 0 8px 8px">PRO</div>
@@ -716,8 +996,8 @@
         </div>
       </div>
       <div class="reveal" style="text-align:center">
-        <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block;font-size:1.1rem;padding:18px 48px">Start Free — Upload Your Resume →</a>
-        <div style="margin-top:14px;font-size:0.8rem;color:#6b6b8a">No credit card · Takes 2 minutes · Results in seconds</div>
+        <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="display:inline-block;font-size:1.1rem;padding:18px 48px">See My Interview Gaps — Free →</a>
+        <div style="margin-top:14px;font-size:0.8rem;color:#6b6b8a">No credit card · 2 minutes to set up · Personalised to your resume</div>
       </div>
     </div>
   </div>
@@ -726,12 +1006,15 @@
 <!-- FINAL CTA -->
 <section class="cta-section">
   <div style="position:relative;z-index:1;max-width:800px;margin:0 auto;">
-    <div class="section-tag reveal">// Get Started Today</div>
-    <h2 class="section-title reveal">STOP PREPARING.<br>START <span style="color:var(--accent)">PERFORMING.</span></h2>
-    <p class="section-desc reveal" style="margin:16px auto 40px">Your next tech job is 4 structured weeks away. Begin with a free resume review — no commitment needed.</p>
+    <div class="section-tag reveal">// Your Next Move</div>
+    <h2 class="section-title reveal">DON'T GO INTO YOUR<br>NEXT INTERVIEW <span style="color:var(--accent)">GUESSING.</span></h2>
+    <p class="section-desc reveal" style="margin:16px auto 8px;font-size:1.1rem;font-weight:600">Prepare. Practice. Get hired.</p>
+    <p class="section-desc reveal" style="margin:0 auto 40px">Upload your resume in 2 minutes. Get your personalised readiness score, prep plan, and full AI mock interview — all free.</p>
     <div class="hero-ctas reveal">
-      <a href="/register" target="_blank" rel="noopener" class="btn-primary">Review My Resume — It's Free</a>
-      <a href="#plan" class="btn-secondary">See the 4-Week Plan</a>
+      <a href="/register" target="_blank" rel="noopener" class="btn-primary" style="font-size:1.1rem;padding:18px 44px">Check My Job Readiness — Free →</a>
+    </div>
+    <div style="margin-top:20px;font-size:0.8rem;color:rgba(255,255,255,0.45)" class="reveal">
+      Personalised to your resume · Questions for your role · No credit card needed
     </div>
   </div>
 </section>
@@ -834,12 +1117,13 @@
   headline.style.opacity = 1;
 
   const segments = [
-    { text: 'LAND YOUR NEXT', cls: null },
+    { text: 'YOUR RESUME', cls: null },
     { text: '__BR__', cls: null },
-    { text: 'TECH JOB IN ', cls: null },
-    { text: '4', cls: 'num' },
+    { text: 'GOT YOU SHORTLISTED.', cls: null },
     { text: '__BR__', cls: null },
-    { text: 'WEEKS', cls: 'accent' },
+    { text: "DON'T MESS UP", cls: null },
+    { text: '__BR__', cls: null },
+    { text: 'THE INTERVIEW.', cls: 'accent' },
   ];
 
   let allChars = [];
@@ -965,6 +1249,399 @@
     }, { passive:false });
   });
   startCycle();
+
+/* ══ DASHBOARD SHOWCASE ENGINE ══ */
+(function() {
+  var currentScreen = 0;
+  var autoTimer = null;
+  var taskTimer = null;
+
+  var tasks = [
+    { text: 'Study B-tree vs Hash indexes in PostgreSQL', type: 'Theory', done: true },
+    { text: 'Solve: Design a URL shortener system', type: 'Practice', done: true },
+    { text: 'Watch: AWS Glue + S3 pipeline walkthrough', type: 'Resource', done: false, active: true },
+    { text: 'Submit Week 2 Day 3 answer for AI scoring', type: 'Submit', done: false },
+  ];
+
+  function renderTasks() {
+    var container = document.getElementById('planTasks');
+    if (!container) return;
+    container.innerHTML = '';
+    tasks.forEach(function(t, i) {
+      var div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;border:1px solid ' +
+        (t.active ? 'rgba(0,179,138,0.3)' : 'rgba(255,255,255,0.05)') + ';background:' +
+        (t.active ? 'rgba(0,179,138,0.06)' : 'rgba(255,255,255,0.02)') + ';transition:all 0.3s';
+      var check = document.createElement('div');
+      check.style.cssText = 'width:16px;height:16px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;' +
+        (t.done ? 'background:#00b38a;color:#fff' : t.active ? 'border:2px solid #00b38a' : 'border:2px solid rgba(255,255,255,0.15)');
+      if (t.done) check.textContent = '✓';
+      var label = document.createElement('div');
+      label.style.cssText = 'flex:1';
+      label.innerHTML = '<div style="font-size:0.74rem;font-weight:600;color:' + (t.done ? '#555' : '#e8e8f0') + ';text-decoration:' + (t.done ? 'line-through' : 'none') + '">' + t.text + '</div>' +
+        '<div style="font-size:0.6rem;color:#555;margin-top:2px">' + t.type + '</div>';
+      var badge = document.createElement('div');
+      if (t.active) {
+        badge.style.cssText = 'font-size:0.58rem;font-weight:700;color:#00b38a;background:rgba(0,179,138,0.12);border:1px solid rgba(0,179,138,0.3);padding:2px 7px;border-radius:4px;white-space:nowrap';
+        badge.textContent = '▶ Open';
+        // Animate cursor click after 2s
+        setTimeout(function() {
+          if (badge.parentNode) {
+            badge.style.background = 'rgba(0,179,138,0.3)';
+            setTimeout(function() {
+              if (badge.parentNode) badge.style.background = 'rgba(0,179,138,0.12)';
+            }, 300);
+          }
+        }, 2000);
+      }
+      div.appendChild(check);
+      div.appendChild(label);
+      if (t.active) div.appendChild(badge);
+      container.appendChild(div);
+    });
+  }
+
+  window.showDashScreen = function(idx) {
+    clearTimeout(autoTimer);
+    setScreen(idx);
+    // Resume auto after 5s
+    autoTimer = setTimeout(startAuto, 5000);
+  };
+
+  function setScreen(idx) {
+    currentScreen = idx;
+    // Hide all screens
+    for (var i = 0; i < 4; i++) {
+      var s = document.getElementById('dashScreen' + i);
+      var si = document.getElementById('sideIcon' + i);
+      var t = document.querySelectorAll('.dash-tab')[i];
+      var d = document.querySelectorAll('.dash-dot')[i];
+      if (s) s.style.display = 'none';
+      if (si) si.style.background = 'transparent';
+      if (t) { t.style.background = 'transparent'; t.style.borderColor = 'rgba(255,255,255,0.1)'; t.style.color = '#666'; }
+      if (d) { d.style.width = '6px'; d.style.background = 'rgba(255,255,255,0.15)'; }
+    }
+    // Show active
+    var activeScreen = document.getElementById('dashScreen' + idx);
+    var activeSide   = document.getElementById('sideIcon' + idx);
+    var activeTab    = document.querySelectorAll('.dash-tab')[idx];
+    var activeDot    = document.querySelectorAll('.dash-dot')[idx];
+    var labels = ['rolekraft.com/dashboard#plan', 'rolekraft.com/dashboard#scores', 'rolekraft.com/dashboard#jobs', 'rolekraft.com/dashboard#resume'];
+    var colors = ['#00b38a', '#5048e5', '#5048e5', '#00b38a'];
+
+    if (activeScreen) activeScreen.style.display = 'block';
+    if (activeSide)   activeSide.style.background = 'rgba(0,179,138,0.2)';
+    if (activeTab)    { activeTab.style.background = 'rgba(0,179,138,0.12)'; activeTab.style.borderColor = 'rgba(0,179,138,0.5)'; activeTab.style.color = '#00b38a'; }
+    if (activeDot)    { activeDot.style.width = '20px'; activeDot.style.background = colors[idx]; }
+    var lblEl = document.getElementById('dashScreenLabel');
+    if (lblEl) lblEl.textContent = labels[idx];
+
+    // Animate score bars when score screen shows
+    if (idx === 1) {
+      setTimeout(function() {
+        document.querySelectorAll('.score-bar-anim').forEach(function(b) {
+          b.style.width = b.getAttribute('data-w') || '0%';
+        });
+      }, 100);
+    }
+  }
+
+  function startAuto() {
+    autoTimer = setInterval(function() {
+      currentScreen = (currentScreen + 1) % 4;
+      setScreen(currentScreen);
+    }, 3500);
+  }
+
+  // Init when visible
+  var dashEl = document.getElementById('dashScreen0');
+  if (dashEl) {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          renderTasks();
+          setScreen(0);
+          startAuto();
+          obs.disconnect();
+        }
+      });
+    }, { threshold: 0.2 });
+    obs.observe(dashEl);
+  }
+})();
+(function() {
+  var _demoTimer = null;
+  var _demoSecs  = 0;
+  var _demoTimerInt = null;
+  var _recSecs = 0;
+  var _recInt  = null;
+  var _started = false;
+
+  // Demo script — 3 questions, realistic flow
+  var demoScript = [
+    {
+      q: 'Hi Vibhav! Great to have you here. I can see you\'re working at Barclays as an AVP. Can you walk me through the most impactful data pipeline you\'ve built — what problem it solved and how you measured success?',
+      answer: 'I built an automated ETL pipeline on AWS using Glue and S3 that reduced manual reconciliation time from 4 hours to 15 minutes daily. We tracked success by data accuracy rate, which went from 94% to 99.8%, and time saved for the regulatory reporting team.',
+      score: 82,
+      feedback: '✅ Strong — quantified impact clearly with before/after metrics. Good use of specific AWS services. To improve: mention the scale of data processed and team collaboration aspect.'
+    },
+    {
+      q: 'Good answer! Now let\'s go deeper — how did you handle data quality issues and schema drift in that pipeline? What monitoring did you put in place?',
+      answer: 'We implemented Great Expectations for data validation with alerting via SNS. For schema drift we used AWS Glue Schema Registry. Daily quality reports were sent to Slack automatically.',
+      score: 88,
+      feedback: '✅ Excellent — demonstrates real production knowledge. Great Expectations + Schema Registry shows strong tooling awareness. Consider adding how you handled incidents when quality checks failed in production.'
+    },
+    {
+      q: 'Impressive! Final question — tell me about a time you had a disagreement with a stakeholder about a technical approach. How did you resolve it?',
+      answer: 'Our compliance team wanted to store raw PII in S3 for audit purposes, but I felt it was a security risk. I presented alternatives — using tokenisation and audit logs instead — and backed it with a risk assessment. They agreed after seeing the compliance framework alignment.',
+      score: 91,
+      feedback: '✅ Outstanding behavioral answer — clear STAR structure, showed technical leadership without being confrontational. You also demonstrated compliance awareness which is critical for your domain.'
+    }
+  ];
+
+  var demoStep = 0; // which question
+  var demoPhase = 'start'; // start → thinking → question → answering → recording → scored → next
+
+  function el(id) { return document.getElementById(id); }
+
+  function setAvatar(show, label) {
+    var av = el('demoAvatar');
+    if (!av) return;
+    av.style.display = show ? 'flex' : 'none';
+    if (label && el('demoAvatarLabel')) el('demoAvatarLabel').textContent = label;
+  }
+
+  function setQCard(show) {
+    var qc = el('demoQCard');
+    if (qc) qc.style.display = show ? 'block' : 'none';
+  }
+
+  var avatarLabels = {
+    0: ['Reviewing your resume...', 'Personalising to your role...', 'Crafting your first question...', 'Almost ready...'],
+    1: ['Reviewing your answer...', 'Preparing question 2 of 8...', 'Selecting the next topic...', 'Almost ready...'],
+    2: ['Great answer! Preparing question 3 of 8...', 'Adjusting to your level...', 'Almost ready...']
+  };
+  var _labelTimer = null;
+
+  function stopAvatarLabels() {
+    if (_labelTimer) { clearInterval(_labelTimer); _labelTimer = null; }
+  }
+
+  function buildWaveform() {
+    var wf = el('demoWaveform');
+    if (!wf) return;
+    wf.innerHTML = '';
+    for (var i = 0; i < 12; i++) {
+      var bar = document.createElement('div');
+      var h = [12, 20, 8, 18, 24, 14, 22, 10, 18, 26, 12, 16][i];
+      bar.style.cssText = 'width:3px;border-radius:2px;background:#e84040;opacity:0.7;transform-origin:center;height:' + h + 'px;animation:waveAnim 0.55s ease-in-out infinite ' + (i * 0.05) + 's';
+      wf.appendChild(bar);
+    }
+  }
+
+  function stopRecordingUI() {
+    var mic = el('demoMicIndicator');
+    var btn = el('demoMicBtn');
+    if (mic) mic.style.display = 'none';
+    if (btn) { btn.style.borderColor = 'rgba(255,255,255,0.12)'; btn.style.color = '#aaa'; btn.textContent = '🎤 Start Speaking'; }
+  }
+
+  function showComplete() {
+    if (_demoTimerInt) clearInterval(_demoTimerInt);
+    if (el('demoQText'))     el('demoQText').textContent    = '🎉 Interview complete! Your overall score: 87/100 — Interview Ready';
+    if (el('demoQCard'))     el('demoQCard').style.borderLeftColor = '#00b38a';
+    if (el('demoActions'))   el('demoActions').style.display = 'none';
+    if (el('demoReplayBtn')) el('demoReplayBtn').style.display = 'inline-block';
+  }
+
+  window.restartMockDemo = function() {
+    // Clear all running intervals (typewriters, timers, label cyclers)
+    if (_demoTimerInt) { clearInterval(_demoTimerInt); _demoTimerInt = null; }
+    if (_recInt)       { clearInterval(_recInt); _recInt = null; }
+    if (_labelTimer)   { clearInterval(_labelTimer); _labelTimer = null; }
+    _demoSecs = 0;
+    _isVisible = true; // ensure demo runs when replaying
+    // Reset all UI
+    setAvatar(false);
+    setQCard(true);
+    if (el('demoTimer'))      el('demoTimer').textContent      = '00:00';
+    if (el('demoQText'))      el('demoQText').textContent      = '';
+    if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
+    if (el('demoFeedback'))   el('demoFeedback').style.display   = 'none';
+    if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'none';
+    if (el('demoNextBtn'))    el('demoNextBtn').style.display    = 'none';
+    if (el('demoActions'))    el('demoActions').style.display    = 'flex';
+    if (el('demoReplayBtn'))  el('demoReplayBtn').style.display  = 'none';
+    if (el('demoQCard'))      el('demoQCard').style.borderLeftColor = '#00b38a';
+    stopRecordingUI();
+    startMainTimer();
+    runStep(0);
+  };
+
+  // ── Simple visibility-based pause ──
+  // All timers keep running but skip their work when not visible
+  // This avoids the complexity of cancelling/restarting timer chains
+  var _isVisible = false;
+
+  function typeText(elId, text, speed, done) {
+    var target = el(elId);
+    if (!target) { if (done) done(); return; }
+    target.textContent = '';
+    var i = 0;
+    var id = setInterval(function() {
+      if (!_isVisible) return; // freeze in place when scrolled away
+      if (i <= text.length) {
+        target.textContent = text.slice(0, i);
+        i++;
+      } else {
+        clearInterval(id);
+        if (done) done();
+      }
+    }, speed);
+  }
+
+  function animateProgressBar(duration) {
+    var bar = el('demoProgressBar');
+    if (!bar) return;
+    bar.style.width = '0%';
+    var accumulated = 0;
+    var lastTick = Date.now();
+    var id = setInterval(function() {
+      if (!_isVisible) { lastTick = Date.now(); return; } // don't accumulate time while hidden
+      accumulated += Date.now() - lastTick;
+      lastTick = Date.now();
+      var pct = Math.min(100, (accumulated / duration) * 100);
+      bar.style.width = pct + '%';
+      if (pct >= 100) clearInterval(id);
+    }, 50);
+  }
+
+  function startAvatarLabels(qIdx) {
+    if (_labelTimer) { clearInterval(_labelTimer); _labelTimer = null; }
+    var labels = avatarLabels[qIdx] || avatarLabels[0];
+    var idx = 0;
+    if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[0];
+    _labelTimer = setInterval(function() {
+      if (!_isVisible) return;
+      idx = (idx + 1) % labels.length;
+      if (el('demoAvatarLabel')) el('demoAvatarLabel').textContent = labels[idx];
+    }, 1800);
+  }
+
+  function startRecordingUI(done) {
+    var mic = el('demoMicIndicator');
+    var btn = el('demoMicBtn');
+    if (mic) { buildWaveform(); mic.style.display = 'flex'; }
+    if (btn) { btn.style.borderColor = 'rgba(232,64,64,0.5)'; btn.style.color = '#e84040'; btn.textContent = '⬛ Stop Recording'; }
+    _recSecs = 0;
+    _recInt = setInterval(function() {
+      if (!_isVisible) return;
+      _recSecs++;
+      var m = Math.floor(_recSecs / 60), s = _recSecs % 60;
+      if (el('demoRecTimer')) el('demoRecTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      if (_recSecs >= 5) {
+        clearInterval(_recInt); _recInt = null;
+        stopRecordingUI();
+        if (done) done();
+      }
+    }, 400);
+  }
+
+  function startMainTimer() {
+    if (_demoTimerInt) clearInterval(_demoTimerInt);
+    _demoTimerInt = setInterval(function() {
+      if (!_isVisible) return;
+      _demoSecs++;
+      var m = Math.floor(_demoSecs / 60), s = _demoSecs % 60;
+      if (el('demoTimer')) el('demoTimer').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+  }
+
+  function demoDelay(ms, fn) {
+    // Polls every 100ms, only fires fn when visible AND delay elapsed (in visible time)
+    var elapsed = 0;
+    var id = setInterval(function() {
+      if (!_isVisible) return;
+      elapsed += 100;
+      if (elapsed >= ms) {
+        clearInterval(id);
+        fn();
+      }
+    }, 100);
+  }
+
+  function runStep(qIdx) {
+    var script = demoScript[qIdx];
+    if (!script) { showComplete(); return; }
+    if (el('demoQProg'))  el('demoQProg').textContent  = 'Q ' + (qIdx + 1) + ' of 8';
+    if (el('demoQLabel')) el('demoQLabel').textContent = 'QUESTION ' + (qIdx + 1) + ' OF 8';
+    setAvatar(true);
+    setQCard(false);
+    if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'none';
+    if (el('demoFeedback'))   el('demoFeedback').style.display   = 'none';
+    if (el('demoNextBtn'))    el('demoNextBtn').style.display    = 'none';
+    if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity  = '0.5';
+    startAvatarLabels(qIdx);
+    animateProgressBar(2500);
+    demoDelay(2600, function() {
+      stopAvatarLabels();
+      setAvatar(false);
+      setQCard(true);
+      if (el('demoQText')) el('demoQText').textContent = '';
+      typeText('demoQText', script.q, 22, function() {
+        if (el('demoAnswerArea')) el('demoAnswerArea').style.display = 'block';
+        if (el('demoAnswerText')) el('demoAnswerText').textContent = '';
+        if (el('demoSubmitBtn'))  el('demoSubmitBtn').style.opacity = '1';
+        demoDelay(1200, function() {
+          startRecordingUI(function() {
+            typeText('demoAnswerText', script.answer, 18, function() {
+              if (el('demoSubmitBtn')) el('demoSubmitBtn').style.opacity = '0.5';
+              demoDelay(800, function() {
+                if (el('demoFeedback')) el('demoFeedback').style.display = 'block';
+                var pillEl = el('demoScorePill');
+                var scoreColor = script.score >= 85 ? '#00b38a' : script.score >= 70 ? '#ffbd2e' : '#e84040';
+                var scoreLabel = script.score >= 85 ? '🤩 Excellent' : script.score >= 70 ? '👍 Good' : '📋 Needs Work';
+                if (pillEl) {
+                  pillEl.textContent = scoreLabel + ' — ' + script.score + '/100';
+                  pillEl.style.color = scoreColor;
+                  pillEl.style.borderColor = scoreColor + '55';
+                  pillEl.style.background  = scoreColor + '18';
+                }
+                typeText('demoFeedbackText', script.feedback, 14, function() {
+                  if (qIdx < demoScript.length - 1) {
+                    if (el('demoNextBtn')) el('demoNextBtn').style.display = 'block';
+                    demoDelay(2800, function() { runStep(qIdx + 1); });
+                  } else {
+                    showComplete();
+                  }
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  }
+
+  // Single IntersectionObserver on the demo window only
+  // Layout is now vertical stack so demo naturally scrolls in/out on ALL devices
+  // No sentinel needed — demo window leaving viewport = paused, entering = resumed/started
+  var demoCol = document.getElementById('demoWindowLeft');
+  if (demoCol) {
+    var demoObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        _isVisible = entry.isIntersecting;
+        if (entry.isIntersecting && !_started) {
+          _started = true;
+          _demoSecs = 0;
+          startMainTimer();
+          demoDelay(800, function() { runStep(0); });
+        }
+      });
+    }, { threshold: 0.25 });
+    demoObs.observe(demoCol);
+  }
+})();
 </script>
 </body>
 </html>

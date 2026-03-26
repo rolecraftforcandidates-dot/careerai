@@ -231,12 +231,19 @@
   .product-card p { font-size: 0.82rem; color: var(--muted); margin: 0; }
 
   /* TABLE OF CONTENTS */
-  .toc { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-bottom: 40px; }
-  .toc h4 { font-size: 0.78rem; font-weight: 700; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; }
-  .toc ol { margin-left: 18px; }
+  .toc { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; }
+  .toc-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .toc h4 { font-size: 0.78rem; font-weight: 700; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin: 0; }
+  .toc-toggle { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+  .toc-body ol { margin: 14px 0 0 18px; }
   .toc li { margin-bottom: 6px; font-size: 0.88rem; }
   .toc a { color: var(--accent); text-decoration: none; }
   .toc a:hover { text-decoration: underline; }
+  @media(max-width:768px){
+    .toc-body { display: none; }
+    .toc-body.open { display: block; }
+    .toc { padding: 14px 18px; margin-bottom: 28px; }
+  }
 
   /* FOOTER */
   footer { background: #0f0f1a; color: rgba(255,255,255,0.5); text-align: center; padding: 36px 5%; font-size: 0.82rem; }
@@ -288,17 +295,35 @@
 
 <!-- TOC -->
 <nav class="toc" aria-label="Table of contents">
-  <h4>Contents</h4>
-  <ol>
-    <li><a href="#why-hard">Why Data Engineer Interviews Are Hard</a></li>
-    <li><a href="#questions">Interview Questions — Full Bank</a></li>
-    <li><a href="#answers">Sample Answers</a></li>
-    <li><a href="#mistakes">Common Mistakes</a></li>
-    <li><a href="#prepare">How to Prepare (4-Week Plan)</a></li>
-    <li><a href="#rolekraft">How RoleKraft Helps</a></li>
-    <li><a href="#faq">FAQs</a></li>
-  </ol>
+  <div class="toc-header" onclick="toggleToc()">
+    <h4>Contents</h4>
+    <span class="toc-toggle" id="tocToggle">▼ Show</span>
+  </div>
+  <div class="toc-body" id="tocBody">
+    <ol>
+      <li><a href="#why-hard">Why Data Engineer Interviews Are Hard</a></li>
+      <li><a href="#questions">Interview Questions — Full Bank</a></li>
+      <li><a href="#answers">Sample Answers</a></li>
+      <li><a href="#mistakes">Common Mistakes</a></li>
+      <li><a href="#prepare">How to Prepare (4-Week Plan)</a></li>
+      <li><a href="#rolekraft">How RoleKraft Helps</a></li>
+      <li><a href="#faq">FAQs</a></li>
+    </ol>
+  </div>
 </nav>
+<script>
+function toggleToc() {
+  var body = document.getElementById('tocBody');
+  var toggle = document.getElementById('tocToggle');
+  var isOpen = body.classList.toggle('open');
+  toggle.textContent = isOpen ? '▲ Hide' : '▼ Show';
+}
+// On desktop always show
+if (window.innerWidth > 768) {
+  document.getElementById('tocBody').classList.add('open');
+  document.getElementById('tocToggle').style.display = 'none';
+}
+</script>
 
 <!-- INTRO -->
 <p>Most data engineer interview guides give you a list of questions and call it preparation. That's not enough.</p>

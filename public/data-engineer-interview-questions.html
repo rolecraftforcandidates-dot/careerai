@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Engineer Interview Questions 2026 | Complete Guide</title>
+<meta name="description" content="50+ real data engineer interview questions with answers. Covers SQL, Spark, Kafka, Delta Lake, system design, and behavioural. Practice free with AI on RoleKraft.">
+<meta name="keywords" content="data engineer interview questions, data engineering interview preparation, apache spark interview questions, kafka interview questions, SQL data engineer, ETL interview questions, data pipeline interview, data engineer interview 2026">
+<meta name="author" content="RoleKraft">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.rolekraft.com/data-engineer-interview-questions">
+
+<!-- Open Graph -->
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://www.rolekraft.com/data-engineer-interview-questions">
+<meta property="og:title" content="Data Engineer Interview Questions 2026 | Complete Guide with Answers">
+<meta property="og:description" content="50+ real data engineer interview questions covering SQL, Spark, Kafka, system design, and behavioural. Free AI mock interview practice on RoleKraft.">
+<meta property="og:image" content="https://www.rolekraft.com/og-image.png">
+<meta property="og:site_name" content="RoleKraft">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Data Engineer Interview Questions 2026 | RoleKraft">
+<meta name="twitter:description" content="50+ real data engineer interview questions with detailed answers. Practice with AI mock interviews.">
+<meta name="twitter:image" content="https://www.rolekraft.com/og-image.png">
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1QENNTK8KZ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-1QENNTK8KZ');
+</script>
+
+<!-- FAQ Schema -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What topics should a data engineer interview cover?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A strong data engineer interview covers five areas: SQL and query optimisation, batch processing (Spark, Hadoop), stream processing (Kafka, Flink), cloud and storage platforms (AWS, GCP, Delta Lake, S3), and system design. Most interviews also include a behavioural round."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many rounds are in a data engineer interview?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Most companies use 3–5 rounds: a recruiter screen, a technical phone screen (SQL or coding), one or two technical deep-dives (system design, Spark/Kafka, project review), and a final behavioural round. Some add a take-home assignment."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long should I prepare for a data engineer interview?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For mid-level roles (2–5 years), plan for 3–4 weeks of structured preparation. For senior roles, 5–6 weeks is realistic. Allocate at least 30% of prep time to mock interviews and timed answer practice."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What SQL skills do data engineers need for interviews?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Beyond basic SELECT and JOIN: window functions (RANK, ROW_NUMBER, LAG, LEAD), CTEs and recursive queries, query optimisation and execution plan reading, handling NULLs correctly, and complex aggregations with GROUP BY."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is system design tested in data engineer interviews?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, especially at mid and senior levels. Common questions: design a real-time data pipeline, design a data warehouse for e-commerce, design a feature store for ML. You're expected to discuss storage choices, processing frameworks, and failure handling."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the difference between data engineer and data analyst interview questions?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Data engineer interviews focus on pipeline architecture, distributed systems, and infrastructure. Data analyst interviews focus on SQL, business logic, and statistical reasoning. There is SQL overlap but the depth and direction differ."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I answer data engineer interview questions about technologies I haven't used?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Be honest about your direct experience while demonstrating you understand the concepts. Explain how you'd approach the learning curve. Say: 'I haven't used X in production, but I understand how it compares — here's how I'd approach it.' Intellectual honesty is valued over pretending."
+      }
+    }
+  ]
+}
+</script>
+
+<!-- Article Schema -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Data Engineer Interview Questions 2026: Complete Guide with Answers",
+  "description": "50+ real data engineer interview questions covering SQL, Spark, Kafka, Delta Lake, and system design. Includes sample answers, common mistakes, and a 4-week preparation roadmap.",
+  "author": {
+    "@type": "Organization",
+    "name": "RoleKraft",
+    "url": "https://rolekraft.com"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "RoleKraft",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://rolekraft.com/og-image.png"
+    }
+  },
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-03-24",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://rolekraft.com/data-engineer-interview-questions"
+  },
+  "keywords": ["data engineer interview questions","Apache Spark interview questions","Kafka interview questions","SQL data engineer","Delta Lake interview","ETL interview questions","data pipeline interview","data engineer system design 2026"]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --accent: #00b38a;
+    --accent2: #5048e5;
+    --text: #0f0f1a;
+    --muted: #6b6b8a;
+    --border: rgba(0,0,0,0.08);
+    --bg: #f8f9ff;
+    --card: #ffffff;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; color: var(--text); background: #fff; line-height: 1.7; font-size: 1rem; }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+    padding: 14px 5%; display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; font-family: 'Bebas Neue', cursive; font-size: 1.4rem; letter-spacing: 2px; background: linear-gradient(90deg,#00b38a,#5048e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .nav-cta { background: var(--accent); color: #fff; font-weight: 700; font-size: 0.88rem; padding: 10px 20px; border-radius: 6px; text-decoration: none; white-space: nowrap; }
+  .nav-cta:hover { background: #00c99a; }
+
+  /* LAYOUT */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 5%; }
+  .wide { max-width: 1000px; margin: 0 auto; padding: 0 5%; }
+
+  /* HERO */
+  .hero { background: linear-gradient(135deg,#f0fdf9,#f5f3ff); padding: 64px 5% 56px; text-align: center; border-bottom: 1px solid var(--border); }
+  .hero-tag { display: inline-block; background: rgba(0,179,138,0.1); color: var(--accent); font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px; padding: 5px 14px; border-radius: 100px; border: 1px solid rgba(0,179,138,0.25); margin-bottom: 20px; }
+  .hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; line-height: 1.2; margin-bottom: 18px; color: var(--text); }
+  .hero h1 span { color: var(--accent); }
+  .hero-sub { font-size: 1.05rem; color: var(--muted); max-width: 600px; margin: 0 auto 28px; line-height: 1.7; }
+  .hero-meta { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin-bottom: 28px; }
+  .hero-meta span { display: flex; align-items: center; gap: 5px; }
+  .btn-primary { display: inline-block; background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem; padding: 14px 32px; border-radius: 8px; text-decoration: none; transition: all 0.2s; }
+  .btn-primary:hover { background: #00c99a; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,179,138,0.3); }
+  .btn-secondary { display: inline-block; background: transparent; color: var(--text); font-weight: 500; font-size: 0.95rem; padding: 13px 28px; border-radius: 8px; border: 1px solid var(--border); text-decoration: none; margin-left: 12px; }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* CONTENT */
+  .content { padding: 56px 0; }
+  .content h2 { font-size: 1.55rem; font-weight: 800; margin: 48px 0 16px; padding-top: 8px; border-top: 3px solid var(--accent); display: inline-block; }
+  .content h2:first-child { margin-top: 0; }
+  .content h3 { font-size: 1.15rem; font-weight: 700; margin: 32px 0 12px; color: var(--text); }
+  .content p { margin-bottom: 16px; color: #2a2a3a; line-height: 1.75; }
+  .content ul, .content ol { margin: 12px 0 20px 20px; }
+  .content li { margin-bottom: 8px; line-height: 1.65; color: #2a2a3a; }
+  .content strong { color: var(--text); }
+
+  /* QUESTION CARDS */
+  .q-list { display: flex; flex-direction: column; gap: 0; margin: 16px 0 24px; }
+  .q-item { padding: 14px 18px; border-left: 3px solid var(--border); background: var(--bg); margin-bottom: 8px; border-radius: 0 8px 8px 0; font-size: 0.95rem; line-height: 1.6; transition: border-color 0.2s; }
+  .q-item:hover { border-left-color: var(--accent); background: #f0fdf9; }
+  .q-num { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+
+  /* LEVEL BADGES */
+  .level-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 100px; margin-bottom: 16px; }
+  .badge-beginner { background: rgba(16,185,129,0.1); color: #059669; border: 1px solid rgba(16,185,129,0.25); }
+  .badge-intermediate { background: rgba(245,158,11,0.1); color: #d97706; border: 1px solid rgba(245,158,11,0.25); }
+  .badge-advanced { background: rgba(239,68,68,0.1); color: #dc2626; border: 1px solid rgba(239,68,68,0.25); }
+  .badge-behavioural { background: rgba(80,72,229,0.1); color: var(--accent2); border: 1px solid rgba(80,72,229,0.25); }
+
+  /* ANSWER BLOCKS */
+  .answer-block { background: #f8f9ff; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; padding: 22px 24px; margin: 20px 0 28px; }
+  .answer-block .q-text { font-weight: 700; font-size: 0.95rem; color: var(--text); margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .answer-block .a-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+  .answer-block p { font-size: 0.92rem; color: #2a2a3a; }
+  .answer-block .why { background: rgba(80,72,229,0.06); border: 1px solid rgba(80,72,229,0.15); border-radius: 8px; padding: 12px 16px; margin-top: 14px; font-size: 0.82rem; color: var(--accent2); }
+
+  /* MISTAKE CARDS */
+  .mistake-card { background: #fff8f8; border: 1px solid rgba(239,68,68,0.15); border-left: 4px solid #ef4444; border-radius: 0 10px 10px 0; padding: 16px 20px; margin-bottom: 12px; }
+  .mistake-title { font-weight: 700; font-size: 0.92rem; color: #dc2626; margin-bottom: 6px; }
+
+  /* WEEK PLAN */
+  .week-row { display: grid; grid-template-columns: 90px 1fr; gap: 0; margin-bottom: 4px; }
+  .week-label { background: var(--accent); color: #fff; font-weight: 700; font-size: 0.8rem; padding: 14px 16px; border-radius: 8px 0 0 8px; display: flex; align-items: center; justify-content: center; text-align: center; }
+  .week-content { background: var(--bg); border: 1px solid var(--border); border-left: none; border-radius: 0 8px 8px 0; padding: 14px 18px; font-size: 0.9rem; }
+  .week-content strong { display: block; margin-bottom: 4px; }
+
+  /* CTA BLOCK */
+  .cta-block { background: linear-gradient(135deg,#f0fdf9,#f5f3ff); border: 1px solid rgba(0,179,138,0.2); border-radius: 16px; padding: 36px 32px; text-align: center; margin: 48px 0; }
+  .cta-block h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 12px; border: none; margin-top: 0; padding-top: 0; display: block; }
+  .cta-block p { color: var(--muted); margin-bottom: 22px; font-size: 0.95rem; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* FAQ */
+  .faq-item { border-bottom: 1px solid var(--border); padding: 20px 0; }
+  .faq-q { font-weight: 700; font-size: 0.98rem; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .faq-a { font-size: 0.92rem; color: #2a2a3a; line-height: 1.7; }
+
+  /* PRODUCT SECTION */
+  .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .product-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .product-card .icon { font-size: 1.4rem; margin-bottom: 8px; }
+  .product-card h4 { font-size: 0.92rem; font-weight: 700; margin-bottom: 6px; }
+  .product-card p { font-size: 0.82rem; color: var(--muted); margin: 0; }
+
+  /* TABLE OF CONTENTS */
+  .toc { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-bottom: 40px; }
+  .toc h4 { font-size: 0.78rem; font-weight: 700; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; }
+  .toc ol { margin-left: 18px; }
+  .toc li { margin-bottom: 6px; font-size: 0.88rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* FOOTER */
+  footer { background: #0f0f1a; color: rgba(255,255,255,0.5); text-align: center; padding: 36px 5%; font-size: 0.82rem; }
+  footer a { color: rgba(255,255,255,0.6); text-decoration: none; margin: 0 10px; }
+  footer a:hover { color: var(--accent); }
+  .footer-logo { font-family: 'Bebas Neue', cursive; font-size: 1.2rem; letter-spacing: 2px; background: linear-gradient(90deg,#00b38a,#5048e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
+
+  @media(max-width:640px) {
+    .product-grid { grid-template-columns: 1fr; }
+    .week-row { grid-template-columns: 70px 1fr; }
+    .hero h1 { font-size: 1.7rem; }
+    .btn-secondary { margin-left: 0; margin-top: 10px; }
+    .cta-row { flex-direction: column; align-items: center; }
+    .hero-meta { gap: 14px; }
+    nav { padding: 12px 4%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="26" height="26"><defs><linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b38a"/><stop offset="100%" stop-color="#5048e5"/></linearGradient></defs><rect x="6" y="18" width="36" height="26" rx="6" fill="url(#ng)"/><rect x="18" y="27" width="12" height="9" rx="3" fill="white" opacity="0.28"/></svg>
+    ROLEKRAFT
+  </a>
+  <a href="/register" class="nav-cta">Start Free →</a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wide">
+    <div class="hero-tag">📊 Data Engineer Interview Guide 2026</div>
+    <h1>Data Engineer Interview Questions: <span>The Complete 2026 Guide</span></h1>
+    <p class="hero-sub">50+ real data engineer interview questions with detailed answers — covering SQL, Apache Spark, Kafka, Delta Lake, system design, and behavioural rounds.</p>
+    <div class="hero-meta">
+      <span>📅 Updated March 2026</span>
+      <span>⏱ 18 min read</span>
+      <span>✅ 40+ questions</span>
+      <span>🎯 All experience levels</span>
+    </div>
+    <a href="/register" class="btn-primary">Practice with AI Mock Interview →</a>
+    <a href="#questions" class="btn-secondary">Jump to Questions</a>
+  </div>
+</header>
+
+<div class="container">
+<article class="content">
+
+<!-- TOC -->
+<nav class="toc" aria-label="Table of contents">
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#why-hard">Why Data Engineer Interviews Are Hard</a></li>
+    <li><a href="#questions">Interview Questions — Full Bank</a></li>
+    <li><a href="#answers">Sample Answers</a></li>
+    <li><a href="#mistakes">Common Mistakes</a></li>
+    <li><a href="#prepare">How to Prepare (4-Week Plan)</a></li>
+    <li><a href="#rolekraft">How RoleKraft Helps</a></li>
+    <li><a href="#faq">FAQs</a></li>
+  </ol>
+</nav>
+
+<!-- INTRO -->
+<p>Most data engineer interview guides give you a list of questions and call it preparation. That's not enough.</p>
+<p>Companies like Flipkart, PhonePe, Barclays, and Goldman Sachs aren't testing whether you've memorised definitions. They're testing whether you've built things, broken things, and fixed them under pressure.</p>
+<p>This guide gives you the questions, the answers, the mistakes, and a structured preparation roadmap — so you walk into your next interview knowing exactly what to expect.</p>
+
+<!-- WHY HARD -->
+<h2 id="why-hard">Why Data Engineer Interviews Are Harder Than You Think</h2>
+
+<p>Data engineering interviews have quietly become one of the most technically demanding in the industry.</p>
+
+<p><strong>The role has expanded.</strong> You're no longer just writing ETL pipelines. Interviewers now expect knowledge of streaming systems, data modelling, cloud architecture, data governance, and increasingly — ML infrastructure.</p>
+
+<p><strong>The bar has risen sharply.</strong> With layoffs across FAANG and tier-2 companies, more experienced engineers are competing for mid-level roles. A 3-year candidate is now competing against someone with 6.</p>
+
+<p><strong>Interviews test depth, not just breadth.</strong> You'll be asked to explain your architecture decisions, justify trade-offs, and debug hypothetical failures — not just define what Spark is.</p>
+
+<p>Three common reasons candidates fail:</p>
+<ul>
+  <li>Strong in one area (SQL or Python) but shallow in others (streaming, cloud, system design)</li>
+  <li>Can't explain their own project work clearly under pressure</li>
+  <li>Resume gets them the call but answers don't match the seniority claimed</li>
+</ul>
+
+<!-- QUESTIONS -->
+<h2 id="questions">Data Engineer Interview Questions — Full Question Bank</h2>
+
+<h3>Beginner Level (0–2 Years Experience)</h3>
+<div class="level-badge badge-beginner">🟢 Beginner — 0 to 2 Years</div>
+<p>These test foundational knowledge. Getting these wrong signals poor preparation.</p>
+<div class="q-list">
+  <div class="q-item"><div class="q-num">Q1</div>What is the difference between OLTP and OLAP? Give a real use case for each.</div>
+  <div class="q-item"><div class="q-num">Q2</div>Explain the difference between a data warehouse and a data lake. When would you choose one over the other?</div>
+  <div class="q-item"><div class="q-num">Q3</div>What is ETL? How does it differ from ELT, and when would you use each?</div>
+  <div class="q-item"><div class="q-num">Q4</div>What are partitioning and bucketing in Hive or Spark? Why do they matter for performance?</div>
+  <div class="q-item"><div class="q-num">Q5</div>What is schema-on-read vs schema-on-write? Give a practical example of each.</div>
+  <div class="q-item"><div class="q-num">Q6</div>What is data normalisation? When would you intentionally denormalise?</div>
+  <div class="q-item"><div class="q-num">Q7</div>How does Apache Airflow work? What is a DAG and what happens when a task fails?</div>
+  <div class="q-item"><div class="q-num">Q8</div>What is the difference between batch processing and stream processing? Give an example of each.</div>
+  <div class="q-item"><div class="q-num">Q9</div>What is a slowly changing dimension (SCD)? Describe Type 1, 2, and 3 with examples.</div>
+  <div class="q-item"><div class="q-num">Q10</div>What is data lineage and why does it matter in production pipelines?</div>
+  <div class="q-item"><div class="q-num">Q11</div>How do you handle NULL values in SQL? What are the risks of ignoring them?</div>
+  <div class="q-item"><div class="q-num">Q12</div>What is the difference between a primary key and a foreign key? How does this affect joins?</div>
+</div>
+
+<h3>Intermediate Level (2–5 Years Experience)</h3>
+<div class="level-badge badge-intermediate">🟡 Intermediate — 2 to 5 Years</div>
+<p>These test practical experience. Interviewers expect you to have built these systems, not just read about them.</p>
+<div class="q-list">
+  <div class="q-item"><div class="q-num">Q13</div>You have a Spark job processing 500GB daily. It's running slowly. Walk me through how you'd diagnose and fix the performance issue.</div>
+  <div class="q-item"><div class="q-num">Q14</div>What is Apache Kafka's consumer group concept? How does partition assignment affect throughput?</div>
+  <div class="q-item"><div class="q-num">Q15</div>Explain the difference between exactly-once, at-least-once, and at-most-once delivery semantics. When does each matter?</div>
+  <div class="q-item"><div class="q-num">Q16</div>How would you design a data pipeline for real-time fraud detection? What technologies would you use and why?</div>
+  <div class="q-item"><div class="q-num">Q17</div>What is data skew in Spark? How do you detect it and what are your options for fixing it?</div>
+  <div class="q-item"><div class="q-num">Q18</div>Explain the medallion architecture (Bronze/Silver/Gold). What are its practical benefits in a lakehouse?</div>
+  <div class="q-item"><div class="q-num">Q19</div>How does Delta Lake differ from a regular Parquet-based data lake? What specific problems does it solve?</div>
+  <div class="q-item"><div class="q-num">Q20</div>You're running an Airflow DAG that fails intermittently in production. How do you debug it?</div>
+  <div class="q-item"><div class="q-num">Q21</div>What is CDC (Change Data Capture)? How would you implement it using Debezium and Kafka?</div>
+  <div class="q-item"><div class="q-num">Q22</div>How do you handle schema evolution in a production pipeline without breaking downstream consumers?</div>
+  <div class="q-item"><div class="q-num">Q23</div>Write a SQL query to find the top 3 spending customers per city per month using window functions.</div>
+  <div class="q-item"><div class="q-num">Q24</div>What is data quality monitoring? How would you implement automated data quality checks in a pipeline?</div>
+</div>
+
+<h3>Advanced Level (5+ Years Experience)</h3>
+<div class="level-badge badge-advanced">🔴 Advanced — 5+ Years</div>
+<p>These test architectural thinking and leadership. You're expected to justify decisions, not just describe them.</p>
+<div class="q-list">
+  <div class="q-item"><div class="q-num">Q25</div>Design a data platform that ingests 10TB/day from 50 different sources with different schemas and SLAs. Walk through your architecture.</div>
+  <div class="q-item"><div class="q-num">Q26</div>How would you build a self-serve analytics platform for non-technical business teams? What guardrails would you put in place?</div>
+  <div class="q-item"><div class="q-num">Q27</div>Your company wants to migrate from an on-premise Hadoop warehouse to a cloud lakehouse on AWS. What's your migration strategy and what are the risks?</div>
+  <div class="q-item"><div class="q-num">Q28</div>How do you handle PII data in a data pipeline end-to-end — from ingestion through transformation to serving?</div>
+  <div class="q-item"><div class="q-num">Q29</div>Explain the Lambda vs Kappa architecture. In what scenarios would you recommend each?</div>
+  <div class="q-item"><div class="q-num">Q30</div>You've been asked to build a feature store for an ML team. What design decisions matter most?</div>
+  <div class="q-item"><div class="q-num">Q31</div>How would you implement row-level security in a data warehouse serving multiple business units?</div>
+  <div class="q-item"><div class="q-num">Q32</div>A downstream dashboard shows data that's 3 hours stale. Walk me through how you'd diagnose the root cause systematically.</div>
+  <div class="q-item"><div class="q-num">Q33</div>How do you design for idempotency in a distributed data pipeline? Why does it matter?</div>
+  <div class="q-item"><div class="q-num">Q34</div>Your Kafka consumer lag is growing and the team wants to scale horizontally. What are the constraints and how do you resolve them?</div>
+</div>
+
+<h3>Behavioural & Situational Questions</h3>
+<div class="level-badge badge-behavioural">🔵 Behavioural — All Levels</div>
+<p>Often overlooked — and where strong candidates lose offers. These are non-negotiable at senior levels.</p>
+<div class="q-list">
+  <div class="q-item"><div class="q-num">Q35</div>Tell me about the most complex data pipeline you've built. What were the hardest technical decisions?</div>
+  <div class="q-item"><div class="q-num">Q36</div>Describe a time a data pipeline you owned failed in production. What happened and what did you change?</div>
+  <div class="q-item"><div class="q-num">Q37</div>How do you handle disagreements with a data analyst or product manager about pipeline design priorities?</div>
+  <div class="q-item"><div class="q-num">Q38</div>Tell me about a time you significantly improved the performance of an existing system. What was your approach?</div>
+  <div class="q-item"><div class="q-num">Q39</div>Describe a situation where you had to balance technical debt against delivery speed. How did you decide?</div>
+</div>
+
+<!-- SAMPLE ANSWERS -->
+<h2 id="answers">Sample Answers — What Good Looks Like</h2>
+
+<div class="answer-block">
+  <div class="q-text">Q13: You have a Spark job processing 500GB daily that's running slowly. How do you diagnose and fix it?</div>
+  <div class="a-label">✅ STRONG ANSWER</div>
+  <p>I'd start by checking the Spark UI to understand where time is being spent — specifically the stage timeline, task duration distribution, and shuffle read/write sizes.</p>
+  <p>The most common culprits are data skew, insufficient partitioning, and excessive shuffles from wide transformations.</p>
+  <p>For data skew, if one partition handles 70% of the data, I'd add a salt key to distribute the load — appending a random integer between 0–9 to the join key and broadcasting a replicated version of the smaller dataset.</p>
+  <p>For shuffle reduction, I'd check if I can repartition data earlier in the pipeline, cache intermediate results that are reused, and replace <code>groupBy</code> with <code>reduceByKey</code> where possible.</p>
+  <p>If it's an I/O bottleneck, I'd look at file sizes — too many small files kill performance. Coalescing output to 128–256MB files and switching from CSV to Parquet with Snappy compression typically gives a 3–4x improvement on read performance.</p>
+  <p>Finally, I'd review executor memory configuration. If GC time is high in the Spark UI, the job is memory-constrained and needs more executor memory or a smaller partition size.</p>
+  <div class="why">💡 Why this works: Structured, specific, mentions real tools (Spark UI, salt keys, Parquet), and shows debugging instinct — not just textbook knowledge.</div>
+</div>
+
+<div class="answer-block">
+  <div class="q-text">Q18: Explain the medallion architecture and its practical benefits.</div>
+  <div class="a-label">✅ STRONG ANSWER</div>
+  <p>The medallion architecture organises data into three layers: Bronze, Silver, and Gold.</p>
+  <p><strong>Bronze</strong> is raw ingestion — untransformed data exactly as it arrived from the source. We keep this indefinitely as an audit trail and reprocessing safety net.</p>
+  <p><strong>Silver</strong> is cleaned and conformed data — nulls handled, schema enforced, deduplication applied, possibly joined with reference data. This is what data engineers primarily work with.</p>
+  <p><strong>Gold</strong> is business-ready aggregates — pre-computed metrics, summaries, and domain-specific views built for analysts and dashboards.</p>
+  <p>The practical benefit is that each layer has a clear owner and SLA. If a Gold metric is wrong, you debug from Gold back to Silver, then Silver back to Bronze — rather than re-ingesting everything from source.</p>
+  <p>In a Delta Lake implementation, this pairs naturally with time travel — you can replay Silver transformations against Bronze history without touching the source system again.</p>
+  <div class="why">💡 Why this works: Shows hands-on understanding, uses correct terminology, and gives a practical debugging scenario that demonstrates real ownership.</div>
+</div>
+
+<div class="answer-block">
+  <div class="q-text">Q22: How do you handle schema evolution in a production pipeline?</div>
+  <div class="a-label">✅ STRONG ANSWER</div>
+  <p>Schema evolution is one of the trickier operational problems in data engineering because the impact is often downstream and invisible until something breaks.</p>
+  <p>My approach depends on the storage format. With Parquet and Delta Lake, schema evolution is relatively safe — you can add new nullable columns without breaking existing readers. But removing or renaming columns will break things.</p>
+  <p>For Kafka-based pipelines, I use Confluent Schema Registry with Avro. The registry enforces compatibility checks — typically backward compatibility, meaning new schemas can read old messages.</p>
+  <p>For SQL-based warehouses, I version transformation logic in dbt and make schema changes in separate migration PRs reviewed by the team. Any breaking change goes through a deprecation window where both the old and new column exist simultaneously.</p>
+  <p>The most important practice is automated compatibility testing in CI — run your pipeline against a sample of historical data whenever schema changes are proposed. Catching breaks in staging is much cheaper than in production.</p>
+  <div class="why">💡 Why this works: Covers multiple storage formats, mentions specific tools (Schema Registry, Avro, dbt), and shows production-level thinking about CI and deprecation windows.</div>
+</div>
+
+<!-- MISTAKES -->
+<h2 id="mistakes">Common Mistakes Candidates Make</h2>
+<p>These aren't generic — these are patterns that interviewers see repeatedly.</p>
+
+<div class="mistake-card">
+  <div class="mistake-title">❌ Describing projects without depth</div>
+  <p>Candidates say "I built an ETL pipeline on AWS" but can't answer follow-ups: What was the data volume? What did you do when it failed? Why Glue over EMR? Surface-level answers signal shallow ownership.</p>
+</div>
+<div class="mistake-card">
+  <div class="mistake-title">❌ Treating SQL as a solved problem</div>
+  <p>Many mid-level candidates are weak on window functions, CTEs, and query optimisation. If you haven't written a recursive CTE or explained a query execution plan recently, brush up — it comes up more than expected.</p>
+</div>
+<div class="mistake-card">
+  <div class="mistake-title">❌ Ignoring data quality</div>
+  <p>Candidates who've never built data quality monitoring are flagged as junior regardless of years of experience. Know Great Expectations, dbt tests, or at minimum how you'd detect and alert on anomalies.</p>
+</div>
+<div class="mistake-card">
+  <div class="mistake-title">❌ No clear opinion on trade-offs</div>
+  <p>Senior roles don't want people who say "it depends" and stop there. You need to say "it depends — and in this scenario I'd choose X because of Y, accepting trade-off Z." Indecision is a red flag.</p>
+</div>
+<div class="mistake-card">
+  <div class="mistake-title">❌ Underselling behavioural answers</div>
+  <p>Technical skills get you to the shortlist. Behavioural answers determine the offer. Most candidates spend 95% of prep time on technical content and wing the behavioural round — and lose offers because of it.</p>
+</div>
+<div class="mistake-card">
+  <div class="mistake-title">❌ Not knowing their own resume</div>
+  <p>Every project on your resume is fair game. If it says "reduced pipeline latency by 40%" — expect to explain exactly how. If you can't, it looks dishonest.</p>
+</div>
+
+<!-- PREPARE -->
+<h2 id="prepare">How to Prepare for a Data Engineer Interview</h2>
+<p>Here's a structured 4-week approach used by candidates who get offers at competitive companies.</p>
+
+<div style="display:flex;flex-direction:column;gap:4px;margin:20px 0 28px">
+  <div class="week-row">
+    <div class="week-label">Week 1</div>
+    <div class="week-content"><strong>Fix the Foundation</strong>Audit your resume against the JD · Revise SQL window functions, CTEs, execution plans · Review core Spark concepts — RDDs vs DataFrames, shuffles, lazy evaluation</div>
+  </div>
+  <div class="week-row">
+    <div class="week-label">Week 2</div>
+    <div class="week-content"><strong>Build Technical Depth</strong>Study Kafka — consumer groups, offset management, exactly-once semantics · Learn Delta Lake / Iceberg — why they exist, what problems they solve · Practice system design end-to-end on paper</div>
+  </div>
+  <div class="week-row">
+    <div class="week-label">Week 3</div>
+    <div class="week-content"><strong>Simulate Real Interviews</strong>Do timed technical questions — 15 mins per answer maximum · Record yourself answering behavioural questions and listen back · Do at least 2 full mock interview sessions with feedback</div>
+  </div>
+  <div class="week-row">
+    <div class="week-label">Week 4</div>
+    <div class="week-content"><strong>Close the Gaps</strong>Identify your weakest area from mock feedback · Prepare 5 strong STAR-format stories from your actual work history · Match your resume keywords to 3–5 specific job descriptions</div>
+  </div>
+</div>
+
+<!-- ROLEKRAFT -->
+<h2 id="rolekraft">How RoleKraft Helps Data Engineers Prepare</h2>
+<p>Preparing for a data engineer interview takes 4–6 weeks of structured effort. Most candidates either prepare too broadly, run out of time, or don't get honest feedback on their answers. RoleKraft is built to fix exactly that.</p>
+
+<div class="product-grid">
+  <div class="product-card">
+    <div class="icon">📄</div>
+    <h4>Resume Gap Analysis</h4>
+    <p>Upload your resume and see your ATS score, missing keywords for your target role, and 5 specific fixes — in 60 seconds.</p>
+  </div>
+  <div class="product-card">
+    <div class="icon">🎤</div>
+    <h4>AI Mock Interview</h4>
+    <p>The AI reads your resume and asks questions relevant to your actual projects. Answer by voice, get scored on accuracy, clarity, and structure.</p>
+  </div>
+  <div class="product-card">
+    <div class="icon">🗺️</div>
+    <h4>4-Week Prep Plan</h4>
+    <p>Your preparation roadmap built around your specific tech stack (Spark, Kafka, dbt, etc.) and target role — not a generic checklist.</p>
+  </div>
+  <div class="product-card">
+    <div class="icon">📊</div>
+    <h4>Readiness Score</h4>
+    <p>See your interview readiness score improve week by week across technical depth, behavioural answers, and resume strength.</p>
+  </div>
+</div>
+
+<!-- CTA BLOCK -->
+<div class="cta-block">
+  <h2>Don't go into your next data engineer interview guessing.</h2>
+  <p>Upload your resume in 2 minutes. Get your ATS score, personalized prep plan, and AI mock interview — all free.</p>
+  <div class="cta-row">
+    <a href="/register" class="btn-primary">Check My Resume Score →</a>
+    <a href="/register" class="btn-secondary">Start AI Mock Interview</a>
+  </div>
+  <p style="margin-top:16px;font-size:0.78rem;color:var(--muted)">No credit card · Personalised to your resume · Results in 60 seconds</p>
+</div>
+
+<!-- FAQ -->
+<h2 id="faq">Frequently Asked Questions</h2>
+
+<div class="faq-item">
+  <div class="faq-q">What topics should a data engineer interview cover?</div>
+  <div class="faq-a">A strong data engineer interview covers five areas: SQL and query optimisation, batch processing (Spark, Hadoop), stream processing (Kafka, Flink), cloud and storage platforms (AWS, GCP, Azure, Delta Lake, S3), and system design. Most interviews also include a behavioural round. The weight of each area varies by seniority.</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">How many rounds are in a typical data engineer interview?</div>
+  <div class="faq-a">Most companies use 3–5 rounds: a recruiter screen, a technical phone screen (SQL or coding), one or two technical deep-dives (system design, Spark/Kafka, project review), and a final behavioural round. Some companies add a take-home assignment or live coding exercise.</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">What SQL skills do data engineers need for interviews?</div>
+  <div class="faq-a">Beyond basic SELECT and JOIN: window functions (RANK, ROW_NUMBER, LAG, LEAD), CTEs and recursive queries, query optimisation and execution plan reading, handling NULLs correctly, and complex GROUP BY aggregations. Practise on StrataScratch or LeetCode SQL problems.</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">Is system design tested in data engineer interviews?</div>
+  <div class="faq-a">Yes, especially at mid and senior levels. Common questions: design a real-time data pipeline, design a data warehouse for e-commerce, design a feature store for ML. You're expected to discuss storage choices, processing frameworks, latency vs throughput trade-offs, and failure handling.</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">How long should I prepare for a data engineer interview?</div>
+  <div class="faq-a">For mid-level roles (2–5 years), plan for 3–4 weeks of structured preparation. For senior roles, 5–6 weeks is realistic. The biggest mistake is studying broadly without practising answers — allocate at least 30% of your prep time to mock interviews.</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">What is the difference between data engineer and data analyst interview questions?</div>
+  <div class="faq-a">Data engineer interviews focus on pipeline architecture, distributed systems, and infrastructure. Data analyst interviews focus on SQL, business logic, visualisation, and statistical reasoning. There is SQL overlap, but the depth and direction are different.</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">How do I answer questions about technologies I haven't used?</div>
+  <div class="faq-a">Be honest about your direct experience while demonstrating you understand the concepts. Say: "I haven't used X in production, but I understand how it compares — here's how I'd approach the learning curve." Intellectual honesty combined with a learning mindset is valued over pretending to have experience you don't.</div>
+</div>
+
+</article>
+</div>
+
+<footer>
+  <div class="footer-logo">ROLEKRAFT</div>
+  <p style="margin-bottom:12px">AI-powered interview preparation for tech professionals.</p>
+  <div>
+    <a href="/">Home</a>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/refund">Refund Policy</a>
+    <a href="mailto:support@rolekraft.com">Contact</a>
+  </div>
+  <p style="margin-top:16px;opacity:0.4;font-size:0.72rem">© 2026 RoleKraft. Free plan available.</p>
+</footer>
+
+</body>
+</html>

@@ -3133,6 +3133,11 @@ app.get('/sitemap.xml', (req, res) => {
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
+  <url>
+    <loc>https://www.rolekraft.com/data-engineer-interview-questions</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>`);
 });
 
@@ -4026,6 +4031,8 @@ function noCache(req, res, next) {
   res.set('Pragma', 'no-cache');
   next();
 }
+app.get('/data-engineer-interview-questions', (req, res) => res.sendFile(path.join(__dirname, 'public', 'data-engineer-interview-questions.html')));
+
 app.get('/app',        noCache, (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
 app.get('/welcome',    noCache, (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
 app.get('/processing', noCache, (req, res) => res.sendFile(path.join(__dirname, 'public', 'processing.html')));

@@ -3792,7 +3792,9 @@ function buildEmail(templateId, user, regDays) {
     }
   };
 
-  return templates[templateId] || null;
+  // S1_YYYY-MM-DD is a date-stamped Sunday key — resolve to base S1 template
+  const baseId = templateId.startsWith('S1') ? 'S1' : templateId;
+  return templates[baseId] || null;
 }
 
 // ── Main drip campaign runner ──
@@ -3826,7 +3828,7 @@ async function runDripCampaign(dryRun = false) {
   async function trySend(user, campaignId) {
     const email = (user.Email || '').toLowerCase();
     if (!email) return false;
-    if (sentThisRun.has(email)) return false; // max 1 per day
+    if (sentThisRun.has(email) && !campaignId.startsWith('S1')) return false; // max 1 lifecycle per day; S1 Sunday is exempt
     if (sentLog.has(`${email}|${campaignId}`)) return false; // already sent this campaign
 
     const tpl = buildEmail(campaignId, user, daysSince(user['Week Started'] || user['K'] || ''));

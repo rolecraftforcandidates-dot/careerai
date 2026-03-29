@@ -918,9 +918,9 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
         }
       } catch(e) { console.warn('Could not clear old questions:', e.message); }
 
-      // Delete old Resources rows for this email — so new role's first 3 tasks get fresh resources
+      // Delete old Resources rows for this email — column B contains email (column A is cacheKey)
       try {
-        const rResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Resources!A:A' });
+        const rResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Resources!B:B' });
         const rRows = rResp.data.values || [];
         const rIdxs = rRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
         if (rIdxs.length > 0) {

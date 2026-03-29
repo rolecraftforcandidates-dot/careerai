@@ -2039,7 +2039,7 @@ app.post('/api/onboard', async (req, res) => {
   console.log('✅ Responded 200 to Tally');
 
   // Run onboarding async (so Tally doesn't time out)
-  const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID);
+  const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID, preloadFreeResources);
   if (result.success) {
     console.log(`✅ Onboarding complete: ${result.email}`);
     if (result.welcomeData) {
@@ -2101,22 +2101,8 @@ app.post('/api/onboard', async (req, res) => {
     console.error(`❌ Onboarding failed: ${result.error}`);
   }
 
-  // Pre-generate Days 1–3 resources for the new free user in background
-  if (result.success && result.email) {
-    setImmediate(async () => {
-      try {
-        // Wait a moment to let the plan finish writing to the sheet
-        await new Promise(r => setTimeout(r, 8000));
-        const userRows = await readSheet('Users');
-        const uRow = userRows.find(r => (r.Email||'').toLowerCase() === result.email.toLowerCase());
-        const uRole = uRow?.Role || '';
-        const uExp  = uRow?.Experience || 'Mid';
-        if (uRole) await preloadFreeResources(result.email, uRole, uExp);
-      } catch(e) {
-        console.error('Free preload after onboard failed (non-fatal):', e.message);
-      }
-    });
-  }
+  // Resource preload is handled by onPlanReady callback passed to runOnboarding above
+  // which fires immediately after writeFullPlan completes — no timer needed
 });
 
 // GET /api/session-test — verify session is working

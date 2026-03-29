@@ -831,7 +831,7 @@ async function fetchResumeText(resumeUrl) {
 // MAIN ONBOARDING FUNCTION
 // Called by the Express route in server.js
 // ══════════════════════════════════════════════════════
-async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
+async function runOnboarding(rawBody, getSheetsClientFn, sheetId, onPlanReady) {
   const result = { success: false, email: null, error: null };
 
   try {
@@ -1035,7 +1035,8 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       tallyName: name, tallyTech: techStack, tallyExp: experience,
       displayName, getSheetsClientFn, sheetId,
       createdAt: Date.now(),
-      autoTriggered: true,  // flag: already running, trigger-plan should skip
+      autoTriggered: true,
+      onPlanReady: onPlanReady || null,  // callback: called right after writeFullPlan
     });
 
     // Fire Phase 2 immediately — don't await (returns to welcome page instantly)
@@ -1257,6 +1258,17 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
     const generated = await generateWithClaude(resolvedName, email, role, resolvedExperience, resolvedTechStack, resumeText);
     await writeFullPlan(getSheetsClientFn(), sheetId, email, generated);
     await updatePlanActive(getSheetsClientFn(), sheetId, email);
+
+    // Step 4: Trigger resource preload now that plan tasks are written
+    // Use callback passed from server.js so preloadFreeResources runs at the right time
+    if (pending.onPlanReady) {
+      try {
+        await pending.onPlanReady(email, role, resolvedExperience);
+        console.log('✅ Resource preload triggered from Phase 2 for', email);
+      } catch(e) {
+        console.error('Resource preload callback failed (non-fatal):', e.message);
+      }
+    }
 
     console.log('✅ Phase 2 complete in', Math.round((Date.now() - t2) / 1000), 's for', email);
   };

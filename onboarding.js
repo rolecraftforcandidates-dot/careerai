@@ -918,6 +918,20 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
         }
       } catch(e) { console.warn('Could not clear old questions:', e.message); }
 
+      // Delete old Resources rows for this email — so new role's first 3 tasks get fresh resources
+      try {
+        const rResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Resources!A:A' });
+        const rRows = rResp.data.values || [];
+        const rIdxs = rRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
+        if (rIdxs.length > 0) {
+          await sheets.spreadsheets.values.batchClear({
+            spreadsheetId: sheetId,
+            requestBody: { ranges: rIdxs.map(i => `Resources!A${i+1}:Z${i+1}`) }
+          });
+          console.log(`🗑️  Cleared ${rIdxs.length} old resource rows for ${email}`);
+        }
+      } catch(e) { console.warn('Could not clear old resources:', e.message); }
+
       // Update User row: new role, reset week to 1, plan active false, clear tech stack
       try {
         const userRowIdx = uRows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());

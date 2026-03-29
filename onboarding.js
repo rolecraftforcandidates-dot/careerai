@@ -848,7 +848,7 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
 
     result.email = email;
 
-    // 2. Check if user already exists — if so, return their existing data
+    // 2. Check if user already exists
     const sheets   = getSheetsClientFn();
     const allUsers = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -858,27 +858,87 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     const existingRow = uRows.find(r => (r[0]||'').toLowerCase() === email.toLowerCase());
 
     if (existingRow) {
-      console.log(`ℹ️  User ${email} already exists — returning existing data for welcome page`);
       const userObj = hdrs ? Object.fromEntries(hdrs.map((h,i) => [h.trim(), (existingRow[i]||'').trim()])) : {};
-      result.success     = true;
-      result.phase1Ready = true;
-      result.welcomeData = {
-        name:            userObj.Name || name || emailPrefix,
-        email,
-        role:            userObj.Role || role,
-        techStack:       userObj['Tech Stack'] || techStack || '',
-        experience:      userObj.Experience || experience || 'Mid',
-        experienceYears: parseInt(userObj['Experience Years']) || 0,
-        atsScore:        parseInt(userObj['ATS Score']) || 65,
-        atsTips:         userObj['ATS Tips'] || '',
-        keyStrengths:    [],
-        missingKeywords: [],
-        taskCount:       28,
-        qCount:          28,
-        planReady:       userObj['Plan Active'] === 'TRUE',
-        returning:       true,
-      };
-      return result;
+      const existingRole = (userObj.Role || '').trim().toLowerCase();
+      const newRole      = (role || '').trim().toLowerCase();
+
+      // Same role — return existing data, no regeneration needed
+      if (existingRole === newRole) {
+        console.log(`ℹ️  User ${email} already exists with same role (${role}) — returning existing data`);
+        result.success     = true;
+        result.phase1Ready = true;
+        result.welcomeData = {
+          name:            userObj.Name || name || emailPrefix,
+          email,
+          role:            userObj.Role || role,
+          techStack:       userObj['Tech Stack'] || techStack || '',
+          experience:      userObj.Experience || experience || 'Mid',
+          experienceYears: parseInt(userObj['Experience Years']) || 0,
+          atsScore:        parseInt(userObj['ATS Score']) || 65,
+          atsTips:         userObj['ATS Tips'] || '',
+          keyStrengths:    [],
+          missingKeywords: [],
+          taskCount:       28,
+          qCount:          28,
+          planReady:       userObj['Plan Active'] === 'TRUE',
+          returning:       true,
+        };
+        return result;
+      }
+
+      // Different role — re-onboard: clear old Plans + Questions, update User row, regenerate
+      console.log(`🔄 User ${email} changed role: "${userObj.Role}" → "${role}" — re-onboarding`);
+
+      // Delete old Plans rows for this email
+      try {
+        const plansResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Plans!A:A' });
+        const planRows  = plansResp.data.values || [];
+        const planIdxs  = planRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
+        if (planIdxs.length > 0) {
+          // Clear cell values (can't delete rows via values API — blank them so they're ignored)
+          await sheets.spreadsheets.values.batchClear({
+            spreadsheetId: sheetId,
+            requestBody: { ranges: planIdxs.map(i => `Plans!A${i+1}:Z${i+1}`) }
+          });
+          console.log(`🗑️  Cleared ${planIdxs.length} old plan rows for ${email}`);
+        }
+      } catch(e) { console.warn('Could not clear old plans:', e.message); }
+
+      // Delete old Questions rows for this email
+      try {
+        const qResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Questions!A:A' });
+        const qRows = qResp.data.values || [];
+        const qIdxs = qRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
+        if (qIdxs.length > 0) {
+          await sheets.spreadsheets.values.batchClear({
+            spreadsheetId: sheetId,
+            requestBody: { ranges: qIdxs.map(i => `Questions!A${i+1}:Z${i+1}`) }
+          });
+          console.log(`🗑️  Cleared ${qIdxs.length} old question rows for ${email}`);
+        }
+      } catch(e) { console.warn('Could not clear old questions:', e.message); }
+
+      // Update User row: new role, reset week to 1, plan active false, clear tech stack
+      try {
+        const userRowIdx = uRows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+        const userSheetRow = userRowIdx + 2; // +1 for header, +1 for 1-indexed
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: {
+            valueInputOption: 'RAW',
+            data: [
+              { range: `Users!D${userSheetRow}`, values: [[role]] },        // Role
+              { range: `Users!E${userSheetRow}`, values: [['']] },           // Experience (re-extracted)
+              { range: `Users!F${userSheetRow}`, values: [['1']] },          // Week → reset to 1
+              { range: `Users!G${userSheetRow}`, values: [['FALSE']] },      // Plan Active → FALSE
+              { range: `Users!O${userSheetRow}`, values: [['']] },           // Tech Stack (re-extracted)
+            ]
+          }
+        });
+        console.log(`✅ User row updated for role change — ${email}`);
+      } catch(e) { console.warn('Could not update user row for role change:', e.message); }
+
+      // Fall through to Phase 1 regeneration below (don't return early)
     }
 
     // ── PHASE 1: Fetch resume + extract name + fast ATS preview ──
@@ -908,8 +968,33 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       };
     }
 
-    // Write basic user row with real name — tech/exp updated after Phase 2
-    await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview, resumeText);
+    // Write/update basic user row — update if role-change re-onboard, append if new user
+    const isReOnboard = !!(uRows && uRows.find(r => (r[0]||'').toLowerCase() === email.toLowerCase()));
+    if (isReOnboard) {
+      // Update ATS score/tips and resume text on existing row
+      try {
+        const allRowsResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Users!A:A' });
+        const allRows = allRowsResp.data.values || [];
+        const existingIdx = allRows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+        if (existingIdx > 0) {
+          const sr = existingIdx + 1;
+          await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: {
+              valueInputOption: 'RAW',
+              data: [
+                { range: `Users!H${sr}`, values: [[String(fastPreview.atsScore || 65)]] },
+                { range: `Users!I${sr}`, values: [[fastPreview.atsTips || '']] },
+                { range: `Users!L${sr}`, values: [[(resumeText || '').slice(0, 45000)]] },
+              ]
+            }
+          });
+          console.log(`✅ Updated ATS + resume text for re-onboard: ${email}`);
+        }
+      } catch(e) { console.warn('Could not update ATS for re-onboard:', e.message); }
+    } else {
+      await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview, resumeText);
+    }
     console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms — welcome page ready');
 
     // Surface Phase 1 result to welcome page

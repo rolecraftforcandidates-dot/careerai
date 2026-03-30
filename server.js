@@ -2030,6 +2030,12 @@ app.post('/api/onboard', async (req, res) => {
     earlyEmail = (emailField?.value || emailFromMeta || '').trim().toLowerCase() || null;
     if (earlyEmail) {
       processingEmails.add(earlyEmail.toLowerCase());
+      // Clear any existing token for this email so /api/ready waits for fresh data
+      const existingToken = emailTokenMap.get(earlyEmail.toLowerCase());
+      if (existingToken) {
+        welcomeTokens.delete(existingToken);
+        emailTokenMap.delete(earlyEmail.toLowerCase());
+      }
       console.log(`⏳ Processing started for: ${earlyEmail}`);
     }
   } catch(e) { /* non-fatal */ }
@@ -2039,14 +2045,20 @@ app.post('/api/onboard', async (req, res) => {
   console.log('✅ Responded 200 to Tally');
 
   // Run onboarding async (so Tally doesn't time out)
-  const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID);
+  const result = await runOnboarding(req.body, getSheetsClient, SHEET_ID, preloadFreeResources);
   if (result.success) {
     console.log(`✅ Onboarding complete: ${result.email}`);
     if (result.welcomeData) {
       const crypto  = require('crypto');
       const token   = crypto.randomBytes(20).toString('hex');
+
+      // Clear old token for this email so /api/ready doesn't return stale data
+      const oldToken = emailTokenMap.get(result.email.toLowerCase());
+      if (oldToken) welcomeTokens.delete(oldToken);
+
       welcomeTokens.set(token, { ...result.welcomeData, createdAt: Date.now() });
       emailTokenMap.set(result.email.toLowerCase(), token);
+      processingEmails.delete(result.email.toLowerCase()); // mark done
       const appUrl     = process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app';
       const welcomeUrl = appUrl + '/welcome?token=' + token;
       console.log(`🎉 Welcome page for ${result.email}: ${welcomeUrl}`);
@@ -2101,22 +2113,8 @@ app.post('/api/onboard', async (req, res) => {
     console.error(`❌ Onboarding failed: ${result.error}`);
   }
 
-  // Pre-generate Days 1–3 resources for the new free user in background
-  if (result.success && result.email) {
-    setImmediate(async () => {
-      try {
-        // Wait a moment to let the plan finish writing to the sheet
-        await new Promise(r => setTimeout(r, 8000));
-        const userRows = await readSheet('Users');
-        const uRow = userRows.find(r => (r.Email||'').toLowerCase() === result.email.toLowerCase());
-        const uRole = uRow?.Role || '';
-        const uExp  = uRow?.Experience || 'Mid';
-        if (uRole) await preloadFreeResources(result.email, uRole, uExp);
-      } catch(e) {
-        console.error('Free preload after onboard failed (non-fatal):', e.message);
-      }
-    });
-  }
+  // Resource preload is handled by onPlanReady callback passed to runOnboarding above
+  // which fires immediately after writeFullPlan completes — no timer needed
 });
 
 // GET /api/session-test — verify session is working
@@ -3792,15 +3790,19 @@ function buildEmail(templateId, user, regDays) {
     }
   };
 
-  return templates[templateId] || null;
+  // S1_YYYY-MM-DD is a date-stamped Sunday key — resolve to base S1 template
+  const baseId = templateId.startsWith('S1') ? 'S1' : templateId;
+  return templates[baseId] || null;
 }
 
 // ── Main drip campaign runner ──
-async function runDripCampaign(dryRun = false) {
+async function runDripCampaign(dryRun = false, opts = {}) {
   const { sendBrevoEmail } = require('./onboarding');
   const sheets = getSheetsClient();
   const today = new Date();
-  const isSunday = today.getDay() === 0;
+  const isSunday = opts.forceSunday || today.getDay() === 0;
+  const skipSunday  = opts.skipSunday  || false; // 9am run — skip S1
+  const sundayOnly  = opts.sundayOnly  || false; // 11am run — only S1
   const results = { sent: 0, skipped: 0, errors: 0, log: [] };
 
   await ensureEmailsSentSheet(sheets);
@@ -3826,7 +3828,7 @@ async function runDripCampaign(dryRun = false) {
   async function trySend(user, campaignId) {
     const email = (user.Email || '').toLowerCase();
     if (!email) return false;
-    if (sentThisRun.has(email)) return false; // max 1 per day
+    if (sentThisRun.has(email) && !campaignId.startsWith('S1')) return false; // max 1 lifecycle per day; S1 Sunday is exempt
     if (sentLog.has(`${email}|${campaignId}`)) return false; // already sent this campaign
 
     const tpl = buildEmail(campaignId, user, daysSince(user['Week Started'] || user['K'] || ''));
@@ -3889,50 +3891,49 @@ async function runDripCampaign(dryRun = false) {
     // ── PRIORITY ORDER — only one lifecycle email per user per day ──
     // Higher priority segments are checked first. Once one sends, lower ones are skipped
     // because trySend() enforces max-1-per-day via sentThisRun Set.
+    // sundayOnly=true skips all lifecycle emails (11am run)
+    // skipSunday=true skips S1 (9am run)
 
-    // Priority 1: Pro not activated (most urgent — they paid, need to start)
-    if (isPro && !hasStarted) {
-      if      (regDays >= 2 && regDays < 5)  await trySend(user, 'P1');
-      else if (regDays >= 5 && regDays < 9)  await trySend(user, 'P2');
-      else if (regDays >= 9 && regDays < 14) await trySend(user, 'P3');
-    }
-
-    // Priority 2: Free, never started → convert to Pro
-    if (!isPro && !hasStarted) {
-      if      (regDays >= 3  && regDays < 7)  await trySend(user, 'F1');
-      else if (regDays >= 7  && regDays < 12) await trySend(user, 'F2');
-      else if (regDays >= 12 && regDays < 17) await trySend(user, 'F3');
-      else if (regDays >= 17 && regDays < 23) await trySend(user, 'F4');
-    }
-
-    // Priority 3: Started but gone inactive (applies to both free and pro)
-    // Only triggers if they DID start — otherwise covered by P or F above
-    if (hasStarted && lastActivityDays >= 5) {
-      if      (lastActivityDays >= 5  && lastActivityDays < 12) await trySend(user, 'R1');
-      else if (lastActivityDays >= 12 && lastActivityDays < 25) await trySend(user, 'R2');
-    }
-
-    // Priority 4: Retention — week milestones (Pro users who are progressing)
-    if (isPro && hasStarted) {
-      // Week 2 just started but not touched it
-      if (currentWeek >= 2 && w2Total > 0 && w2Done === 0 && regDays >= 8) {
-        await trySend(user, 'W1');
+    if (!sundayOnly) {
+      // Priority 1: Pro not activated (most urgent — they paid, need to start)
+      if (isPro && !hasStarted) {
+        if      (regDays >= 2 && regDays < 5)  await trySend(user, 'P1');
+        else if (regDays >= 5 && regDays < 9)  await trySend(user, 'P2');
+        else if (regDays >= 9 && regDays < 14) await trySend(user, 'P3');
       }
-      // Week 2 significantly behind (less than 30% done after 14 days)
-      if (currentWeek >= 2 && w2Total > 0 && w2Done / w2Total < 0.3 && regDays >= 14) {
-        await trySend(user, 'W2');
+
+      // Priority 2: Free, never started → convert to Pro
+      if (!isPro && !hasStarted) {
+        if      (regDays >= 3  && regDays < 7)  await trySend(user, 'F1');
+        else if (regDays >= 7  && regDays < 12) await trySend(user, 'F2');
+        else if (regDays >= 12 && regDays < 17) await trySend(user, 'F3');
+        else if (regDays >= 17 && regDays < 23) await trySend(user, 'F4');
+      }
+
+      // Priority 3: Started but gone inactive (applies to both free and pro)
+      if (hasStarted && lastActivityDays >= 5) {
+        if      (lastActivityDays >= 5  && lastActivityDays < 12) await trySend(user, 'R1');
+        else if (lastActivityDays >= 12 && lastActivityDays < 25) await trySend(user, 'R2');
+      }
+
+      // Priority 4: Retention — week milestones (Pro users who are progressing)
+      if (isPro && hasStarted) {
+        if (currentWeek >= 2 && w2Total > 0 && w2Done === 0 && regDays >= 8) {
+          await trySend(user, 'W1');
+        }
+        if (currentWeek >= 2 && w2Total > 0 && w2Done / w2Total < 0.3 && regDays >= 14) {
+          await trySend(user, 'W2');
+        }
+      }
+
+      // Priority 5: Mock interview nudge
+      if (isPro && mocksTaken === 0 && questionsAnswered >= 3 && regDays >= 5) {
+        await trySend(user, 'M1');
       }
     }
 
-    // Priority 5: Mock interview nudge — Pro, active, never tried mock
-    // Only fires once (EmailsSent prevents repeat), day 5+ after at least 3 questions
-    if (isPro && mocksTaken === 0 && questionsAnswered >= 3 && regDays >= 5) {
-      await trySend(user, 'M1');
-    }
-
-    // Priority 6: Weekly Sunday insight — all users (any activity or 7+ days old)
-    // Uses date-stamped ID so a fresh one goes out each Sunday
-    if (isSunday && (hasStarted || regDays >= 7)) {
+    // Priority 6: Weekly Sunday insight — runs at 11am IST separately, never blocked by lifecycle
+    if (!skipSunday && isSunday && (hasStarted || regDays >= 7)) {
       const weekKey = `S1_${today.toISOString().slice(0, 10)}`;
       await trySend(user, weekKey);
     }
@@ -4049,26 +4050,48 @@ app.listen(PORT, () => {
   if (!process.env.SHEET_ID) console.warn('⚠️  SHEET_ID not set in .env');
   if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) console.warn('⚠️  GOOGLE_SERVICE_ACCOUNT_JSON not set in .env');
 
-  // ── Self-hosted drip campaign cron — runs daily at 9am IST (3:30am UTC) ──
-  // No Railway cron job needed — this runs inside the server process
+  // ── Self-hosted drip campaign cron ──
+  // Two scheduled runs daily:
+  //   9:00am IST (3:30am UTC)  — lifecycle emails only (F1-F4, R1-R2, W1-W2, M1, P1-P3)
+  //   11:00am IST (5:30am UTC) — Sunday S1 weekly insight only (avoids clashing with lifecycle)
+
   function scheduleDripCron() {
-    const now  = new Date();
-    const next = new Date();
-    next.setUTCHours(3, 30, 0, 0); // 3:30am UTC = 9:00am IST
-    if (next <= now) next.setUTCDate(next.getUTCDate() + 1); // already past today's slot → tomorrow
-    const msUntilFirst = next - now;
+    // ── Run 1: 9am IST — lifecycle emails ──
+    function scheduleLifecycle() {
+      const now  = new Date();
+      const next = new Date();
+      next.setUTCHours(3, 30, 0, 0);
+      if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+      const ms = next - now;
+      console.log(`⏰ Lifecycle cron scheduled — first run in ${Math.round(ms / 60000)} mins (${next.toISOString()})`);
+      setTimeout(function runLifecycle() {
+        console.log('🔄 Lifecycle cron firing — 9am IST');
+        runDripCampaign(false, { skipSunday: true })
+          .then(r => console.log(`📧 Lifecycle done: ${r.sent} sent, ${r.errors} errors`))
+          .catch(e => console.error('Lifecycle cron error:', e.message));
+        setTimeout(runLifecycle, 24 * 60 * 60 * 1000);
+      }, ms);
+    }
 
-    console.log(`⏰ Drip cron scheduled — first run in ${Math.round(msUntilFirst / 60000)} mins (${next.toISOString()})`);
+    // ── Run 2: 11am IST — Sunday S1 only ──
+    function scheduleSunday() {
+      const now  = new Date();
+      const next = new Date();
+      next.setUTCHours(5, 30, 0, 0); // 5:30am UTC = 11:00am IST
+      if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+      const ms = next - now;
+      console.log(`⏰ Sunday cron scheduled — first run in ${Math.round(ms / 60000)} mins (${next.toISOString()})`);
+      setTimeout(function runSunday() {
+        console.log('🔄 Sunday cron firing — 11am IST');
+        runDripCampaign(false, { sundayOnly: true })
+          .then(r => console.log(`📧 Sunday done: ${r.sent} sent, ${r.errors} errors`))
+          .catch(e => console.error('Sunday cron error:', e.message));
+        setTimeout(runSunday, 24 * 60 * 60 * 1000);
+      }, ms);
+    }
 
-    setTimeout(function runAndReschedule() {
-      console.log('🔄 Drip cron firing — daily email campaign');
-      runDripCampaign(false)
-        .then(r => console.log(`📧 Drip done: ${r.sent} sent, ${r.errors} errors`))
-        .catch(e => console.error('Drip cron error:', e.message));
-
-      // Schedule next run exactly 24 hours later
-      setTimeout(runAndReschedule, 24 * 60 * 60 * 1000);
-    }, msUntilFirst);
+    scheduleLifecycle();
+    scheduleSunday();
   }
 
   // Only run cron in production — not during local dev (avoids spamming test users)

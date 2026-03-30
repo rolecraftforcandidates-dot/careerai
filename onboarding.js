@@ -831,7 +831,7 @@ async function fetchResumeText(resumeUrl) {
 // MAIN ONBOARDING FUNCTION
 // Called by the Express route in server.js
 // ══════════════════════════════════════════════════════
-async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
+async function runOnboarding(rawBody, getSheetsClientFn, sheetId, onPlanReady) {
   const result = { success: false, email: null, error: null };
 
   try {
@@ -847,8 +847,10 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     if (!role)  throw new Error('No role found in Tally payload');
 
     result.email = email;
+    let prefetchedResumeText; // set if resume is fetched early during same-role comparison
 
-    // 2. Check if user already exists — if so, return their existing data
+    // 2. Check if user already exists
+    const crypto = require('crypto');
     const sheets   = getSheetsClientFn();
     const allUsers = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -858,33 +860,125 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
     const existingRow = uRows.find(r => (r[0]||'').toLowerCase() === email.toLowerCase());
 
     if (existingRow) {
-      console.log(`ℹ️  User ${email} already exists — returning existing data for welcome page`);
       const userObj = hdrs ? Object.fromEntries(hdrs.map((h,i) => [h.trim(), (existingRow[i]||'').trim()])) : {};
-      result.success     = true;
-      result.phase1Ready = true;
-      result.welcomeData = {
-        name:            userObj.Name || name || emailPrefix,
-        email,
-        role:            userObj.Role || role,
-        techStack:       userObj['Tech Stack'] || techStack || '',
-        experience:      userObj.Experience || experience || 'Mid',
-        experienceYears: parseInt(userObj['Experience Years']) || 0,
-        atsScore:        parseInt(userObj['ATS Score']) || 65,
-        atsTips:         userObj['ATS Tips'] || '',
-        keyStrengths:    [],
-        missingKeywords: [],
-        taskCount:       28,
-        qCount:          28,
-        planReady:       userObj['Plan Active'] === 'TRUE',
-        returning:       true,
-      };
-      return result;
+      const existingRole = (userObj.Role || '').trim().toLowerCase();
+      const newRole      = (role || '').trim().toLowerCase();
+      const roleChanged  = existingRole !== newRole;
+
+      // ── Step 1: Compare roles ──
+      if (!roleChanged) {
+        // Same role — now compare resume via hash
+        // Fetch new resume to compare
+        const newResumeText = await fetchResumeText(resumeUrl);
+        prefetchedResumeText = newResumeText; // cache for Phase 1 below — avoids double-fetch
+        const existingResumeText = userObj['Resume Text'] || userObj.L || '';
+
+        // Hash both — strip whitespace so minor formatting doesn't count as different
+        const hashOf = text => crypto.createHash('md5').update((text||'').replace(/\s+/g,' ').trim()).digest('hex');
+        const newHash      = hashOf(newResumeText);
+        const existingHash = hashOf(existingResumeText);
+
+        if (newHash === existingHash) {
+          // Same role + same resume → return existing data, no regeneration
+          console.log(`ℹ️  User ${email} — same role + same resume — returning existing data`);
+          result.success     = true;
+          result.phase1Ready = true;
+          result.welcomeData = {
+            name:            userObj.Name || name || emailPrefix,
+            email,
+            role:            userObj.Role || role,
+            techStack:       userObj['Tech Stack'] || techStack || '',
+            experience:      userObj.Experience || experience || 'Mid',
+            experienceYears: parseInt(userObj['Experience Years']) || 0,
+            atsScore:        parseInt(userObj['ATS Score']) || 65,
+            atsTips:         userObj['ATS Tips'] || '',
+            keyStrengths:    [],
+            missingKeywords: [],
+            taskCount:       28,
+            qCount:          28,
+            planReady:       userObj['Plan Active'] === 'TRUE',
+            returning:       true,
+          };
+          return result;
+        }
+
+        // Same role + different resume → regenerate ATS + plan with new resume
+        // Keep same role, clear plans/questions/resources, update resume text
+        console.log(`🔄 User ${email} — same role (${role}), new resume detected — regenerating`);
+      } else {
+        // Different role → clear everything and regenerate
+        console.log(`🔄 User ${email} changed role: "${userObj.Role}" → "${role}" — re-onboarding`);
+      }
+
+      // ── Clear old Plans ──
+      try {
+        const plansResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Plans!A:A' });
+        const planRows  = plansResp.data.values || [];
+        const planIdxs  = planRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
+        if (planIdxs.length > 0) {
+          await sheets.spreadsheets.values.batchClear({
+            spreadsheetId: sheetId,
+            requestBody: { ranges: planIdxs.map(i => `Plans!A${i+1}:Z${i+1}`) }
+          });
+          console.log(`🗑️  Cleared ${planIdxs.length} old plan rows for ${email}`);
+        }
+      } catch(e) { console.warn('Could not clear old plans:', e.message); }
+
+      // ── Clear old Questions ──
+      try {
+        const qResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Questions!A:A' });
+        const qRows = qResp.data.values || [];
+        const qIdxs = qRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
+        if (qIdxs.length > 0) {
+          await sheets.spreadsheets.values.batchClear({
+            spreadsheetId: sheetId,
+            requestBody: { ranges: qIdxs.map(i => `Questions!A${i+1}:Z${i+1}`) }
+          });
+          console.log(`🗑️  Cleared ${qIdxs.length} old question rows for ${email}`);
+        }
+      } catch(e) { console.warn('Could not clear old questions:', e.message); }
+
+      // ── Clear old Resources ──
+      try {
+        const rResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Resources!B:B' });
+        const rRows = rResp.data.values || [];
+        const rIdxs = rRows.map((r,i) => (r[0]||'').toLowerCase() === email.toLowerCase() ? i : -1).filter(i => i > 0);
+        if (rIdxs.length > 0) {
+          await sheets.spreadsheets.values.batchClear({
+            spreadsheetId: sheetId,
+            requestBody: { ranges: rIdxs.map(i => `Resources!A${i+1}:Z${i+1}`) }
+          });
+          console.log(`🗑️  Cleared ${rIdxs.length} old resource rows for ${email}`);
+        }
+      } catch(e) { console.warn('Could not clear old resources:', e.message); }
+
+      // ── Update User row ──
+      try {
+        const userRowIdx   = uRows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+        const userSheetRow = userRowIdx + 2;
+        const updates = [
+          { range: `Users!F${userSheetRow}`, values: [['1']] },      // Week → reset to 1
+          { range: `Users!G${userSheetRow}`, values: [['FALSE']] },   // Plan Active → FALSE
+          { range: `Users!E${userSheetRow}`, values: [['']] },        // Experience (re-extracted)
+          { range: `Users!O${userSheetRow}`, values: [['']] },        // Tech Stack (re-extracted)
+        ];
+        if (roleChanged) {
+          updates.push({ range: `Users!D${userSheetRow}`, values: [[role]] }); // update Role only if changed
+        }
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'RAW', data: updates }
+        });
+        console.log(`✅ User row updated for re-onboard — ${email} | roleChanged: ${roleChanged}`);
+      } catch(e) { console.warn('Could not update user row for re-onboard:', e.message); }
+
+      // Fall through to Phase 1 regeneration below
     }
 
     // ── PHASE 1: Fetch resume + extract name + fast ATS preview ──
-    // Name extracted here so welcome page + dashboard show correct name
-    // Tech stack + experience extracted in Phase 2 (after user clicks dashboard)
-    const resumeText = await fetchResumeText(resumeUrl);
+    // Note: for same-role + different-resume path, resume was already fetched above
+    // prefetchedResumeText avoids a second download
+    const resumeText = typeof prefetchedResumeText !== 'undefined' ? prefetchedResumeText : await fetchResumeText(resumeUrl);
 
     // Extract name from resume (fast — only asks for name, not full extraction)
     const realName    = await extractNameFromResume(resumeText, email, name, emailPrefix);
@@ -908,8 +1002,33 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       };
     }
 
-    // Write basic user row with real name — tech/exp updated after Phase 2
-    await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview, resumeText);
+    // Write/update basic user row — update if role-change re-onboard, append if new user
+    const isReOnboard = !!(uRows && uRows.find(r => (r[0]||'').toLowerCase() === email.toLowerCase()));
+    if (isReOnboard) {
+      // Update ATS score/tips and resume text on existing row
+      try {
+        const allRowsResp = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Users!A:A' });
+        const allRows = allRowsResp.data.values || [];
+        const existingIdx = allRows.findIndex(r => (r[0]||'').toLowerCase() === email.toLowerCase());
+        if (existingIdx > 0) {
+          const sr = existingIdx + 1;
+          await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: {
+              valueInputOption: 'RAW',
+              data: [
+                { range: `Users!H${sr}`, values: [[String(fastPreview.atsScore || 65)]] },
+                { range: `Users!I${sr}`, values: [[fastPreview.atsTips || '']] },
+                { range: `Users!L${sr}`, values: [[(resumeText || '').slice(0, 45000)]] },
+              ]
+            }
+          });
+          console.log(`✅ Updated ATS + resume text for re-onboard: ${email}`);
+        }
+      } catch(e) { console.warn('Could not update ATS for re-onboard:', e.message); }
+    } else {
+      await writeBasicUser(sheets, sheetId, displayName, email, password, role, '', '', null, fastPreview, resumeText);
+    }
     console.log('✅ Phase 1 complete in', Date.now() - t1, 'ms — welcome page ready');
 
     // Surface Phase 1 result to welcome page
@@ -936,7 +1055,8 @@ async function runOnboarding(rawBody, getSheetsClientFn, sheetId) {
       tallyName: name, tallyTech: techStack, tallyExp: experience,
       displayName, getSheetsClientFn, sheetId,
       createdAt: Date.now(),
-      autoTriggered: true,  // flag: already running, trigger-plan should skip
+      autoTriggered: true,
+      onPlanReady: onPlanReady || null,  // callback: called right after writeFullPlan
     });
 
     // Fire Phase 2 immediately — don't await (returns to welcome page instantly)
@@ -1158,6 +1278,17 @@ async function triggerPhase2(email, getSheetsClientFn, sheetId) {
     const generated = await generateWithClaude(resolvedName, email, role, resolvedExperience, resolvedTechStack, resumeText);
     await writeFullPlan(getSheetsClientFn(), sheetId, email, generated);
     await updatePlanActive(getSheetsClientFn(), sheetId, email);
+
+    // Step 4: Trigger resource preload now that plan tasks are written
+    // Use callback passed from server.js so preloadFreeResources runs at the right time
+    if (pending.onPlanReady) {
+      try {
+        await pending.onPlanReady(email, role, resolvedExperience);
+        console.log('✅ Resource preload triggered from Phase 2 for', email);
+      } catch(e) {
+        console.error('Resource preload callback failed (non-fatal):', e.message);
+      }
+    }
 
     console.log('✅ Phase 2 complete in', Math.round((Date.now() - t2) / 1000), 's for', email);
   };

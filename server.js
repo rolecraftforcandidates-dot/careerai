@@ -2030,6 +2030,12 @@ app.post('/api/onboard', async (req, res) => {
     earlyEmail = (emailField?.value || emailFromMeta || '').trim().toLowerCase() || null;
     if (earlyEmail) {
       processingEmails.add(earlyEmail.toLowerCase());
+      // Clear any existing token for this email so /api/ready waits for fresh data
+      const existingToken = emailTokenMap.get(earlyEmail.toLowerCase());
+      if (existingToken) {
+        welcomeTokens.delete(existingToken);
+        emailTokenMap.delete(earlyEmail.toLowerCase());
+      }
       console.log(`⏳ Processing started for: ${earlyEmail}`);
     }
   } catch(e) { /* non-fatal */ }
@@ -2045,8 +2051,14 @@ app.post('/api/onboard', async (req, res) => {
     if (result.welcomeData) {
       const crypto  = require('crypto');
       const token   = crypto.randomBytes(20).toString('hex');
+
+      // Clear old token for this email so /api/ready doesn't return stale data
+      const oldToken = emailTokenMap.get(result.email.toLowerCase());
+      if (oldToken) welcomeTokens.delete(oldToken);
+
       welcomeTokens.set(token, { ...result.welcomeData, createdAt: Date.now() });
       emailTokenMap.set(result.email.toLowerCase(), token);
+      processingEmails.delete(result.email.toLowerCase()); // mark done
       const appUrl     = process.env.APP_URL || process.env.DASHBOARD_URL || 'https://your-app.railway.app';
       const welcomeUrl = appUrl + '/welcome?token=' + token;
       console.log(`🎉 Welcome page for ${result.email}: ${welcomeUrl}`);
